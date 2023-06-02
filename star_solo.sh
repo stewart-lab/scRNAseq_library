@@ -1,4 +1,9 @@
 # star solo
+# look at star solo paper for options description
+# test batch effect across lanes
+# check variable read 2 lengths
+
+
 conda activate star_env
 
 # generate genome index with star using filtered gtf file from cellranger
