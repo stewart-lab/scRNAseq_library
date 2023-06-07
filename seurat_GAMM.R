@@ -1,20 +1,22 @@
 library(dplyr)
-BiocManager::install("Seurat")
+#BiocManager::install("Seurat")
 library(Seurat)
-BiocManager::install("SeuratData")
-library(SeuratData)
+#BiocManager::install("SeuratData")
+#library(SeuratData)
 library(patchwork)
-install.packages("remotes")
-remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+#install.packages("remotes")
+#remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
 library(DoubletFinder)
 library(scran)
 library(BiocParallel)
+BiocManager::install("DropletUtils")
+library(DropletUtils)
 
 # Load dataset
 
 gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/Gene/filtered/")
 # h5 file
-gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
+#gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
 # Initialize the Seurat object with the raw (non-normalized data).
 gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
 gamm
@@ -81,7 +83,40 @@ gamm <- subset(gamm, subset = percent.mt < 5)
 #seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
 
 ## ambient RNA removal- SoupX
-
+library(SoupX)
+# get raw data
+gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/Gene/raw/")
+# make soup channel and profile the soup
+sc = SoupChannel(gamm.data.raw, gamm.data)
+# get basic clusters
+# make annother seurat object
+gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters", min.cells = 3, min.features = 200)
+# quick cluster
+gamm2    <- SCTransform(gamm2, verbose = F)
+gamm2    <- RunPCA(gamm2, verbose = F)
+gamm2    <- RunUMAP(gamm2, dims = 1:30, verbose = F)
+gamm2    <- FindNeighbors(gamm2, dims = 1:30, verbose = F)
+gamm2    <- FindClusters(gamm2, verbose = T)
+# extract clusters from seurat object and add to soup channel
+meta    <- gamm2@meta.data
+umap    <- gamm2@reductions$umap@cell.embeddings
+sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
+sc  <- setDR(sc, umap)
+head(meta)
+# Estimate contamination fraction
+sc  = autoEstCont(sc)
+#Genes with highest expression in background. These are often enriched for ribosomal proteins.
+head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20)
+# Infer corrected table of counts and rount to integer
+out = adjustCounts(sc, roundToInt = TRUE)
+head(out)
+# write
+DropletUtils:::write10xCounts("gamm_soupX_filt.mtx", out)
+# replace filtered count values with soupX values
+gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
+                              slot = "data", 
+                              new.data = out)
+UpdateSeuratObject(gamm)
 
 # Normalize the data
 
