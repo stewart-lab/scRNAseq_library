@@ -267,7 +267,7 @@ DimPlot(gamm, reduction = "umap")
 # save object
 saveRDS(gamm, file = "GAMM_test1.rds")
 # read back in the object
-pbmc <- readRDS(file = "GAMM_test1.rds")
+gamm <- readRDS(file = "GAMM_test1.rds")
 
 
 # Finding differentially expressed features (cluster biomarkers)
