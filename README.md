@@ -12,25 +12,21 @@ Follow the steps below to create your Conda environment:
 
 1. **Clone the repository**
 
-   Start by cloning the repository which contains the `scRNA-seq.yml` file. This can be done with the following command:
+   Start by cloning the repository which contains the `scRNA-seq.yml` file. 
 
-
-
-
-Replace `<repository_url>` with the URL of the repository.
 
 2. **Navigate to the repository folder**
 
-Change your current directory to the cloned repository:
+   Change your current directory to the cloned repository
 
-
-
-
-Replace `<repository_folder>` with the name of the directory that was created when you cloned the repository.
 
 3. **Create the Conda environment**
 
-Use the following command to create the Conda environment:
+   Use the following command to create the Conda environment:
+   
+```bash
+conda env create -f scRNA-seq.yml
+```
 
 
 This command creates a new Conda environment using the configuration specified in the `scRNA-seq.yml` file.
