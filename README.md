@@ -45,8 +45,7 @@ install.packages("BiocManager")
 BiocManager::install("scry")
 install.packages('SoupX')
 BiocManager::install("scran")
-install.packages('remotes')
-remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+BiocManager::install("scDblFinder")
 ```
    **IMPORTANT:** Decline to update any packages during the installation process. Instead, the non-Conda R requirements are installed, run the following command in R:
 
