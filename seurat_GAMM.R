@@ -14,7 +14,7 @@ library(DropletUtils)
 
 # Load dataset
 
-gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/Gene/filtered/")
+gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/GeneFull/filtered/")
 # h5 file
 #gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
 # Initialize the Seurat object with the raw (non-normalized data).
@@ -75,22 +75,26 @@ plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA"
 plot1 + plot2
 plot2
 # subset data -  filter cells that have unique feature counts over 2,500 or less than 200 and >5% mitochondrial counts
-gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 5500) #& percent.mt < 5)
+gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 7500) #& percent.mt < 5)
 # subset data - if doing doblet removal and soupx, I think can just filter based on percent.mt
 gamm <- subset(gamm, subset = percent.mt < 5)
-
+# replot
+plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot2
 ## Doublet removal ## this should happen before normalization i think
 #seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
 
-## ambient RNA removal- SoupX
+## ambient RNA removal- SoupX- this has to happen first before other filtering
 library(SoupX)
 # get raw data
-gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/Gene/raw/")
+gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/GeneFull/raw/")
+# get filtered data in single cell format:
+gamm.data.filt <- as.SingleCellExperiment(gamm)
 # make soup channel and profile the soup
-sc = SoupChannel(gamm.data.raw, gamm.data)
+sc = SoupChannel(gamm.data.raw, gamm.data.filt)
 # get basic clusters
 # make annother seurat object
-gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters", min.cells = 3, min.features = 200)
+gamm2 <- CreateSeuratObject(counts = gamm.data.filt, project = "gamm_s1_clusters", min.cells = 3, min.features = 200)
 # quick cluster
 gamm2    <- SCTransform(gamm2, verbose = F)
 gamm2    <- RunPCA(gamm2, verbose = F)
@@ -107,7 +111,7 @@ head(meta)
 sc  = autoEstCont(sc)
 #Genes with highest expression in background. These are often enriched for ribosomal proteins.
 head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20)
-# Infer corrected table of counts and rount to integer
+# Infer corrected table of counts and round to integer
 out = adjustCounts(sc, roundToInt = TRUE)
 head(out)
 # write
