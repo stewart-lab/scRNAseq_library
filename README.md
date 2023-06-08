@@ -48,10 +48,13 @@ BiocManager::install("scran")
 install.packages('remotes')
 remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
 ```
-   **IMPORTANT:** Decline to update any packages during the installation process. Instead, once the environment is created, run the following command:
+   **IMPORTANT:** Decline to update any packages during the installation process. Instead, the non-Conda R requirements are installed, run the following command in R:
 
-```bash
-conda update --all --name scRNA-seq
+```R
+all_packages <- installed.packages()[,"Package"]
+exclude_packages <- c("glmnet", "igraph", "RcppParallel", "stringi", "xml2")
+packages_to_update <- setdiff(all_packages, exclude_packages)
+update.packages(oldPkgs = packages_to_update, ask = FALSE)
 ```
 
 That's it! You now have a Conda environment set up with the configuration specified in the `scRNAseq_venv.yml` file. You can start using it for your single-cell RNA sequencing analysis.
