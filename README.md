@@ -1,6 +1,6 @@
 # scRNA-seq Conda Environment Setup Guide
 
-This README provides instructions on how to create a Conda environment using the `scRNA-seq.yml` file. 
+This README provides instructions on how to create a Conda environment using the `scRNAseq_venv.yml` file. 
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ Follow the steps below to create your Conda environment:
 
 1. **Clone the repository**
 
-   Start by cloning the repository which contains the `scRNA-seq.yml` file. 
+   Start by cloning the repository which contains the `scRNAseq_venv.yml` file. 
 
 
 2. **Navigate to the repository folder**
@@ -25,7 +25,7 @@ Follow the steps below to create your Conda environment:
    Use the following command to create the Conda environment:
    
 ```bash
-conda env create -f scRNA-seq.yml
+conda env create -f scRNAseq_venv.yml
 ```
 
 
@@ -33,10 +33,28 @@ This command creates a new Conda environment using the configuration specified i
 
 **IMPORTANT:** Before running the command, open the `scRNA-seq.yml` file in a text editor and change the `prefix:` line to match the location where your Conda is installed. This location is usually the `envs` directory inside your Anaconda or Miniconda installation directory. For example, if Anaconda is installed at `/home/user/anaconda3`, the prefix should be `/home/user/anaconda3/envs`.
 
-That's it! You now have a Conda environment set up with the configuration specified in the `scRNA-seq.yml` file. You can start using it for your single-cell RNA sequencing analysis.
+4. **Activate R within the Conda environment**
+```bash
+conda activate scRNA-seq
+R
+```
+5. **Install non-Conda R requirements**
 
+```R
+install.packages("BiocManager")
+BiocManager::install("scry")
+install.packages('SoupX')
+BiocManager::install("scran")
+install.packages('remotes')
+remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+```
+**IMPORTANT:** Decline to update any packages during the installation process. Instead, once the environment is created, run the following command:
 
+```bash
+conda update --all --name scRNA-seq
+```
 
+That's it! You now have a Conda environment set up with the configuration specified in the `scRNAseq_venv.yml` file. You can start using it for your single-cell RNA sequencing analysis.
 
 
 # scRNAseq_library
