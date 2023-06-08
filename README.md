@@ -31,7 +31,7 @@ conda env create -f scRNAseq_venv.yml
 
    This command creates a new Conda environment using the configuration specified in the `scRNA-seq.yml` file.
 
-   **IMPORTANT:** Before running the command, open the `scRNA-seq.yml` file in a text editor and change the `prefix:` line to match the location where your Conda is installed. This      location is usually the `envs` directory inside your Anaconda or Miniconda installation directory. For example, if Anaconda is installed at `/home/user/anaconda3`, the prefix          should be `/home/user/anaconda3/envs`.
+   **IMPORTANT:** Before running the command, open the `scRNA-seq.yml` file in a text editor and change the `prefix:` line (LOCATED AY BOTTOM) to match the location where your Conda is installed. This      location is usually the `envs` directory inside your Anaconda or Miniconda installation directory. For example, if Anaconda is installed at `/home/user/anaconda3`, the prefix          should be `/home/user/anaconda3/envs`.
 
 4. **Activate R within the Conda environment**
 ```bash
