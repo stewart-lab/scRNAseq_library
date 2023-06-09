@@ -9,20 +9,20 @@ library(patchwork)
 library(DoubletFinder)
 library(scran)
 library(BiocParallel)
-BiocManager::install("DropletUtils")
+#BiocManager::install("DropletUtils")
 library(DropletUtils)
 
 # Load filtered dataset from alignment
 
-gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/GeneFull/filtered/")
+gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/filtered/")
 # h5 file
 #gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
 # Initialize the Seurat object with the raw (non-normalized data).
-gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
-gamm
+#gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
+
 
 # Lets examine a few genes in the first thirty cells
-gamm.data[c("OAT", "CPXM2", "LHPP"), 1:30]
+gamm.data[c("ALDH1A1", "C9orf40", "NMRK1"), 1:30]
 # sparse matrix with reduced memory
 dense.size <- object.size(as.matrix(gamm.data))
 dense.size
@@ -43,13 +43,13 @@ dense.size/sparse.size
 # because raw and filtered counts/ cells have to be the same
 library(SoupX)
 # get raw data
-gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/GeneFull/raw/")
+gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/raw/")
 # GetAssayData(object = gamm[["RNA"]], slot = "data")
 # make soup channel and profile the soup with raw and filtered data
 sc = SoupChannel(gamm.data.raw, gamm.data)
 # get basic clusters
-# make annother seurat object
-gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters", min.cells = 3, min.features = 200)
+# make annother seurat object without filtering
+gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters")
 # quick cluster
 gamm2    <- SCTransform(gamm2, verbose = F)
 gamm2    <- RunPCA(gamm2, verbose = F)
@@ -60,7 +60,6 @@ gamm2    <- FindClusters(gamm2, verbose = T)
 meta    <- gamm2@meta.data
 umap    <- gamm2@reductions$umap@cell.embeddings
 sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
-sc  <- setDR(sc, umap)
 head(meta)
 # Estimate contamination fraction
 sc  = autoEstCont(sc)
@@ -70,22 +69,26 @@ head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20)
 out = adjustCounts(sc, roundToInt = TRUE)
 head(out)
 # plot soup correction for a gene
-plotChangeMap(sc, out, "RPLP1")
+plotChangeMap(sc, out, DR=umap, "RPLP1")
 # write
-DropletUtils:::write10xCounts("gamm_soupX_filt.mtx", out)
+DropletUtils:::write10xCounts("gamm_soupX_filt2.mtx", out)
 # replace filtered count values with soupX values
-gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
-                              slot = "data", 
-                              new.data = out)
-UpdateSeuratObject(gamm)
+# gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
+#                               slot = "data", 
+#                               new.data = out)
+# (gamm)
+# make a seurat object with adjusted data and filter
+gamm <- CreateSeuratObject(counts = out, project = "gamm_s1", min.cells = 3, min.features = 200)
 
 # We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
 # We use the set of all genes starting with MT- as a set of mitochondrial genes
 # The [[ operator can add columns to object metadata. This is a great place to stash QC stats
 gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, pattern = "^MT-")
+# no oercent.mt in pig because they don't start with MT
+gamm[["percent.mt"]]
 # give specific features (genes) for pig data- 13 protein coding mt genes in pig:
 mt.list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L",
-             "ND4", "ND5", "ND6", "CYTB","N8","NAD3","NAD4")
+             "ND4", "ND5", "ND6", "CYTB")
 # or ensemble ids
 mt.list2 <- c("ENSSSCG00000018065","ENSSSCG00000018069","ENSSSCG00000018075",
              "ENSSSCG00000018078","ENSSSCG00000018080","ENSSSCG00000018081",
@@ -100,8 +103,7 @@ for (mt in mt.list) {print(mt)
                       }
 percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
 gamm[["percent.mt"]] <- percent_mt
-
-#gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, features = mt.list)
+gamm[["percent.mt"]]
 
 # We filter cells that have unique feature counts over 2,500 or less than 200
 # We filter cells that have >5% mitochondrial counts
@@ -113,14 +115,14 @@ VlnPlot(gamm, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3
 plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plot1 + plot2
-plot2
-# subset data -  filter cells that have unique feature counts over 2,500 or less than 200 and >5% mitochondrial counts
-gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 7500) #& percent.mt < 5)
-# subset data - if doing doblet removal and soupx, I think can just filter based on percent.mt
-gamm <- subset(gamm, subset = percent.mt < 5)
+
+# subset data -  filter out cells that have unique feature counts over 2,500 or less than 200 and > 5% mitochondrial counts
+gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
+
 # replot
+plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot2
+plot1 + plot2
 
 ## Doublet removal ## this should happen before normalization i think
 #seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
@@ -193,7 +195,7 @@ plot1 + plot2
 
 # feature selection with scry
 # scry deviance for feature selection which works on raw counts [Germain et al., 2020]. Deviance can be computed in closed form and quantifies whether genes show a constant expression profile across cells as these are not informative. 
-BiocManager::install('scry')
+# BiocManager::install('scry')
 library(scry)
 m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
 devi <- scry::devianceFeatureSelection(m)
@@ -201,7 +203,7 @@ dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
 topdev <- head(dev_ranked_genes, 2000)
 # replace variable features with the deviance ranked genes
 VariableFeatures(gamm) <- topdev
-VariableFeatures(gamm)
+# VariableFeatures(gamm)
 UpdateSeuratObject(gamm)
 devtop10 <- head(VariableFeatures(gamm), 10)
 devtop10
@@ -260,8 +262,8 @@ ElbowPlot(gamm)
 # K-nearest neighbor (KNN) graph
 gamm <- FindNeighbors(gamm, dims = 1:15)
 # note need to pip install leiden and pandas for this to run
-reticulate::py_install(packages ='leidenalg') #pip install leidenalg
-reticulate::py_install(packages ='pandas')
+#reticulate::py_install(packages ='leidenalg') #pip install leidenalg
+#reticulate::py_install(packages ='pandas')
 gamm <- FindClusters(gamm, resolution = 0.5, algorithm = "leiden")
 # Look at cluster IDs of the first 5 cells
 head(Idents(gamm), 5)
@@ -277,7 +279,7 @@ head(Idents(gamm), 5)
 gamm <- RunUMAP(gamm, dims = 1:15)
 # note that you can set `label = TRUE` or use the LabelClusters function to help label
 # individual clusters
-DimPlot(gamm, reduction = "umap")
+DimPlot(gamm, reduction = "umap", label = T)
 # save object
 saveRDS(gamm, file = "GAMM_test1.rds")
 # read back in the object
