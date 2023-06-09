@@ -92,7 +92,7 @@ batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
 clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
 ```
 
-# Differential expression
+# Find markers with Differential expressed features (genes)
 ```{r}
 de_results <- find_differentially_expressed_features(clustered_seurat_obj)
 ```
