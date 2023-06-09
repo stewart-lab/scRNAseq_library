@@ -38,23 +38,6 @@ conda env create -f scRNAseq_venv.yml
 conda activate scRNA-seq
 R
 ```
-5. **Install non-Conda R requirements**
-
-```R
-install.packages("BiocManager")
-BiocManager::install("scry")
-install.packages('SoupX')
-BiocManager::install("scran")
-BiocManager::install("scDblFinder")
-```
-   **IMPORTANT:** Decline to update any packages during the installation process. Instead, the non-Conda R requirements are installed, run the following command in R:
-
-```R
-all_packages <- installed.packages()[,"Package"]
-exclude_packages <- c("glmnet", "igraph", "RcppParallel", "stringi", "xml2")
-packages_to_update <- setdiff(all_packages, exclude_packages)
-update.packages(oldPkgs = packages_to_update, ask = FALSE)
-```
 
 That's it! You now have a Conda environment set up with the configuration specified in the `scRNAseq_venv.yml` file. You can start using it for your single-cell RNA sequencing analysis.
 
