@@ -11,6 +11,8 @@ library(scran)
 library(BiocParallel)
 #BiocManager::install("DropletUtils")
 library(DropletUtils)
+library(cowplot)
+library(harmony)
 
 # Load filtered dataset from alignment
 
@@ -20,15 +22,18 @@ gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/outp
 # Initialize the Seurat object with the raw (non-normalized data).
 #gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
 
+# load dataset with different batches
+gamm.data1 <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-1_mm_mt/GeneFull/filtered/")
+gamm.data2 <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-2_mm_mt/GeneFull/filtered/")
 
 # Lets examine a few genes in the first thirty cells
-gamm.data[c("ALDH1A1", "C9orf40", "NMRK1"), 1:30]
+#gamm.data[c("ALDH1A1", "C9orf40", "NMRK1"), 1:30]
 # sparse matrix with reduced memory
-dense.size <- object.size(as.matrix(gamm.data))
-dense.size
-sparse.size <- object.size(gamm.data)
-sparse.size
-dense.size/sparse.size
+#dense.size <- object.size(as.matrix(gamm.data))
+#dense.size
+#sparse.size <- object.size(gamm.data)
+#sparse.size
+#dense.size/sparse.size
 
 # QC and filtering
 
@@ -39,62 +44,83 @@ dense.size/sparse.size
 # The percentage of reads that map to the mitochondrial genome
 # Low-quality / dying cells often exhibit extensive mitochondrial contamination
 
-## ambient RNA removal- SoupX- this has to happen first before other filtering
+## ambient RNA count correction- SoupX- this has to happen first before other filtering
 # because raw and filtered counts/ cells have to be the same
 library(SoupX)
-# get raw data
-gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/raw/")
+# get raw data for lanes 1 and 2
+gamm.data1.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-1_mm_mt/GeneFull/raw/")
+gamm.data2.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-2_mm_mt/GeneFull/raw/")
 # GetAssayData(object = gamm[["RNA"]], slot = "data")
 # make soup channel and profile the soup with raw and filtered data
-sc = SoupChannel(gamm.data.raw, gamm.data)
+sc1 = SoupChannel(gamm.data1.raw, gamm.data1)
+sc2 = SoupChannel(gamm.data2.raw, gamm.data2)
 # get basic clusters
-# make annother seurat object without filtering
-gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters")
-# quick cluster
+# make seurat object without filtering
+gamm1 <- CreateSeuratObject(counts = gamm.data1, project = "gamm_s1-1_clusters")
+gamm2 <- CreateSeuratObject(counts = gamm.data2, project = "gamm_s1-2_clusters")
+# quick cluster1
+gamm1    <- SCTransform(gamm1, verbose = F)
+gamm1    <- RunPCA(gamm1, verbose = F)
+gamm1    <- RunUMAP(gamm1, dims = 1:30, verbose = F)
+gamm1    <- FindNeighbors(gamm1, dims = 1:30, verbose = F)
+gamm1    <- FindClusters(gamm1, verbose = T)
+# quick cluster2
 gamm2    <- SCTransform(gamm2, verbose = F)
 gamm2    <- RunPCA(gamm2, verbose = F)
 gamm2    <- RunUMAP(gamm2, dims = 1:30, verbose = F)
 gamm2    <- FindNeighbors(gamm2, dims = 1:30, verbose = F)
 gamm2    <- FindClusters(gamm2, verbose = T)
 # extract clusters from seurat object and add to soup channel
-meta    <- gamm2@meta.data
-umap    <- gamm2@reductions$umap@cell.embeddings
-sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
-head(meta)
+meta1    <- gamm1@meta.data
+meta2    <- gamm2@meta.data
+umap1    <- gamm1@reductions$umap@cell.embeddings
+umap2    <- gamm2@reductions$umap@cell.embeddings
+sc1  <- setClusters(sc1, setNames(meta1$seurat_clusters, rownames(meta1)))
+head(meta1)
+sc2  <- setClusters(sc2, setNames(meta2$seurat_clusters, rownames(meta2)))
 # Estimate contamination fraction
-sc  = autoEstCont(sc)
+sc1  = autoEstCont(sc1)
+sc2 = autoEstCont(sc2)
 #Genes with highest expression in background. These are often enriched for ribosomal proteins.
-head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20)
+head(sc1$soupProfile[order(sc1$soupProfile$est, decreasing = T), ], n = 20)
 # Infer corrected table of counts and round to integer
-out = adjustCounts(sc, roundToInt = TRUE)
-head(out)
+out1 = adjustCounts(sc1, roundToInt = TRUE)
+head(out1)
+out2 = adjustCounts(sc2, roundToInt = TRUE)
 # plot soup correction for a gene
-plotChangeMap(sc, out, DR=umap, "RPLP1")
+plotChangeMap(sc1, out1, DR=umap1, "RPLP1")
+plotChangeMap(sc2, out2, DR=umap2, "RPLP1")
 # write
-DropletUtils:::write10xCounts("gamm_soupX_filt2.mtx", out)
+DropletUtils:::write10xCounts("gamm_soupX_filtS1-1.mtx", out1)
+DropletUtils:::write10xCounts("gamm_soupX_filtS1-2.mtx", out2)
 # replace filtered count values with soupX values
 # gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
 #                               slot = "data", 
 #                               new.data = out)
 # (gamm)
-# make a seurat object with adjusted data and filter
-gamm <- CreateSeuratObject(counts = out, project = "gamm_s1", min.cells = 3, min.features = 200)
+# make a combined seurat object with adjusted data and filter
+gamm <- CreateSeuratObject(counts = cbind(out1,out2), project = "gamm_s1", min.cells = 3, min.features = 200)
+# make singular seurat objects to get accurate cell numbers for each lane
+gamm1 <- CreateSeuratObject(counts = out1, project = "gamm_s1-1", min.cells = 3, min.features = 200)
+gamm2 <- CreateSeuratObject(counts = out2, project = "gamm_s1-2", min.cells = 3, min.features = 200)
+# done with soupx- remove raw data to save space
+rm(gamm.data1.raw,gamm.data2.raw)
 
 # We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
 # We use the set of all genes starting with MT- as a set of mitochondrial genes
 # The [[ operator can add columns to object metadata. This is a great place to stash QC stats
-gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, pattern = "^MT-")
+#gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, pattern = "^MT-")
 # no oercent.mt in pig because they don't start with MT
-gamm[["percent.mt"]]
+#gamm[["percent.mt"]]
 # give specific features (genes) for pig data- 13 protein coding mt genes in pig:
 mt.list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L",
              "ND4", "ND5", "ND6", "CYTB")
 # or ensemble ids
-mt.list2 <- c("ENSSSCG00000018065","ENSSSCG00000018069","ENSSSCG00000018075",
-             "ENSSSCG00000018078","ENSSSCG00000018080","ENSSSCG00000018081",
-             "ENSSSCG00000018082","ENSSSCG00000018084","ENSSSCG00000018086",
-             "ENSSSCG00000018087","ENSSSCG00000018091","ENSSSCG00000018092",
-             "ENSSSCG00000018094")
+# mt.list2 <- c("ENSSSCG00000018065","ENSSSCG00000018069","ENSSSCG00000018075",
+#              "ENSSSCG00000018078","ENSSSCG00000018080","ENSSSCG00000018081",
+#              "ENSSSCG00000018082","ENSSSCG00000018084","ENSSSCG00000018086",
+#              "ENSSSCG00000018087","ENSSSCG00000018091","ENSSSCG00000018092",
+#              "ENSSSCG00000018094")
 # check if all features are in the matrix
 all(mt.list %in% rownames(gamm))
 # if false, need to determine which ones
@@ -104,7 +130,11 @@ for (mt in mt.list) {print(mt)
 percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
 gamm[["percent.mt"]] <- percent_mt
 gamm[["percent.mt"]]
-
+# for lanes 1 and 2
+percent_mt1 <- PercentageFeatureSet(gamm1, features = mt.list, assay = 'RNA')
+gamm1[["percent.mt"]] <- percent_mt1
+percent_mt2 <- PercentageFeatureSet(gamm2, features = mt.list, assay = 'RNA')
+gamm2[["percent.mt"]] <- percent_mt2
 # We filter cells that have unique feature counts over 2,500 or less than 200
 # We filter cells that have >5% mitochondrial counts
 # Visualize QC metrics as a violin plot
@@ -118,7 +148,15 @@ plot1 + plot2
 
 # subset data -  filter out cells that have unique feature counts over 2,500 or less than 200 and > 5% mitochondrial counts
 gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
-
+# getting numbers of filtered cells from lanes 1 & 2
+gamm1 <- subset(gamm1, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
+sce1 <- as.SingleCellExperiment(gamm1)
+lane1<- colData(sce1)@nrows
+gamm2 <- subset(gamm2, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
+sce2 <- as.SingleCellExperiment(gamm2)
+lane2<- colData(sce2)@nrows
+# after you get lane 1 & 2 numbers, delete seurat object for them to save space
+rm(gamm1,gamm2,sce1,sce2)
 # replot
 plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
@@ -207,7 +245,9 @@ VariableFeatures(gamm) <- topdev
 UpdateSeuratObject(gamm)
 devtop10 <- head(VariableFeatures(gamm), 10)
 devtop10
-
+plot1<-VariableFeaturePlot(gamm)
+plot2<-LabelPoints(plot = plot1, points = devtop10, repel = TRUE)
+plot1 + plot2
 # Scale the data
 # Next, we apply a linear transformation (‘scaling’) that is a standard pre-processing step prior to dimensional reduction techniques like PCA. The ScaleData() function:
 #   
@@ -231,8 +271,29 @@ gamm <- RunPCA(gamm, features = VariableFeatures(object = gamm))
 print(gamm[["pca"]], dims = 1:5, nfeatures = 5)
 VizDimLoadings(gamm, dims = 1:2, reduction = "pca")
 DimPlot(gamm, reduction = "pca")
-DimHeatmap(gamm, dims = 1, cells = 500, balanced = TRUE)
+#DimHeatmap(gamm, dims = 1, cells = 500, balanced = TRUE)
 DimHeatmap(gamm, dims = 1:15, cells = 500, balanced = TRUE)
+
+# Harmony
+# define batches
+gamm@meta.data$lanes <- c(rep("lane1", lane1), rep("lane2", lane2))
+# check PCA plot
+options(repr.plot.height = 5, repr.plot.width = 12)
+p1 <- DimPlot(object = gamm, reduction = "pca", pt.size = .1, group.by = "lanes")
+p2 <- VlnPlot(object = gamm, features = "PC_1", group.by = "lanes", pt.size = .1)
+plot_grid(p1,p2)
+# run harmony
+options(repr.plot.height = 2.5, repr.plot.width = 6)
+gamm <- gamm %>% 
+  RunHarmony("lanes", plot_convergence = TRUE)
+# access harmony embeddings
+harmony_embeddings <- Embeddings(gamm, 'harmony')
+harmony_embeddings[1:5, 1:5]
+# check out new pca plot
+options(repr.plot.height = 5, repr.plot.width = 12)
+p1 <- DimPlot(object = gamm, reduction = "harmony", pt.size = .1, group.by = "lanes")
+p2 <- VlnPlot(object = gamm, features = "harmony_1", group.by = "lanes", pt.size = .1)
+plot_grid(p1,p2)
 
 # Determine the ‘dimensionality’ of the dataset
 # to overcome technical noise, Seurat clusters cells based on their PCA scores, 
@@ -242,9 +303,7 @@ DimHeatmap(gamm, dims = 1:15, cells = 500, balanced = TRUE)
 # JackStraw randomly permutes a subset (1%) of the data and reruns PCA, constructing a null
 # distribution of feature scores. Significant PCs have strong enrichment of low p-val features
 
-# NOTE: This process can take a long time for big datasets, comment out for expediency. More
-# approximate techniques such as those implemented in ElbowPlot() can be used to reduce
-# computation time
+
 gamm <- JackStraw(gamm, num.replicate = 100)
 gamm <- ScoreJackStraw(gamm, dims = 1:20)
 # The JackStrawPlot() function provides a visualization tool for comparing the 
@@ -254,14 +313,19 @@ gamm <- ScoreJackStraw(gamm, dims = 1:20)
 JackStrawPlot(gamm, dims = 1:20)
 #  alternative heuristic method generates an ‘Elbow plot’: a ranking of principle 
 # components based on the percentage of variance explained by each one (ElbowPlot() 
-# function). In this example, we can observe an ‘elbow’ around PC9-10, suggesting that 
-# the majority of true signal is captured in the first 10 PCs.
-ElbowPlot(gamm)
-
+# function). In this example, we can observe an ‘elbow’ to suggest how many PCs capture
+# the majority of the true signal. can use reduction='harmony' to use harmony embeddings
+ElbowPlot(gamm, reduction='harmony')
+ElbowPlot(gamm, reduction='pca')
 # Cluster the Cells using only genes from chosen PCs
+# to use harmony embeddings pass reduction='harmony'
 # K-nearest neighbor (KNN) graph
-gamm <- FindNeighbors(gamm, dims = 1:15)
-# note need to pip install leiden and pandas for this to run
+gamm <- FindNeighbors(gamm, dims = 1:15, reduction='harmony')
+# check umap for differences across lanes
+gamm <- RunUMAP(gamm, dims = 1:15, reduction = "harmony")
+options(repr.plot.height = 4, repr.plot.width = 10)
+DimPlot(gamm, reduction = "umap", group.by = "lanes", pt.size = .1)#, split.by = 'lanes')
+# note need to pip install leiden and pandas for FindClusters to run
 #reticulate::py_install(packages ='leidenalg') #pip install leidenalg
 #reticulate::py_install(packages ='pandas')
 gamm <- FindClusters(gamm, resolution = 0.5, algorithm = "leiden")
@@ -276,12 +340,12 @@ head(Idents(gamm), 5)
 # clustering analysis.
 # If you haven't installed UMAP: 
 # reticulate::py_install(packages ='umap-learn')
-gamm <- RunUMAP(gamm, dims = 1:15)
+#gamm <- RunUMAP(gamm, dims = 1:15)
 # note that you can set `label = TRUE` or use the LabelClusters function to help label
-# individual clusters
+# plot individual clusters
 DimPlot(gamm, reduction = "umap", label = T)
 # save object
-saveRDS(gamm, file = "GAMM_test1.rds")
+saveRDS(gamm, file = "GAMM_test1_lanes.rds")
 # read back in the object
 gamm <- readRDS(file = "GAMM_test1.rds")
 
