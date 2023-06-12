@@ -25,7 +25,8 @@ Follow the steps below to create your Conda environment:
    Click on the install_venv.sh file and set the "conda_envs_path" where your conda environment directory is located (eg. ("/home/jfreeman/bin/miniconda3/envs"))
    
    Additionally, set your name of your environment
-   ![Screenshot 2023-06-12 at 1 09 29 PM](https://github.com/stewart-lab/scRNAseq_library/assets/95723801/c6e4f7d3-7ebb-4ceb-8481-beee3bc2b33b)
+   
+![Screenshot 2023-06-12 at 1 09 29 PM](https://github.com/stewart-lab/scRNAseq_library/assets/95723801/c6e4f7d3-7ebb-4ceb-8481-beee3bc2b33b)
 
 Now run the following code
 ```bash
