@@ -148,6 +148,12 @@ plot1 + plot2
 
 # subset data -  filter out cells that have unique feature counts over 2,500 or less than 200 and > 5% mitochondrial counts
 gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
+# subset data by percent- maybe this is better?
+#counts <- GetAssayData(seurat_obj, slot="counts", assay="RNA")   
+#genes.percent.expression <- rowMeans(counts>0 )*100   
+#genes.filter <- names(gene.percent.expressed[gene.percent.expressed>1])  #select genes expressed in at least 1% of cells
+#counts.sub <- counts[genes.filter,]
+#new_seurat_object <- CreateSeuratObject(counts=counts.sub)
 # getting numbers of filtered cells from lanes 1 & 2
 gamm1 <- subset(gamm1, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
 sce1 <- as.SingleCellExperiment(gamm1)
