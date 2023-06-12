@@ -3,18 +3,25 @@ from scipy.io import mmread, mmwrite
 import random
 import numpy as np
 from pathlib import Path
+import gzip
+from sys import argv
 
 DATA = Path("Data")
 S1_1 = DATA / "S1_1"
-SAMPLES = S1_1 / "barcodes.tsv"
-GENES = S1_1 / "features.tsv"
-MTX = S1_1 / "matrix.mtx"
+OUT = DATA / "default"
+Path.mkdir(OUT, exist_ok=True)
 
 
-def read_data():
-    barcodes = pd.read_csv(SAMPLES, header=None)
-    features = pd.read_csv(GENES, header=None)
-    mtx = mmread(MTX).tocsc()
+def read_data(indir=S1_1):
+    try:
+        barcodes = pd.read_csv(indir / "barcodes.tsv.gz", header=None)
+        features = pd.read_csv(indir / "features.tsv.gz", header=None)
+        with gzip.open(indir / "matrix.mtx.gz", "rb") as f:
+            mtx = mmread(f)
+    except FileNotFoundError:
+        barcodes = pd.read_csv(indir / "barcodes.tsv", header=None)
+        features = pd.read_csv(indir / "features.tsv", header=None)
+        mtx = mmread(indir / "matrix.mtx").tocsc()
     return (barcodes, features, mtx)
 
 
@@ -35,16 +42,33 @@ def downsample(barcodes, features, mtx):
     return (selected_barcodes, selected_features, selected_mtx)
 
 
-def write_data(barcodes, features, mtx):
+def write_data(barcodes, features, mtx, outdir=OUT):
     # Write the downsampled barcodes and features to new .tsv files
-    barcodes.to_csv(DATA / "barcodes_ds.tsv", index=False, header=False)
-    features.to_csv(DATA / "features_ds.tsv", index=False, header=False)
+    barcodes.to_csv(
+        DATA / "barcodes.tsv.gz", index=False, header=False, compression=gzip
+    )
+    features.to_csv(
+        DATA / "features.tsv.gz", index=False, header=False, compression=gzip
+    )
 
     # Write the downsampled matrix to a new .mtx file
-    mmwrite(DATA / "matrix_ds.mtx", mtx)
+    mmwrite(DATA / "matrix.mtx.gz", mtx, compression=gzip)
+
+
+def read_sample_and_write(indir=S1_1, outdir=Path("Data/default")):
+    (barcodes, features, mtx) = read_data(dir)
+    (barcodes_ds, features_ds, mtx_ds) = downsample(barcodes, features, mtx)
+    write_data(barcodes_ds, features_ds, mtx_ds, dir)
 
 
 if __name__ == "__main__":
-    (barcodes, features, mtx) = read_data()
-    (barcodes_ds, features_ds, mtx_ds) = downsample(barcodes, features, mtx)
-    write_data(barcodes_ds, features_ds, mtx_ds)
+    if len(argv) > 1:
+        indata = argv[1]
+    else:
+        indata = S1_1
+
+    if len(argv) > 2:
+        outdata = Path(argv[2])
+    else:
+        outdata = DATA / f"outdata_{indata.name}"
+    read_sample_and_write(indata, outdata)
