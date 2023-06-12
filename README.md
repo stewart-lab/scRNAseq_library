@@ -12,34 +12,22 @@ Follow the steps below to create your Conda environment:
 
 1. **Clone the repository**
 
-   Start by cloning the repository which contains the `scRNAseq_venv.yml` file. 
+   Start by cloning the repository
 
 
 2. **Navigate to the repository folder**
 
-   Change your current directory to the cloned repository
+   Change your current directory to the <cloned_repo_dir>/install
 
 
-3. **Create the Conda environment**
+3. **Creating the Conda environment**
 
-   Use the following command to create the Conda environment:
-   
+Now run the following code
 ```bash
-conda env create -f scRNAseq_venv.yml
+source install_venv.sh ENV_NAME [ENV_PATH]
 ```
-
-
-   This command creates a new Conda environment using the configuration specified in the `scRNA-seq.yml` file.
-
-   **IMPORTANT:** Before running the command, open the `scRNA-seq.yml` file in a text editor and change the `prefix:` line (LOCATED AY BOTTOM) to match the location where your Conda is installed. This      location is usually the `envs` directory inside your Anaconda or Miniconda installation directory. For example, if Anaconda is installed at `/home/user/anaconda3`, the prefix          should be `/home/user/anaconda3/envs`.
-
-4. **Activate R within the Conda environment**
-```bash
-conda activate scRNA-seq
-R
+where ENV_NAME is the name of your environment and ENV_PATH is the path to your (non-default?) conda environment directory (optional). If ENV_PATH is not specified, the environment will be created in the default conda environment directory.
 ```
-
-That's it! You now have a Conda environment set up with the configuration specified in the `scRNAseq_venv.yml` file. You can start using it for your single-cell RNA sequencing analysis.
 
 
 # scRNAseq_library
