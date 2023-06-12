@@ -1,59 +1,132 @@
 library(dplyr)
-BiocManager::install("Seurat")
+#BiocManager::install("Seurat")
 library(Seurat)
-BiocManager::install("SeuratData")
-library(SeuratData)
+#BiocManager::install("SeuratData")
+#library(SeuratData)
 library(patchwork)
-install.packages("remotes")
-remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+#install.packages("remotes")
+#remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
 library(DoubletFinder)
 library(scran)
 library(BiocParallel)
+#BiocManager::install("DropletUtils")
+library(DropletUtils)
 
-# Load the PBMC dataset
+# Load filtered dataset from alignment
 
-gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm/Gene/filtered/")
+gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/filtered/")
+# h5 file
+#gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
 # Initialize the Seurat object with the raw (non-normalized data).
-pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
-pbmc
+#gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
+
+
 # Lets examine a few genes in the first thirty cells
-pbmc.data[c("CD3D", "TCL1A", "MS4A1"), 1:30]
+gamm.data[c("ALDH1A1", "C9orf40", "NMRK1"), 1:30]
 # sparse matrix with reduced memory
-dense.size <- object.size(as.matrix(pbmc.data))
+dense.size <- object.size(as.matrix(gamm.data))
 dense.size
-sparse.size <- object.size(pbmc.data)
+sparse.size <- object.size(gamm.data)
 sparse.size
 dense.size/sparse.size
 
 # QC and filtering
 
 # The number of unique genes detected in each cell.
-# Low-quality cells or empty droplets will often have very few genes
+# Low-quality cells or empty droplets will often have very few genes and ambient mRNA
 # Cell doublets or multiplets may exhibit an aberrantly high gene count
 # Similarly, the total number of molecules detected within a cell (correlates strongly with unique genes)
 # The percentage of reads that map to the mitochondrial genome
 # Low-quality / dying cells often exhibit extensive mitochondrial contamination
 
+## ambient RNA removal- SoupX- this has to happen first before other filtering
+# because raw and filtered counts/ cells have to be the same
+library(SoupX)
+# get raw data
+gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/raw/")
+# GetAssayData(object = gamm[["RNA"]], slot = "data")
+# make soup channel and profile the soup with raw and filtered data
+sc = SoupChannel(gamm.data.raw, gamm.data)
+# get basic clusters
+# make annother seurat object without filtering
+gamm2 <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1_clusters")
+# quick cluster
+gamm2    <- SCTransform(gamm2, verbose = F)
+gamm2    <- RunPCA(gamm2, verbose = F)
+gamm2    <- RunUMAP(gamm2, dims = 1:30, verbose = F)
+gamm2    <- FindNeighbors(gamm2, dims = 1:30, verbose = F)
+gamm2    <- FindClusters(gamm2, verbose = T)
+# extract clusters from seurat object and add to soup channel
+meta    <- gamm2@meta.data
+umap    <- gamm2@reductions$umap@cell.embeddings
+sc  <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
+head(meta)
+# Estimate contamination fraction
+sc  = autoEstCont(sc)
+#Genes with highest expression in background. These are often enriched for ribosomal proteins.
+head(sc$soupProfile[order(sc$soupProfile$est, decreasing = T), ], n = 20)
+# Infer corrected table of counts and round to integer
+out = adjustCounts(sc, roundToInt = TRUE)
+head(out)
+# plot soup correction for a gene
+plotChangeMap(sc, out, DR=umap, "RPLP1")
+# write
+DropletUtils:::write10xCounts("gamm_soupX_filt2.mtx", out)
+# replace filtered count values with soupX values
+# gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
+#                               slot = "data", 
+#                               new.data = out)
+# (gamm)
+# make a seurat object with adjusted data and filter
+gamm <- CreateSeuratObject(counts = out, project = "gamm_s1", min.cells = 3, min.features = 200)
+
 # We calculate mitochondrial QC metrics with the PercentageFeatureSet() function, which calculates the percentage of counts originating from a set of features
 # We use the set of all genes starting with MT- as a set of mitochondrial genes
 # The [[ operator can add columns to object metadata. This is a great place to stash QC stats
-pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, pattern = "^MT-")
+# no oercent.mt in pig because they don't start with MT
+gamm[["percent.mt"]]
+# give specific features (genes) for pig data- 13 protein coding mt genes in pig:
+mt.list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L",
+             "ND4", "ND5", "ND6", "CYTB")
+# or ensemble ids
+mt.list2 <- c("ENSSSCG00000018065","ENSSSCG00000018069","ENSSSCG00000018075",
+             "ENSSSCG00000018078","ENSSSCG00000018080","ENSSSCG00000018081",
+             "ENSSSCG00000018082","ENSSSCG00000018084","ENSSSCG00000018086",
+             "ENSSSCG00000018087","ENSSSCG00000018091","ENSSSCG00000018092",
+             "ENSSSCG00000018094")
+# check if all features are in the matrix
+all(mt.list %in% rownames(gamm))
+# if false, need to determine which ones
+for (mt in mt.list) {print(mt)
+                      print(all(mt %in% rownames(gamm)))
+                      }
+percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
+gamm[["percent.mt"]] <- percent_mt
+gamm[["percent.mt"]]
 
 # We filter cells that have unique feature counts over 2,500 or less than 200
 # We filter cells that have >5% mitochondrial counts
 # Visualize QC metrics as a violin plot
-VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(gamm, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 
 # FeatureScatter is typically used to visualize feature-feature relationships, but can be used
 # for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
-plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plot1 + plot2
-pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
 
-# Doublet removal ## this should happen before normalization i think
-seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
-# ambient RNA removal- SoupX
+# subset data -  filter out cells that have unique feature counts over 2,500 or less than 200 and > 5% mitochondrial counts
+gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
+
+# replot
+plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+
+## Doublet removal ## this should happen before normalization i think
+#seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+
 
 
 # Normalize the data
@@ -61,11 +134,11 @@ seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi,
 # default is “LogNormalize” that normalizes the feature expression measurements for each cell 
 # by the total expression, multiplies this by a scale factor (10,000 by default), 
 # and log-transforms the result. 
-pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+#pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
 
 # scran normalization
 library(scran)
-sce <- as.SingleCellExperiment(pbmc)
+sce <- as.SingleCellExperiment(gamm)
 # get raw UMI counts
 counts(sce)[40:50, 40:50]
 # get log Normalized counts form Seurat
@@ -96,37 +169,44 @@ sce <- logNormCounts(sce)
 
 logcounts(sce)[40:50, 40:50]
 # replace seurat normalized values with scran
-pbmc[["RNA"]] <- SetAssayData(pbmc[["RNA"]],
+gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
                             slot = "data", 
                             new.data = logcounts(sce))
 
-pbmc$sizeFactors <- sizeFactors(sce)
-UpdateSeuratObject(pbmc)
+gamm$sizeFactors <- sizeFactors(sce)
+UpdateSeuratObject(gamm)
 # gene expression with reg counts
-VlnPlot(pbmc, "CD3E", slot = "counts")
+VlnPlot(gamm, "ECHS1", slot = "counts")
 # gene expression with scran norm counts
-VlnPlot(pbmc, "CD3E", slot = "data")
+VlnPlot(gamm, "ECHS1", slot = "data")
 
 # ID highly variable features (feature selection)
-pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+# calculate a subset of features that exhibit high cell-to-cell variation in the dataset (i.e, they are highly expressed in some cells, and lowly expressed in others). 
+# seurat method
+gamm <- FindVariableFeatures(gamm, selection.method = "vst", nfeatures = 2000)
 
 # Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(pbmc), 10)
-
+top10 <- head(VariableFeatures(gamm), 10)
+top10
 # plot variable features with and without labels
-plot1 <- VariableFeaturePlot(pbmc)
+plot1 <- VariableFeaturePlot(gamm)
 plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
 plot1 + plot2
 
 # feature selection with scry
-BiocManager::install('scry')
+# scry deviance for feature selection which works on raw counts [Germain et al., 2020]. Deviance can be computed in closed form and quantifies whether genes show a constant expression profile across cells as these are not informative. 
+# BiocManager::install('scry')
 library(scry)
-sce2 <- as.SingleCellExperiment(pbmc)
-sce2 <- devianceFeatureSelection(sce2, assay = "counts")
-sce2
-rowData(sce2)$binomial_deviance
-# add biological deviance ## not sure how to do this
-pbmc$deviance<- rowData(sce2)$binomial_deviance
+m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
+devi <- scry::devianceFeatureSelection(m)
+dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
+topdev <- head(dev_ranked_genes, 2000)
+# replace variable features with the deviance ranked genes
+VariableFeatures(gamm) <- topdev
+# VariableFeatures(gamm)
+UpdateSeuratObject(gamm)
+devtop10 <- head(VariableFeatures(gamm), 10)
+devtop10
 
 # Scale the data
 # Next, we apply a linear transformation (‘scaling’) that is a standard pre-processing step prior to dimensional reduction techniques like PCA. The ScaleData() function:
@@ -135,25 +215,24 @@ pbmc$deviance<- rowData(sce2)$binomial_deviance
 # Scales the expression of each gene, so that the variance across cells is 1
 # This step gives equal weight in downstream analyses, so that highly-expressed genes do not dominate
 # The results of this are stored in pbmc[["RNA"]]@scale.data
-all.genes <- rownames(pbmc)
-pbmc <- ScaleData(pbmc, features = all.genes)
+all.genes <- rownames(gamm)
+gamm <- ScaleData(gamm, features = all.genes)
 
 # Remove unwanted variation
 # also use the ScaleData() function to remove unwanted sources of variation from a 
 # single-cell dataset. For example, we could ‘regress out’ heterogeneity associated with 
-# (for example) cell cycle stage, or mitochondrial contamination.
-pbmc <- ScaleData(pbmc, vars.to.regress = "percent.mt")
+# (for example) cell cycle stage, or mitochondrial contamination. # get list of cell cycle genes
+# pbmc <- ScaleData(pbmc, vars.to.regress = "percent.mt")
 
-# new normalization workflow, SCTransform()
 
-# Perform linear dimensional reduction
-pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+# Perform linear dimensional reduction on the variable features
+gamm <- RunPCA(gamm, features = VariableFeatures(object = gamm))
 # Examine and visualize PCA results a few different ways
-print(pbmc[["pca"]], dims = 1:5, nfeatures = 5)
-VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
-DimPlot(pbmc, reduction = "pca")
-DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
-DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
+print(gamm[["pca"]], dims = 1:5, nfeatures = 5)
+VizDimLoadings(gamm, dims = 1:2, reduction = "pca")
+DimPlot(gamm, reduction = "pca")
+DimHeatmap(gamm, dims = 1, cells = 500, balanced = TRUE)
+DimHeatmap(gamm, dims = 1:15, cells = 500, balanced = TRUE)
 
 # Determine the ‘dimensionality’ of the dataset
 # to overcome technical noise, Seurat clusters cells based on their PCA scores, 
@@ -166,41 +245,28 @@ DimHeatmap(pbmc, dims = 1:15, cells = 500, balanced = TRUE)
 # NOTE: This process can take a long time for big datasets, comment out for expediency. More
 # approximate techniques such as those implemented in ElbowPlot() can be used to reduce
 # computation time
-pbmc <- JackStraw(pbmc, num.replicate = 100)
-pbmc <- ScoreJackStraw(pbmc, dims = 1:20)
+gamm <- JackStraw(gamm, num.replicate = 100)
+gamm <- ScoreJackStraw(gamm, dims = 1:20)
 # The JackStrawPlot() function provides a visualization tool for comparing the 
 # distribution of p-values for each PC with a uniform distribution (dashed line). 
 # ‘Significant’ PCs will show a strong enrichment of features with low p-values 
-#(solid curve above the dashed line). In this case it appears that there is a sharp 
-# drop-off in significance after the first 10-12 PCs.
-JackStrawPlot(pbmc, dims = 1:15)
+#(solid curve above the dashed line).
+JackStrawPlot(gamm, dims = 1:20)
 #  alternative heuristic method generates an ‘Elbow plot’: a ranking of principle 
 # components based on the percentage of variance explained by each one (ElbowPlot() 
 # function). In this example, we can observe an ‘elbow’ around PC9-10, suggesting that 
 # the majority of true signal is captured in the first 10 PCs.
-ElbowPlot(pbmc)
+ElbowPlot(gamm)
 
 # Cluster the Cells using only genes from chosen PCs
-# methods embed cells in a graph structure - for example a K-nearest neighbor 
-# (KNN) graph, with edges drawn between cells with similar feature expression patterns,
-# and then attempt to partition this graph into highly interconnected ‘quasi-cliques’ or 
-# ‘communities’.
-# To cluster the cells, we next apply modularity optimization techniques such as 
-# the Louvain algorithm (default) or SLM-- need to use Leiden here, to iteratively group cells together, with 
-# the goal of optimizing the standard modularity function. The FindClusters() 
-# function implements this procedure, and contains a resolution parameter that sets 
-# the ‘granularity’ of the downstream clustering, with increased values leading 
-# to a greater number of clusters. We find that setting this parameter between 
-# 0.4-1.2 typically returns good results for single-cell datasets of around 3K cells. 
-# Optimal resolution often increases for larger datasets. The clusters can be 
-# found using the Idents() function
-pbmc <- FindNeighbors(pbmc, dims = 1:10)
+# K-nearest neighbor (KNN) graph
+gamm <- FindNeighbors(gamm, dims = 1:15)
 # note need to pip install leiden and pandas for this to run
-# reticulate::py_install(packages ='leiden')
-# reticulate::py_install(packages ='pandas')
-pbmc <- FindClusters(pbmc, resolution = 0.5, algorithm = "leiden")
+#reticulate::py_install(packages ='leidenalg') #pip install leidenalg
+#reticulate::py_install(packages ='pandas')
+gamm <- FindClusters(gamm, resolution = 0.5, algorithm = "leiden")
 # Look at cluster IDs of the first 5 cells
-head(Idents(pbmc), 5)
+head(Idents(gamm), 5)
 
 # Run non-linear dimensional reduction (UMAP/tSNE)
 # The goal of these algorithms is to learn the underlying manifold of the data in order 
@@ -210,46 +276,46 @@ head(Idents(pbmc), 5)
 # clustering analysis.
 # If you haven't installed UMAP: 
 # reticulate::py_install(packages ='umap-learn')
-pbmc <- RunUMAP(pbmc, dims = 1:10)
+gamm <- RunUMAP(gamm, dims = 1:15)
 # note that you can set `label = TRUE` or use the LabelClusters function to help label
 # individual clusters
-DimPlot(pbmc, reduction = "umap")
+DimPlot(gamm, reduction = "umap", label = T)
 # save object
-saveRDS(pbmc, file = "output/pbmc_tutorial.rds")
+saveRDS(gamm, file = "GAMM_test1.rds")
 # read back in the object
-pbmc <- readRDS(file = "output/pbmc_tutorial.rds")
+gamm <- readRDS(file = "GAMM_test1.rds")
 
 
 # Finding differentially expressed features (cluster biomarkers)
 
-# find all markers of cluster 2
-cluster2.markers <- FindMarkers(pbmc, ident.1 = 2, min.pct = 0.25)
-head(cluster2.markers, n = 5)
+# find all markers of cluster 1 compared to all other clusters
+cluster1.markers <- FindMarkers(gamm, ident.1 = 1, min.pct = 0.25)
+head(cluster1.markers, n = 5)
 # find all markers distinguishing cluster 5 from clusters 0 and 3
-cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
-head(cluster5.markers, n = 5)
+#cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+#head(cluster5.markers, n = 5)
 # find markers for every cluster compared to all remaining cells, report only the positive
 # ones
-pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-pbmc.markers %>%
+gamm.markers <- FindAllMarkers(gamm, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+gamm.markers %>%
   group_by(cluster) %>%
-  slice_max(n = 2, order_by = avg_log2FC)
+  slice_max(n = 2, order_by = avg_log2FC) %>%
+  print(n=28)
 # ROC test for cluster markers, 0= random, 1= perfect)
-cluster0.markers <- FindMarkers(pbmc, ident.1 = 0, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
-head(cluster0.markers, n = 5)
+cluster1.markers <- FindMarkers(gamm, ident.1 = 1, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+head(cluster1.markers, n = 5)
 # visualize marker expression
-VlnPlot(pbmc, features = c("MS4A1", "CD79A"))
+VlnPlot(gamm, features = c("SFRP2", "TRPM3"))
 # you can plot raw counts as well
-VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = "counts", log = TRUE)
+VlnPlot(gamm, features = c("SFRP2", "TRPM3"), slot = "counts", log = TRUE)
 # umap plot highlighting gene expression
-FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP",
-                               "CD8A"))
+FeaturePlot(gamm, features = c("SFRP2", "TRPM3", "ENSSSCG00065027583", "SST"),label = TRUE)
 # DoHeatmap() generates an expression heatmap for given cells and features. 
 # In this case, we are plotting the top 20 markers
-pbmc.markers %>%
+gamm.markers %>%
   group_by(cluster) %>%
   top_n(n = 10, wt = avg_log2FC) -> top10
-DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+DoHeatmap(gamm, features = top10$gene) + NoLegend()
 
 # Assigning cell type identity to clusters
 
