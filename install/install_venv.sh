@@ -2,10 +2,10 @@
 # get env name from var 1 (required), and path from var 2 (optional)
 
 # Usage:
-# bash install_venv.sh ENV_NAME [PATH]
+# source install_venv.sh ENV_NAME [PATH]
 
 # Example:
-# bash install_venv.sh TEST_ENVIRONMENT /isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs
+# source install_venv.sh TEST_ENVIRONMENT /isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs
 
 # If no path is provided, the default path is used:
 # /isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs
@@ -24,8 +24,13 @@ fi
 if [ $# -eq 0 ]
   then
     echo "Virtual Environment name is required"
-    echo "Usage: bash install_venv.sh ENV_NAME [PATH]"
+    echo "Usage: source install_venv.sh ENV_NAME [PATH]"
     exit 1
+fi
+
+if [ "$(basename "$PWD")" != "install" ]
+then
+  echo "Please cd into the install directory"
 fi
 
 # Set the name of the environment equal to the first argument
