@@ -14,17 +14,18 @@ library(DropletUtils)
 library(cowplot)
 library(harmony)
 
+# starting directory
+dir.name <- "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/"
 # Load filtered dataset from alignment
 
-gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/filtered/")
-# h5 file
+# this is for one output of both lanes already combined during alignment
+# gamm.data <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1_mm_mt/GeneFull/filtered/")
+# to read in a h5 file
 #gamm.data<- Read10X_h5("/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/molecule_info.h5", use.names = TRUE, unique.features = TRUE)
-# Initialize the Seurat object with the raw (non-normalized data).
-#gamm <- CreateSeuratObject(counts = gamm.data, project = "gamm_s1", min.cells = 3, min.features = 200)
 
 # load dataset with different batches
-gamm.data1 <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-1_mm_mt/GeneFull/filtered/")
-gamm.data2 <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-2_mm_mt/GeneFull/filtered/")
+gamm.data1 <- Read10X(data.dir = paste(dir.name,"output_S1-1_mm_mt/GeneFull/filtered/", sep = "", collapse = ""))
+gamm.data2 <- Read10X(data.dir = paste(dir.name,"output_S1-2_mm_mt/GeneFull/filtered/", sep = "", collapse = ""))
 
 # Lets examine a few genes in the first thirty cells
 #gamm.data[c("ALDH1A1", "C9orf40", "NMRK1"), 1:30]
@@ -48,8 +49,8 @@ gamm.data2 <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/out
 # because raw and filtered counts/ cells have to be the same
 library(SoupX)
 # get raw data for lanes 1 and 2
-gamm.data1.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-1_mm_mt/GeneFull/raw/")
-gamm.data2.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S1-2_mm_mt/GeneFull/raw/")
+gamm.data1.raw <- Read10X(data.dir = paste(dir.name,"output_S1-1_mm_mt/GeneFull/raw/", sep = "", collapse = ""))
+gamm.data2.raw <- Read10X(data.dir = paste(dir.name,"output_S1-2_mm_mt/GeneFull/raw/", sep = "", collapse = ""))
 # GetAssayData(object = gamm[["RNA"]], slot = "data")
 # make soup channel and profile the soup with raw and filtered data
 sc1 = SoupChannel(gamm.data1.raw, gamm.data1)
@@ -353,48 +354,48 @@ DimPlot(gamm, reduction = "umap", label = T)
 # save object
 saveRDS(gamm, file = "GAMM_test1_lanes.rds")
 # read back in the object
-gamm <- readRDS(file = "GAMM_test1.rds")
+#gamm <- readRDS(file = "GAMM_test1.rds")
 
 
 # Finding differentially expressed features (cluster biomarkers)
 
-# find all markers of cluster 1 compared to all other clusters
-cluster1.markers <- FindMarkers(gamm, ident.1 = 1, min.pct = 0.25)
-head(cluster1.markers, n = 5)
-# find all markers distinguishing cluster 5 from clusters 0 and 3
-#cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
-#head(cluster5.markers, n = 5)
-# find markers for every cluster compared to all remaining cells, report only the positive
-# ones
-gamm.markers <- FindAllMarkers(gamm, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-gamm.markers %>%
-  group_by(cluster) %>%
-  slice_max(n = 2, order_by = avg_log2FC) %>%
-  print(n=28)
-# ROC test for cluster markers, 0= random, 1= perfect)
-cluster1.markers <- FindMarkers(gamm, ident.1 = 1, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
-head(cluster1.markers, n = 5)
-# visualize marker expression
-VlnPlot(gamm, features = c("SFRP2", "TRPM3"))
-# you can plot raw counts as well
-VlnPlot(gamm, features = c("SFRP2", "TRPM3"), slot = "counts", log = TRUE)
-# umap plot highlighting gene expression
-FeaturePlot(gamm, features = c("SFRP2", "TRPM3", "ENSSSCG00065027583", "SST"),label = TRUE)
-# DoHeatmap() generates an expression heatmap for given cells and features. 
-# In this case, we are plotting the top 20 markers
-gamm.markers %>%
-  group_by(cluster) %>%
-  top_n(n = 10, wt = avg_log2FC) -> top10
-DoHeatmap(gamm, features = top10$gene) + NoLegend()
-
-# Assigning cell type identity to clusters
-
-# Here canonical markers easily match the unbiased clustering to known cell types
-new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
-                     "NK", "DC", "Platelet")
-names(new.cluster.ids) <- levels(pbmc)
-pbmc <- RenameIdents(pbmc, new.cluster.ids)
-DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
-# save object
-saveRDS(pbmc, file = "output/pbmc3k_final.rds")
-sessionInfo()
+# # find all markers of cluster 1 compared to all other clusters
+# cluster1.markers <- FindMarkers(gamm, ident.1 = 1, min.pct = 0.25)
+# head(cluster1.markers, n = 5)
+# # find all markers distinguishing cluster 5 from clusters 0 and 3
+# #cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
+# #head(cluster5.markers, n = 5)
+# # find markers for every cluster compared to all remaining cells, report only the positive
+# # ones
+# gamm.markers <- FindAllMarkers(gamm, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+# gamm.markers %>%
+#   group_by(cluster) %>%
+#   slice_max(n = 2, order_by = avg_log2FC) %>%
+#   print(n=28)
+# # ROC test for cluster markers, 0= random, 1= perfect)
+# cluster1.markers <- FindMarkers(gamm, ident.1 = 1, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
+# head(cluster1.markers, n = 5)
+# # visualize marker expression
+# VlnPlot(gamm, features = c("SFRP2", "TRPM3"))
+# # you can plot raw counts as well
+# VlnPlot(gamm, features = c("SFRP2", "TRPM3"), slot = "counts", log = TRUE)
+# # umap plot highlighting gene expression
+# FeaturePlot(gamm, features = c("SFRP2", "TRPM3", "ENSSSCG00065027583", "SST"),label = TRUE)
+# # DoHeatmap() generates an expression heatmap for given cells and features. 
+# # In this case, we are plotting the top 20 markers
+# gamm.markers %>%
+#   group_by(cluster) %>%
+#   top_n(n = 10, wt = avg_log2FC) -> top10
+# DoHeatmap(gamm, features = top10$gene) + NoLegend()
+# 
+# # Assigning cell type identity to clusters
+# 
+# # Here canonical markers easily match the unbiased clustering to known cell types
+# new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
+#                      "NK", "DC", "Platelet")
+# names(new.cluster.ids) <- levels(pbmc)
+# pbmc <- RenameIdents(pbmc, new.cluster.ids)
+# DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+# # save object
+# saveRDS(pbmc, file = "output/pbmc3k_final.rds")
+# sessionInfo()
