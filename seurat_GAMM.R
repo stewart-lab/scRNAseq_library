@@ -6,7 +6,7 @@ library(Seurat)
 library(patchwork)
 #install.packages("remotes")
 #remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
-library(DoubletFinder)
+#library(DoubletFinder)
 library(scran)
 library(BiocParallel)
 #BiocManager::install("DropletUtils")
@@ -97,7 +97,9 @@ DropletUtils:::write10xCounts("gamm_soupX_filtS1-2.mtx", out2)
 # gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
 #                               slot = "data", 
 #                               new.data = out)
-# (gamm)
+
+## Doublet removal ## this should happen before filtering and normalization i think
+
 # make a combined seurat object with adjusted data and filter
 gamm <- CreateSeuratObject(counts = cbind(out1,out2), project = "gamm_s1", min.cells = 3, min.features = 200)
 # make singular seurat objects to get accurate cell numbers for each lane
@@ -110,8 +112,8 @@ rm(gamm.data1.raw,gamm.data2.raw)
 # We use the set of all genes starting with MT- as a set of mitochondrial genes
 # The [[ operator can add columns to object metadata. This is a great place to stash QC stats
 #gamm[["percent.mt"]] <- PercentageFeatureSet(gamm, pattern = "^MT-")
-# no oercent.mt in pig because they don't start with MT
-#gamm[["percent.mt"]]
+# no percent.mt in pig because they don't start with MT
+
 # give specific features (genes) for pig data- 13 protein coding mt genes in pig:
 mt.list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L",
              "ND4", "ND5", "ND6", "CYTB")
@@ -168,8 +170,6 @@ plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plot1 + plot2
 
-## Doublet removal ## this should happen before normalization i think
-#seu <- doubletFinder_v3(pbmc, PCs = 1:10, pN = 0.25, pK = 0.19, nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
 
 
 
@@ -327,7 +327,7 @@ ElbowPlot(gamm, reduction='pca')
 # to use harmony embeddings pass reduction='harmony'
 # K-nearest neighbor (KNN) graph
 gamm <- FindNeighbors(gamm, dims = 1:15, reduction='harmony')
-# check umap for differences across lanes
+# check harmony umap for differences across lanes
 gamm <- RunUMAP(gamm, dims = 1:15, reduction = "harmony")
 options(repr.plot.height = 4, repr.plot.width = 10)
 DimPlot(gamm, reduction = "umap", group.by = "lanes", pt.size = .1)#, split.by = 'lanes')
