@@ -1,0 +1,26 @@
+# install library
+library(anndata)
+library(AnnotationHub)
+library(BiocParallel)
+library(DoubletFinder)
+library(dplyr)
+library(ggplot2)
+library(Matrix)
+library(patchwork)
+library(pheatmap)
+library(scater)
+library(scran)
+library(scRNAseq)
+library(scry)
+library(scuttle)
+library(Seurat)
+library(SeuratData)
+library(SingleR)
+library(slingshot)
+library(SoupX)
+library(tradeSeq)
+library(TSCAN)
+library(velociraptor) # cannot install python packages
+library(zellkonverter)
+plot(librarySizeFactors(sce.nest), sizeFactors(sce.nest), pch=16,
+# plot size factors to library size
