@@ -4,12 +4,44 @@
 #   https://books.ropensci.org/targets/walkthrough.html#inspect-the-pipeline # nolint
 
 # Load packages required to define the pipeline:
+library(BiocParallel)
+library(dplyr)
+library(DropletUtils)
+library(ggplot2)
+library(Matrix)
+library(patchwork)
+library(pheatmap)
+library(scater)
+library(scran)
+library(scry)
+library(scuttle)
+library(Seurat)
+library(SoupX)
+library(harmony)
+library(cowplot)
 library(targets)
 # library(tarchetypes) # Load other packages as needed. # nolint
 
 # Set target options:
 tar_option_set(
-  packages = c("Seurat"), # packages that your targets need to run
+  packages = c(
+    "BiocParallel", 
+    "dplyr", 
+    "DropletUtils", 
+    "ggplot2", 
+    "Matrix", 
+    "patchwork", 
+    "pheatmap", 
+    "scater", 
+    "scran", 
+    "scry", 
+    "scuttle", 
+    "Seurat", 
+    "SoupX", 
+    "harmony", 
+    "cowplot", 
+    "targets"
+  ) # packages that your targets need to run
   format = "rds" # default storage format
   # Set other options as needed.
 )
