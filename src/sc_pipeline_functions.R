@@ -7,6 +7,7 @@ read_aligned_data <- function(data_directory){
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   # Create SoupChannel object
   sc <- SoupChannel(data.raw, data)
+
   
   # Create a Seurat object without filtering
   gamm <- CreateSeuratObject(counts = data, project = project)

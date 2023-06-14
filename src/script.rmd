@@ -16,7 +16,16 @@ library(cowplot)
 library(harmony)
 library(SoupX)
 library(scDblFinder)
+source("sc_pipeline_functions.R")
 ```
+``` {r}
+x = 3
+# z <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/filtered/")
+# z_raw <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/raw/")
+# project <- "gamm_s1-1"
+```
+
+
 
 # Load data
 ```{r}
