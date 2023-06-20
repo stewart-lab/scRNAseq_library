@@ -60,3 +60,5 @@ conda env create -f environment.yml
 
 conda activate $name
 
+R -e "devtools::install_github("immunogenomics/harmony")"
+

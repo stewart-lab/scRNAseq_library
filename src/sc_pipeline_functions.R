@@ -26,23 +26,12 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   
   # Estimate contamination fraction
   sc <- autoEstCont(sc)
-  
-  list(gamm = gamm, meta = meta, umap = umap, sc = sc)
+  out = adjustCounts(sc, roundToInt = TRUE)
+  list(gamm = gamm, meta = meta, umap = umap, out = out)
 }
 
-adjust_counts_and_write <- function(res, filename) {
-  # Infer corrected table of counts and round to integer
-  out = adjustCounts(res$sc, roundToInt = TRUE)
-  
-  # Write to a file
-  DropletUtils:::write10xCounts(filename, out)
-  
-  out
-}
 
 create_seurat_and_sce <- function(out1, out2) {
-  # Create a combined Seurat object
-  gamm_seu <- CreateSeuratObject(counts = cbind(out1, out2), project = "gamm_s1")
 
   # Create singular Seurat objects for each data set
   gamm1_seu <- CreateSeuratObject(counts = out1, project = "gamm_s1-1")
@@ -52,7 +41,7 @@ create_seurat_and_sce <- function(out1, out2) {
   sce1 <- as.SingleCellExperiment(gamm1_seu)
   sce2 <- as.SingleCellExperiment(gamm2_seu)
 
-  list(gamm_seu = gamm_seu, gamm1_seu = gamm1_seu, gamm2_seu = gamm2_seu, sce1 = sce1, sce2 = sce2)
+  list(gamm1_seu = gamm1_seu, gamm2_seu = gamm2_seu, sce1 = sce1, sce2 = sce2)
 }
 
 run_scDblFinder_and_merge <- function(sce1, sce2) {
@@ -73,7 +62,7 @@ run_scDblFinder_and_merge <- function(sce1, sce2) {
   # Merge Seurat objects
   gamm <- merge(gamm1, y = gamm2)
   
-  gamm
+  list(gamm = gamm, gamm1 = gamm1, gamm2 = gamm2)
 }
 
 filter_cells <- function(gamm, mt.list, lower.nFeature = 200, upper.nFeature = 8000, max.percent.mt = 5) {
@@ -118,20 +107,26 @@ normalize_data <- function(gamm) {
   gamm
 }
 
-feature_selection <- function(gamm) {
-  # Seurat method
-  gamm <- FindVariableFeatures(gamm, selection.method = "vst", nfeatures = 2000)
-  # Scry method
-  m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
-  devi <- scry::devianceFeatureSelection(m)
-  dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
-  topdev <- head(dev_ranked_genes, 2000)
-  # replace variable features with the deviance ranked genes
-  VariableFeatures(gamm) <- topdev
-  gamm <- UpdateSeuratObject(gamm)
+feature_selection <- function(gamm, analysis_type) {
+  if (analysis_type == "Seurat") {
+    # Seurat method
+    gamm <- FindVariableFeatures(gamm, selection.method = "vst", nfeatures = 2000)
+  } else if (analysis_type == "Scry") {
+    # Scry method
+    m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
+    devi <- scry::devianceFeatureSelection(m)
+    dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
+    topdev <- head(dev_ranked_genes, 2000)
+    # replace variable features with the deviance ranked genes
+    VariableFeatures(gamm) <- topdev
+    gamm <- UpdateSeuratObject(gamm)
+  } else {
+    stop("Invalid analysis_type. Please choose 'Seurat' or 'Scry'.")
+  }
   
   gamm
 }
+
 
 scale_data <- function(gamm) {
     # Get all gene names
@@ -149,47 +144,47 @@ run_and_visualize_pca <- function(seurat_obj, top_n_dims=5, top_n_features=5, he
   seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
   
   # Print top dimensions and features
-  print(seurat_obj[["pca"]], dims = 1:top_n_dims, nfeatures = top_n_features)
+ print(seurat_obj[["pca"]], dims = 1:top_n_dims, nfeatures = top_n_features)
   
   # Visualize feature loadings
-  VizDimLoadings(seurat_obj, dims = 1:2, reduction = "pca")
+  feature_loadings <- VizDimLoadings(seurat_obj, dims = 1:2, reduction = "pca")
   
   # Generate scatter plot of PCA results
-  DimPlot(seurat_obj, reduction = "pca")
+  pca_scat_plot <- DimPlot(seurat_obj, reduction = "pca")
   
-  # Generate heatmap of top dimensions
-  DimHeatmap(seurat_obj, dims = heatmap_dims, cells = num_cells, balanced = TRUE)
+  # save PCA heat map
   
-  return(seurat_obj)
+  pca_heat_map <- DimHeatmap(seurat_obj, nfeatures = 5,dims = heatmap_dims, cells = num_cells, balanced = TRUE, fast = FALSE, combine = TRUE)
+  
+  # return all objects created in this function 
+  return(list( seurat_obj=seurat_obj,feature_loadings=feature_loadings, pca_scat_plot=pca_scat_plot, pca_heat_map=pca_heat_map))
+  
 }
 
-perform_batch_correction <- function(seurat_obj, lanes_assignments, lane1_count, lane2_count) {
 
-  # Assign lanes
-  seurat_obj@meta.data$lanes <- c(rep("lane1", lane1_count), rep("lane2", lane2_count))
+perform_batch_correction <- function(seurat_obj,dims.use=1:20) {
+
+ 
   
   # Check PCA plot
   options(repr.plot.height = 5, repr.plot.width = 12)
-  p1 <- DimPlot(object = seurat_obj, reduction = "pca", pt.size = .1, group.by = "lanes")
-  p2 <- VlnPlot(object = seurat_obj, features = "PC_1", group.by = "lanes", pt.size = .1)
-  plot_grid(p1,p2)
+  p1_pre <- DimPlot(object = seurat_obj, reduction = "pca", pt.size = .1, group.by = "orig.ident")
+  p2_pre <- VlnPlot(object = seurat_obj, features = "PC_1", group.by = "orig.ident", pt.size = .1)
   
   # Run Harmony
   options(repr.plot.height = 2.5, repr.plot.width = 6)
-  seurat_obj <- seurat_obj %>% 
-    RunHarmony("lanes", plot_convergence = TRUE)
+  seurat_obj <- RunHarmony(seurat_obj, group.by.vars = "orig.ident", dims.use=dims.use, max.iter.harmony = 50)
   
   # Access Harmony embeddings
   harmony_embeddings <- Embeddings(seurat_obj, 'harmony')
-  print(head(harmony_embeddings, 5))
   
   # Check out new PCA plot
   options(repr.plot.height = 5, repr.plot.width = 12)
-  p1 <- DimPlot(object = seurat_obj, reduction = "harmony", pt.size = .1, group.by = "lanes")
-  p2 <- VlnPlot(object = seurat_obj, features = "harmony_1", group.by = "lanes", pt.size = .1)
-  plot_grid(p1,p2)
+  p1_post <- DimPlot(object = seurat_obj, reduction = "harmony", pt.size = .1, group.by = "orig.ident")
+  p2_post <- VlnPlot(object = seurat_obj, features = "harmony_1", group.by = "orig.ident", pt.size = .1)
+ 
   
-  return(seurat_obj)
+  return(list(seurat_obj=seurat_obj, harmony_embeddings=harmony_embeddings, p1_pre=p1_pre, p2_pre=p2_pre, p1_post=p1_post, p2_post=p2_post))
 }
 
 perform_clustering <- function(seurat_obj, num.replicate = 100, dims = 1:20, dims_umap = 1:15, resolution = 0.5) {
@@ -213,7 +208,7 @@ perform_clustering <- function(seurat_obj, num.replicate = 100, dims = 1:20, dim
   
   # Plot UMAP results
   options(repr.plot.height = 4, repr.plot.width = 10)
-  DimPlot(seurat_obj, reduction = "umap", group.by = "lanes", pt.size = .1)
+  DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .1)
   
   # Cluster cells
   seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = "leiden")
@@ -264,4 +259,10 @@ find_differential_expression <- function(seurat_obj, logfc.threshold = 0.25, min
   DoHeatmap(seurat_obj, features = top_n_markers$gene) + NoLegend()
 
   return(list("AllMarkers" = seurat_obj.markers, "Cluster1Markers" = cluster1.markers, "TopNMarkers" = top_n_markers))
+}
+
+create_feature_scatter_plot <- function(obj, feature1, feature2) {
+
+ plot <- FeatureScatter(object = obj, feature1 = feature1, feature2 = feature2)
+  return(plot)
 }

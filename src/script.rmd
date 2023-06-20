@@ -3,6 +3,8 @@ title: "Your Title"
 output: html_document
 ---
 
+# ENVIRONMENT SETUP
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -16,280 +18,172 @@ library(cowplot)
 library(harmony)
 library(SoupX)
 library(scDblFinder)
-source("sc_pipeline_functions.R")
+# SET WD TO THE DIRECTORY WHERE THE SCRIPT IS LOCATED
+library(reticulate)
+use_condaenv("TESTV5", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
+setwd("/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library/")
+source("src/sc_pipeline_functions.R")
+
 ```
-``` {r}
-x = 3
-# z <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/filtered/")
-# z_raw <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/raw/")
-# project <- "gamm_s1-1"
-```
+# Load Data
 
 
-
-# Load data
 ```{r}
+data <- read_aligned_data(
+  "/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/filtered/")
+raw_data <- read_aligned_data(
+  "/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/raw/")
+project <- "gamm_s1-1"
 
-gamm.data1 <- Read10X(data.dir = "/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/filtered/")
-gamm.data2 <- Read10X(data.dir = "/w5home/bmoore/scRNAseq/GAMM/output_S1-2_mm_mt/Solo.out/GeneFull/filtered/")
-gamm.data1.raw <- Read10X(data.dir = "/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull/raw/")
-gamm.data2.raw <- Read10X(data.dir = "/w5home/bmoore/scRNAseq/GAMM/output_S1-2_mm_mt/Solo.out/GeneFull/raw/")
+data_2 <- read_aligned_data(
+  "/w5home/bmoore/scRNAseq/GAMM/output_S1-2_mm_mt/Solo.out/GeneFull/filtered/")
+raw_data_2 <- read_aligned_data(
+  "/w5home/bmoore/scRNAseq/GAMM/output_S1-2_mm_mt/Solo.out/GeneFull/raw/")
+project_2 <- "gamm_s1-2"
 ```
 
-# SoupX
-```{r}  
-sc1 = SoupChannel(gamm.data1.raw, gamm.data1)
-sc2 = SoupChannel(gamm.data2.raw, gamm.data2)
-# get basic clusters
-# make seurat object without filtering
-gamm1 <- CreateSeuratObject(counts = gamm.data1, project = "gamm_s1-1_clusters")
-gamm2 <- CreateSeuratObject(counts = gamm.data2, project = "gamm_s1-2_clusters")
-# quick cluster1
-gamm1    <- SCTransform(gamm1, verbose = F)
-gamm1    <- RunPCA(gamm1, verbose = F)
-gamm1    <- RunUMAP(gamm1, dims = 1:30, verbose = F)
-gamm1    <- FindNeighbors(gamm1, dims = 1:30, verbose = F)
-gamm1    <- FindClusters(gamm1, verbose = T)
-# quick cluster2
-gamm2    <- SCTransform(gamm2, verbose = F)
-gamm2    <- RunPCA(gamm2, verbose = F)
-gamm2    <- RunUMAP(gamm2, dims = 1:30, verbose = F)
-gamm2    <- FindNeighbors(gamm2, dims = 1:30, verbose = F)
-gamm2    <- FindClusters(gamm2, verbose = T)
-# extract clusters from seurat object and add to soup channel
-meta1    <- gamm1@meta.data
-meta2    <- gamm2@meta.data
-umap1    <- gamm1@reductions$umap@cell.embeddings
-umap2    <- gamm2@reductions$umap@cell.embeddings
-sc1  <- setClusters(sc1, setNames(meta1$seurat_clusters, rownames(meta1)))
-head(meta1)
-sc2  <- setClusters(sc2, setNames(meta2$seurat_clusters, rownames(meta2)))
-# Estimate contamination fraction
-sc1  = autoEstCont(sc1)
-sc2 = autoEstCont(sc2)
-#Genes with highest expression in background. These are often enriched for ribosomal proteins.
-head(sc1$soupProfile[order(sc1$soupProfile$est, decreasing = T), ], n = 20)
-# Infer corrected table of counts and round to integer
-out1 = adjustCounts(sc1, roundToInt = TRUE)
-head(out1)
-out2 = adjustCounts(sc2, roundToInt = TRUE)
-# plot soup correction for a gene
-plotChangeMap(sc1, out1, DR=umap1, "RPLP1")
-plotChangeMap(sc2, out2, DR=umap2, "RPLP1")
-# write
-DropletUtils:::write10xCounts("gamm_soupX_filtS1-1.mtx", out1)
-DropletUtils:::write10xCounts("gamm_soupX_filtS1-2.mtx", out2)
-# replace filtered count values with soupX values
-# gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
-#                               slot = "data", 
-#                               new.data = out)
+# Data Prep
+
+
+```{r}
+soupX_objs1 <- prep_seurat_and_soupX(
+  data = data, data.raw = raw_data, project = project)
+
+soupX_objs2 <- prep_seurat_and_soupX(
+  data = data_2, data.raw = raw_data_2, project = project_2)
 ```
-
-
 
 # Create Seurat objects and convert to sce objects
+
+
 ```{r}
-gamm_seu <- CreateSeuratObject(counts = cbind(out1,out2), project = "gamm_s1")
-# make singular seurat objects to get accurate cell numbers for each lane
-gamm1_seu <- CreateSeuratObject(counts = out1, project = "gamm_s1-1")
-gamm2_seu <- CreateSeuratObject(counts = out2, project = "gamm_s1-2")
-sce1 <- as.SingleCellExperiment(gamm1_seu)
-sce2 <- as.SingleCellExperiment(gamm2_seu)
+filtered_list_of_objs <- create_seurat_and_sce(
+  soupX_objs1$out, soupX_objs2$out)
 ```
 
 
-# scDBLfinder
+# Post SoupX QC
+
+
 ```{r}
-set.seed(1234)
-# run scDBLfinder
-sce1 <- scDblFinder(sce1)
-table(call=sce1$scDblFinder.class)
-sce2 <- scDblFinder(sce2)
-table(call=sce2$scDblFinder.class)
-# filter out doublets
-sce1 <- sce1[,sce1$scDblFinder.class == "singlet"]
-sce2 <- sce2[,sce2$scDblFinder.class == "singlet"]
-# convert back to seurat
-gamm1<- as.Seurat(sce1)
-gamm2 <- as.Seurat(sce2)
-gamm <- merge(gamm1, y = gamm2)
-```
-
-# Filter cells
-```{r}
-mt.list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L",
-             "ND4", "ND5", "ND6", "CYTB")
-# or ensemble ids
-# mt.list2 <- c("ENSSSCG00000018065","ENSSSCG00000018069","ENSSSCG00000018075",
-#              "ENSSSCG00000018078","ENSSSCG00000018080","ENSSSCG00000018081",
-#              "ENSSSCG00000018082","ENSSSCG00000018084","ENSSSCG00000018086",
-#              "ENSSSCG00000018087","ENSSSCG00000018091","ENSSSCG00000018092",
-#              "ENSSSCG00000018094")
-# check if all features are in the matrix
-all(mt.list %in% rownames(gamm))
-# if false, need to determine which ones
-for (mt in mt.list) {print(mt)
-                      print(all(mt %in% rownames(gamm)))
-                      }
-percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
-gamm[["percent.mt"]] <- percent_mt
-gamm[["percent.mt"]]
-# for lanes 1 and 2
-percent_mt1 <- PercentageFeatureSet(gamm1, features = mt.list, assay = 'RNA')
-gamm1[["percent.mt"]] <- percent_mt1
-percent_mt2 <- PercentageFeatureSet(gamm2, features = mt.list, assay = 'RNA')
-gamm2[["percent.mt"]] <- percent_mt2
-# We filter cells that have unique feature counts over 2,500 or less than 200
-# We filter cells that have >5% mitochondrial counts
-# Visualize QC metrics as a violin plot
-VlnPlot(gamm, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
-
-# FeatureScatter is typically used to visualize feature-feature relationships, but can be used
-# for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
-plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot1 + plot2
-
-# subset data -  filter out cells that have unique feature counts over 2,500 or less than 200 and > 5% mitochondrial counts
-gamm <- subset(gamm, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
-# subset data by percent- maybe this is better?
-#counts <- GetAssayData(seurat_obj, slot="counts", assay="RNA")   
-#genes.percent.expression <- rowMeans(counts>0 )*100   
-#genes.filter <- names(gene.percent.expressed[gene.percent.expressed>1])  #select genes expressed in at least 1% of cells
-#counts.sub <- counts[genes.filter,]
-#new_seurat_object <- CreateSeuratObject(counts=counts.sub)
-# getting numbers of filtered cells from lanes 1 & 2
-gamm1 <- subset(gamm1, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
-sce1 <- as.SingleCellExperiment(gamm1)
-lane1<- colData(sce1)@nrows
-gamm2 <- subset(gamm2, subset = nFeature_RNA > 200 & nFeature_RNA < 8000 & percent.mt < 5)
-sce2 <- as.SingleCellExperiment(gamm2)
-lane2<- colData(sce2)@nrows
-# after you get lane 1 & 2 numbers, delete seurat object for them to save space
-rm(gamm1,gamm2,sce1,sce2)
-# replot
-plot1 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "percent.mt")
-plot2 <- FeatureScatter(gamm, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-plot1 + plot2
+plot1 <- create_feature_scatter_plot(filtered_list_of_objs$gamm1_seu, 'nCount_RNA', 'nFeature_RNA')
+plot2 <- create_feature_scatter_plot(filtered_list_of_objs$gamm2_seu, 'nCount_RNA', 'nFeature_RNA')
+# save plot object as a pdf 
+  pdf(paste0("plot_outputs/post_SoupX_plot.pdf"), width = 8, height = 6)
+  plot1 + plot2
+dev.off()
 ```
 
 
-# Normalize data
+# Doublet removal and lane merging
+
+
 ```{r}
-# default is “LogNormalize” that normalizes the feature expression measurements for each cell 
-# by the total expression, multiplies this by a scale factor (10,000 by default), 
-# and log-transforms the result. 
-#pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
-
-# scran normalization
-
-sce <- as.SingleCellExperiment(gamm)
-# get raw UMI counts
-counts(sce)[40:50, 40:50]
-# get log Normalized counts form Seurat
-logcounts(sce)[40:50, 40:50]
-#genes
-rownames(sce)[1:5]
-#cells
-colnames(sce)[1:5]
-# get cell metadata
-colData(sce)[1:5, ]
-# get gene metadata
-rowData(sce)[1:5, ]
-# cluster the cells for scran
-clusters <- quickCluster(sce,
-                         use.ranks = FALSE, # suggested by the authors
-                         min.size = 100) # require at least 100 cells per cluster
-
-table(clusters)
-# Calculate size factors per cell
-sce <- computeSumFactors(sce, 
-                         clusters = clusters, 
-                         min.mean = 0.1) # ignore low abundance genes 
-summary(sizeFactors(sce))
-#use scuttle to get lognormcounts function
-library(scuttle)
-# apply size factors to generate log normalized data # using log norm counts instead of this function -- sce <- normalize(sce)
-sce <- logNormCounts(sce)
-
-logcounts(sce)[40:50, 40:50]
-# replace seurat normalized values with scran
-gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
-                            slot = "data", 
-                            new.data = logcounts(sce))
-
-gamm$sizeFactors <- sizeFactors(sce)
-UpdateSeuratObject(gamm)
-# gene expression with reg counts
-VlnPlot(gamm, "ECHS1", slot = "counts")
-# gene expression with scran norm counts
-VlnPlot(gamm, "ECHS1", slot = "data")
+lane_and_merged_gamm <- run_scDblFinder_and_merge(
+  filtered_list_of_objs$sce1, filtered_list_of_objs$sce2)
 ```
+
+# Post Doublet removal QC
+
+
+```{r}
+plot <- create_feature_scatter_plot(lane_and_merged_gamm$gamm, 'nCount_RNA', 'nFeature_RNA')
+  pdf(paste0("plot_outputs/after_dbl_removal.pdf"), width = 8, height = 6)
+  plot
+dev.off()
+```
+
+# Mitochondrial gene filtering
+
+
+```{r}
+pig_mt_list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
+gamm_mt_filtered <- filter_cells(lane_and_merged_gamm$gamm, pig_mt_list)
+
+```
+# Housekeeping and plots
+
+
+```{r}
+plot1 <- create_feature_scatter_plot(gamm_mt_filtered, 'nCount_RNA', 'percent.mt')
+plot2 <- create_feature_scatter_plot(gamm_mt_filtered, 'nCount_RNA', 'nFeature_RNA')
+
+  pdf(paste0("plot_outputs/mt_filtered.pdf"), width = 8, height = 6)
+  plot1 + plot2
+dev.off()
+
+
+rm(gamm1, gamm2, sce1, sce2, raw_data, raw_data_2, data, data_2, obj1_to_write, obj2_to_write, ambiant_filtered1, ambiant_filtered2, lane_and_merged_gamm)
+
+```
+
+
+# Normalization
+
+
+```{r}
+normalized_gamm <- normalize_data(gamm_mt_filtered)
+```
+
+# Post Normalization QC (violin plots)
+
+
+```{r}
+
+```
+
 
 # Feature selection
+
 ```{r}
-gamm <- FindVariableFeatures(gamm, selection.method = "vst", nfeatures = 2000)
-
-# Identify the 10 most highly variable genes
-top10 <- head(VariableFeatures(gamm), 10)
-top10
-# plot variable features with and without labels
-plot1 <- VariableFeaturePlot(gamm)
-plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
-plot1 + plot2
-
-# feature selection with scry
-# scry deviance for feature selection which works on raw counts [Germain et al., 2020]. Deviance can be computed in closed form and quantifies whether genes show a constant expression profile across cells as these are not informative. 
-# BiocManager::install('scry')
-library(scry)
-m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
-devi <- scry::devianceFeatureSelection(m)
-dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
-topdev <- head(dev_ranked_genes, 2000)
-# replace variable features with the deviance ranked genes
-VariableFeatures(gamm) <- topdev
-# VariableFeatures(gamm)
-UpdateSeuratObject(gamm)
-devtop10 <- head(VariableFeatures(gamm), 10)
-devtop10
-plot1<-VariableFeaturePlot(gamm)
-plot2<-LabelPoints(plot = plot1, points = devtop10, repel = TRUE)
-plot1 + plot2
+feature_selected_gamm <- feature_selection(normalized_gamm, 'Scry')
 ```
 
-# Scaling data
-```{r}
-# Next, we apply a linear transformation (‘scaling’) that is a standard pre-processing step prior to dimensional reduction techniques like PCA. The ScaleData() function:
-#   
-# Shifts the expression of each gene, so that the mean expression across cells is 0
-# Scales the expression of each gene, so that the variance across cells is 1
-# This step gives equal weight in downstream analyses, so that highly-expressed genes do not dominate
-# The results of this are stored in pbmc[["RNA"]]@scale.data
-all.genes <- rownames(gamm)
-gamm <- ScaleData(gamm, features = all.genes)
 
-# Remove unwanted variation
-# also use the ScaleData() function to remove unwanted sources of variation from a 
-# single-cell dataset. For example, we could ‘regress out’ heterogeneity associated with 
-# (for example) cell cycle stage, or mitochondrial contamination. # get list of cell cycle genes
-# pbmc <- ScaleData(pbmc, vars.to.regress = "percent.mt")
+# Scaling data
+
+```{r}
+scaled_gamm <- scale_data(feature_selected_gamm)
+```
+
+# Post scaling QC (violin plots)
+
+```{r}
+
 ```
 
 # Dimensional reduction
+
 ```{r}
-# Perform linear dimensional reduction on the variable features
-gamm <- RunPCA(gamm, features = VariableFeatures(object = gamm))
-# Examine and visualize PCA results a few different ways
-print(gamm[["pca"]], dims = 1:5, nfeatures = 5)
-VizDimLoadings(gamm, dims = 1:2, reduction = "pca")
-DimPlot(gamm, reduction = "pca")
-#DimHeatmap(gamm, dims = 1, cells = 500, balanced = TRUE)
-DimHeatmap(gamm, dims = 1:15, cells = 500, balanced = TRUE)
+pca_outputs <- run_and_visualize_pca(scaled_gamm)
+
+pdf(paste0("plot_outputs/feature_loadings.pdf"), width = 8, height = 6)
+pca_outputs$feature_loadings
+dev.off()
+
+pdf(paste0("plot_outputs/pca_scatter_plot.pdf"), width = 8, height = 6)
+pca_outputs$pca_scat_plot
+dev.off()
+
+pdf(paste0("plot_outputs/pca_heat_map.pdf"), width = 8, height = 6)
+pca_outputs$pca_heat_map
+dev.off()
+
+seurat_obj <- pca_outputs$seurat_obj
 ```
 
 # Batch correction
 ```{r}
-gamm@meta.data$lanes <- c(rep("lane1", lane1), rep("lane2", lane2))
+batch_corrected_obj_and_plots <- perform_batch_correction(seurat_obj)
+
+```
+```{r}
+clustered_seurat_obj <- perform_clustering(batch_corrected_obj_and_plots$seurat_obj)
+```
+```{r}
+```
+```{r}
+gamm@meta.data$lanes <- c(rep("lane1", lane1_mt_filtered_cells), rep("lane2", lane2_mt_filtered_cells))
 # check PCA plot
 options(repr.plot.height = 5, repr.plot.width = 12)
 p1 <- DimPlot(object = gamm, reduction = "pca", pt.size = .1, group.by = "lanes")
