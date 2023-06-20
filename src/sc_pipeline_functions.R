@@ -51,6 +51,9 @@ run_scDblFinder_and_merge <- function(sce1, sce2) {
   sce1 <- scDblFinder(sce1)
   sce2 <- scDblFinder(sce2)
 
+  table1 <- table(call=sce1$scDblFinder.class)
+  table2 <- table(call=sce2$scDblFinder.class)
+
   # Filter out doublets
   sce1 <- sce1[, sce1$scDblFinder.class == "singlet"]
   sce2 <- sce2[, sce2$scDblFinder.class == "singlet"]
@@ -62,7 +65,7 @@ run_scDblFinder_and_merge <- function(sce1, sce2) {
   # Merge Seurat objects
   gamm <- merge(gamm1, y = gamm2)
   
-  list(gamm = gamm, gamm1 = gamm1, gamm2 = gamm2)
+  list(gamm = gamm, gamm1 = gamm1, gamm2 = gamm2, table1=table1, table2=table2)
 }
 
 filter_cells <- function(gamm, mt.list, lower.nFeature = 200, upper.nFeature = 8000, max.percent.mt = 5) {
@@ -76,11 +79,11 @@ filter_cells <- function(gamm, mt.list, lower.nFeature = 200, upper.nFeature = 8
   # Calculate percent.mt and add to the metadata
   percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
   gamm[["percent.mt"]] <- percent_mt
-
+  pre_filter_plot <- create_feature_scatter_plot(gamm, 'nCount_RNA', 'percent.mt')
   # Filter cells based on nFeature_RNA and percent.mt
   gamm <- subset(gamm, subset = nFeature_RNA > lower.nFeature & nFeature_RNA < upper.nFeature & percent.mt < max.percent.mt)
 
-  gamm
+  return(list(gamm=gamm, pre_filter_plot=pre_filter_plot))
 }
 
 normalize_data <- function(gamm) {
@@ -187,6 +190,7 @@ perform_batch_correction <- function(seurat_obj,dims.use=1:20) {
   return(list(seurat_obj=seurat_obj, harmony_embeddings=harmony_embeddings, p1_pre=p1_pre, p2_pre=p2_pre, p1_post=p1_post, p2_post=p2_post))
 }
 
+
 perform_clustering <- function(seurat_obj, num.replicate = 100, dims = 1:20, dims_umap = 1:15, resolution = 0.5) {
 
   # Perform JackStraw
@@ -194,11 +198,11 @@ perform_clustering <- function(seurat_obj, num.replicate = 100, dims = 1:20, dim
   seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
   
   # Visualize JackStraw results
-  JackStrawPlot(seurat_obj, dims = dims)
+  jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
   
   # Generate Elbow plots
-  ElbowPlot(seurat_obj, reduction='harmony')
-  ElbowPlot(seurat_obj, reduction='pca')
+  elbow_harm <-ElbowPlot(seurat_obj, reduction='harmony')
+  elbow_pca <- ElbowPlot(seurat_obj, reduction='pca')
   
   # Perform K-nearest neighbor (KNN) graph using harmony embeddings
   seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, reduction='harmony')
@@ -208,32 +212,18 @@ perform_clustering <- function(seurat_obj, num.replicate = 100, dims = 1:20, dim
   
   # Plot UMAP results
   options(repr.plot.height = 4, repr.plot.width = 10)
-  DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .1)
+  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .1)
   
   # Cluster cells
   seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = "leiden")
+
+  # Visualize clusters
+  options(repr.plot.height = 4, repr.plot.width = 10)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .1)
   
-  # Show cluster IDs of the first 5 cells
-  print(head(Idents(seurat_obj), 5))
-  
-  return(seurat_obj)
+  return(list(seurat_obj=seurat_obj, jack_straw=jack_straw, elbow_harm=elbow_harm, elbow_pca=elbow_pca, umap_lanes=umap_lanes, umap_clusters=umap_clusters))
 }
 
-perform_non_linear_dim_reduction <- function(seurat_obj, dims = 1:15, save_file = "seurat_obj.rds") {
-  # Run non-linear dimensional reduction (UMAP)
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims)
-  
-  # Visualize UMAP results with labels
-  DimPlot(seurat_obj, reduction = "umap", label = TRUE)
-  
-  # Save Seurat object
-  saveRDS(seurat_obj, file = save_file)
-  
-  # Read Seurat object from the saved file
-  seurat_obj <- readRDS(file = save_file)
-  
-  return(seurat_obj)
-}
 
 find_differential_expression <- function(seurat_obj, logfc.threshold = 0.25, min.pct = 0.25, top_n = 10) {
   # Find markers for every cluster compared to all remaining cells, only positive ones

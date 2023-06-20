@@ -18,9 +18,10 @@ library(cowplot)
 library(harmony)
 library(SoupX)
 library(scDblFinder)
-# SET WD TO THE DIRECTORY WHERE THE SCRIPT IS LOCATED
 library(reticulate)
-use_condaenv("TESTV5", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
+# SET WD TO THE DIRECTORY WHERE THE SCRIPT IS LOCATED
+# IMPLEMENT WAY TO AUTOFILL CONDA NAME AND PATH TO CONDA BINARY VIA INSTALL SCRIPT
+use_condaenv("TESTv7", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
 setwd("/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library/")
 source("src/sc_pipeline_functions.R")
 
@@ -81,6 +82,9 @@ dev.off()
 ```{r}
 lane_and_merged_gamm <- run_scDblFinder_and_merge(
   filtered_list_of_objs$sce1, filtered_list_of_objs$sce2)
+
+dbl_table1 <- as.data.frame(lane_and_merged_gamm$table1)
+dbl_table2 <- as.data.frame(lane_and_merged_gamm$table2)
 ```
 
 # Post Doublet removal QC
@@ -94,48 +98,45 @@ dev.off()
 ```
 
 # Mitochondrial gene filtering
-
+## Defaults = lower.nFeature = 200, upper.nFeature = 8000, max.percent.mt = 5
 
 ```{r}
+# TODO: add option for human mt lists 
 pig_mt_list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
 gamm_mt_filtered <- filter_cells(lane_and_merged_gamm$gamm, pig_mt_list)
-
-```
-# Housekeeping and plots
-
-
-```{r}
-plot1 <- create_feature_scatter_plot(gamm_mt_filtered, 'nCount_RNA', 'percent.mt')
-plot2 <- create_feature_scatter_plot(gamm_mt_filtered, 'nCount_RNA', 'nFeature_RNA')
+plot1 <- create_feature_scatter_plot(gamm_mt_filtered$gamm, 'nCount_RNA', 'percent.mt')
+plot2 <- create_feature_scatter_plot(gamm_mt_filtered$gamm, 'nCount_RNA', 'nFeature_RNA')
 
   pdf(paste0("plot_outputs/mt_filtered.pdf"), width = 8, height = 6)
   plot1 + plot2
 dev.off()
-
-
-rm(gamm1, gamm2, sce1, sce2, raw_data, raw_data_2, data, data_2, obj1_to_write, obj2_to_write, ambiant_filtered1, ambiant_filtered2, lane_and_merged_gamm)
-
+  pdf(paste0("plot_outputs/mt_unfiltered.pdf"), width = 8, height = 6)
+  gamm_mt_filtered$pre_filter_plot
+dev.off()
 ```
 
-
 # Normalization
-
-
 ```{r}
-normalized_gamm <- normalize_data(gamm_mt_filtered)
+normalized_gamm <- normalize_data(gamm_mt_filtered$gamm)
 ```
 
 # Post Normalization QC (violin plots)
-
-
 ```{r}
-
+vin_pre <- VlnPlot(normalized_gamm, "ECHS1", slot = "counts")
+vin_post <- VlnPlot(normalized_gamm, "ECHS1", slot = "data")
+  pdf(paste0("plot_outputs/violin_pre_norm.pdf"), width = 8, height = 6)
+  vin_pre
+dev.off()
+  pdf(paste0("plot_outputs/violin_post_norm.pdf"), width = 8, height = 6)
+  vin_post
+dev.off()
 ```
 
 
 # Feature selection
 
 ```{r}
+# analysis_type = 'Scry' or 'Seurat'
 feature_selected_gamm <- feature_selection(normalized_gamm, 'Scry')
 ```
 
@@ -143,13 +144,8 @@ feature_selected_gamm <- feature_selection(normalized_gamm, 'Scry')
 # Scaling data
 
 ```{r}
+# TODO add option for regressing out cell cell cycle genes
 scaled_gamm <- scale_data(feature_selected_gamm)
-```
-
-# Post scaling QC (violin plots)
-
-```{r}
-
 ```
 
 # Dimensional reduction
@@ -175,132 +171,49 @@ seurat_obj <- pca_outputs$seurat_obj
 # Batch correction
 ```{r}
 batch_corrected_obj_and_plots <- perform_batch_correction(seurat_obj)
-
+pdf(paste0("plot_outputs/batch_uncorrected_pca.pdf"), width = 8, height = 6)
+batch_corrected_obj_and_plots$p1_pre + batch_corrected_obj_and_plots$p2_pre
+dev.off()
+pdf(paste0("plot_outputs/batch_corrected_pca.pdf"), width = 8, height = 6)
+batch_corrected_obj_and_plots$p1_post + batch_corrected_obj_and_plots$p2_post
+dev.off()
 ```
+
+# Clustering 
 ```{r}
+# Defaults: num.replicate = 100, dims = 1:20, dims_umap = 1:15, resolution = 0.5
 clustered_seurat_obj <- perform_clustering(batch_corrected_obj_and_plots$seurat_obj)
+pdf(paste0("plot_outputs/elbow_harmony.pdf"), width = 8, height = 6)
+clustered_seurat_obj$elbow_harm
+dev.off()
+pdf(paste0("plot_outputs/elbow_pca.pdf"), width = 8, height = 6)
+clustered_seurat_obj$elbow_pca
+dev.off()
+pdf(paste0("plot_outputs/jack_straw.pdf"), width = 8, height = 6)
+clustered_seurat_obj$jack_straw
+dev.off()
+pdf(paste0("plot_outputs/umap_lanes.pdf"), width = 8, height = 6)
+clustered_seurat_obj$umap_lanes
+dev.off()
+pdf(paste0("plot_outputs/umap_clusters.pdf"), width = 8, height = 6)
+clustered_seurat_obj$umap_clusters
+dev.off()
 ```
+
+# SAVE WORK
 ```{r}
+saveRDS(clustered_seurat_obj$seurat_obj, file = "output/clustered_seurat_obj.rds")
+writeLines(capture.output(sessionInfo()), "output/session_info.txt")
+# save session info as a text file
+
+
 ```
+
+
 ```{r}
-gamm@meta.data$lanes <- c(rep("lane1", lane1_mt_filtered_cells), rep("lane2", lane2_mt_filtered_cells))
-# check PCA plot
-options(repr.plot.height = 5, repr.plot.width = 12)
-p1 <- DimPlot(object = gamm, reduction = "pca", pt.size = .1, group.by = "lanes")
-p2 <- VlnPlot(object = gamm, features = "PC_1", group.by = "lanes", pt.size = .1)
-plot_grid(p1,p2)
-# run harmony
-options(repr.plot.height = 2.5, repr.plot.width = 6)
-gamm <- gamm %>% 
-  RunHarmony("lanes", plot_convergence = TRUE)
-# access harmony embeddings
-harmony_embeddings <- Embeddings(gamm, 'harmony')
-harmony_embeddings[1:5, 1:5]
-# check out new pca plot
-options(repr.plot.height = 5, repr.plot.width = 12)
-p1 <- DimPlot(object = gamm, reduction = "harmony", pt.size = .1, group.by = "lanes")
-p2 <- VlnPlot(object = gamm, features = "harmony_1", group.by = "lanes", pt.size = .1)
-plot_grid(p1,p2)
-
-# Determine the ‘dimensionality’ of the dataset
-# to overcome technical noise, Seurat clusters cells based on their PCA scores, 
-# with each PC essentially representing a ‘metafeature’ that combines information 
-# across a correlated feature set. The top principal components therefore represent 
-# a robust compression of the dataset
-# JackStraw randomly permutes a subset (1%) of the data and reruns PCA, constructing a null
-# distribution of feature scores. Significant PCs have strong enrichment of low p-val features
-
-
-gamm <- JackStraw(gamm, num.replicate = 100)
-gamm <- ScoreJackStraw(gamm, dims = 1:20)
-# The JackStrawPlot() function provides a visualization tool for comparing the 
-# distribution of p-values for each PC with a uniform distribution (dashed line). 
-# ‘Significant’ PCs will show a strong enrichment of features with low p-values 
-#(solid curve above the dashed line).
-JackStrawPlot(gamm, dims = 1:20)
-#  alternative heuristic method generates an ‘Elbow plot’: a ranking of principle 
-# components based on the percentage of variance explained by each one (ElbowPlot() 
-# function). In this example, we can observe an ‘elbow’ to suggest how many PCs capture
-# the majority of the true signal. can use reduction='harmony' to use harmony embeddings
-ElbowPlot(gamm, reduction='harmony')
-ElbowPlot(gamm, reduction='pca')
-# Cluster the Cells using only genes from chosen PCs
-# to use harmony embeddings pass reduction='harmony'
-# K-nearest neighbor (KNN) graph
-gamm <- FindNeighbors(gamm, dims = 1:15, reduction='harmony')
-# check harmony umap for differences across lanes
-gamm <- RunUMAP(gamm, dims = 1:15, reduction = "harmony")
-options(repr.plot.height = 4, repr.plot.width = 10)
-DimPlot(gamm, reduction = "umap", group.by = "lanes", pt.size = .1)#, split.by = 'lanes')
-# note need to pip install leiden and pandas for FindClusters to run
-#reticulate::py_install(packages ='leidenalg') #pip install leidenalg
-#reticulate::py_install(packages ='pandas')
-gamm <- FindClusters(gamm, resolution = 0.5, algorithm = "leiden")
-# Look at cluster IDs of the first 5 cells
-head(Idents(gamm), 5)
+final_objs <- find_differential_expression(reduced_clustered_seurat_obj$seurat_obj)
 ```
 
-# Non linear dimensional reduction
-```{r}
-# Run non-linear dimensional reduction (UMAP/tSNE)
-# The goal of these algorithms is to learn the underlying manifold of the data in order 
-# to place similar cells together in low-dimensional space. Cells within the graph-based 
-# clusters determined above should co-localize on these dimension reduction plots. 
-# As input to the UMAP and tSNE, we suggest using the same PCs as input to the 
-# clustering analysis.
-# If you haven't installed UMAP: 
-# reticulate::py_install(packages ='umap-learn')
-#gamm <- RunUMAP(gamm, dims = 1:15)
-# note that you can set `label = TRUE` or use the LabelClusters function to help label
-# plot individual clusters
-DimPlot(gamm, reduction = "umap", label = T)
-# save object
-saveRDS(gamm, file = "GAMM_test1_lanes.rds")
-# read back in the object
-gamm <- readRDS(file = "GAMM_test1.rds")
-```
 
-# Differential expression
-```{r}
-# find all markers of cluster 1 compared to all other clusters
-cluster1.markers <- FindMarkers(gamm, ident.1 = 1, min.pct = 0.25)
-head(cluster1.markers, n = 5)
-# find all markers distinguishing cluster 5 from clusters 0 and 3
-#cluster5.markers <- FindMarkers(pbmc, ident.1 = 5, ident.2 = c(0, 3), min.pct = 0.25)
-#head(cluster5.markers, n = 5)
-# find markers for every cluster compared to all remaining cells, report only the positive
-# ones
-gamm.markers <- FindAllMarkers(gamm, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-gamm.markers %>%
-  group_by(cluster) %>%
-  slice_max(n = 2, order_by = avg_log2FC) %>%
-  print(n=28)
-# ROC test for cluster markers, 0= random, 1= perfect)
-cluster1.markers <- FindMarkers(gamm, ident.1 = 1, logfc.threshold = 0.25, test.use = "roc", only.pos = TRUE)
-head(cluster1.markers, n = 5)
-# visualize marker expression
-VlnPlot(gamm, features = c("SFRP2", "TRPM3"))
-# you can plot raw counts as well
-VlnPlot(gamm, features = c("SFRP2", "TRPM3"), slot = "counts", log = TRUE)
-# umap plot highlighting gene expression
-FeaturePlot(gamm, features = c("SFRP2", "TRPM3", "ENSSSCG00065027583", "SST"),label = TRUE)
-# DoHeatmap() generates an expression heatmap for given cells and features. 
-# In this case, we are plotting the top 20 markers
-gamm.markers %>%
-  group_by(cluster) %>%
-  top_n(n = 10, wt = avg_log2FC) -> top10
-DoHeatmap(gamm, features = top10$gene) + NoLegend()
-```
 
-# Assigning cell type identity to clusters
-```{r}
-new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
-                     "NK", "DC", "Platelet")
-names(new.cluster.ids) <- levels(pbmc)
-pbmc <- RenameIdents(pbmc, new.cluster.ids)
-DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
-# save object
-saveRDS(pbmc, file = "output/pbmc3k_final.rds")
-sessionInfo()
-```
 
