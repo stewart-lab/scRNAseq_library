@@ -211,7 +211,7 @@ dependencies:
   - r-irlba=2.3.5.1=r42h5f7b363_0
   - r-isoband=0.2.7=r42h38f115c_1
   - r-jquerylib=0.1.4=r42hc72bb7e_1
-  - r-jsonlite=1.8.5=r42h57805ef_0
+  - r-jsonlite=1.8.5=r42h57805ef_1
   - r-kernsmooth=2.23_20=r42h640688f_0
   - r-knitr=1.43=r42hc72bb7e_0
   - r-labeling=0.4.2=r42hc72bb7e_2
@@ -260,7 +260,7 @@ dependencies:
   - r-progressr=0.13.0=r42hc72bb7e_0
   - r-promises=1.2.0.1=r42h7525677_1
   - r-ps=1.7.5=r42h57805ef_1
-  - r-purrr=1.0.1=r42h133d619_0
+  - r-purrr=1.0.1=r42h57805ef_1
   - r-r.cache=0.16.0=r42hc72bb7e_2
   - r-r.methodss3=1.8.2=r42hc72bb7e_1
   - r-r.oo=1.25.0=r42hc72bb7e_1

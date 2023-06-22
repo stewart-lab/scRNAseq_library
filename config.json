@@ -1,0 +1,34 @@
+{
+    "prep_seurat_and_soupX": {
+      "dims": 30
+    },
+    "filter_cells": {
+      "lower.nFeature": 200,
+      "upper.nFeature": 8000,
+      "max.percent.mt": 5
+    },
+    "normalize_data": {
+      "min_size": 100,
+      "min_mean": 0.1
+    },
+    "feature_selection": {
+      "n_features": 2000
+    },
+    "run_and_visualize_pca": {
+      "top_n_dims": 5,
+      "top_n_features": 5,
+      "heatmap_dims": 15,
+      "num_cells": 500
+    },
+    "perform_batch_correction": {
+      "dims.use": 20,
+      "max_iter": 50
+    },
+    "perform_clustering": {
+      "num.replicate": 100,
+      "dims": 20,
+      "dims_umap": 15,
+      "resolution": 0.5
+    }
+  }
+  
