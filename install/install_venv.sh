@@ -56,6 +56,30 @@ sed "s|PREFIX_PLACEHOLDER|$full_path|" environment_template.yml > environment.ym
 # Replace NAME_PLACEHOLDER with the desired name in the generated environment.yml file
 sed -i "s|NAME_PLACEHOLDER|$name|" environment.yml
 
+# First, remove "/envs" from the end of conda_envs_path
+conda_bin_path="${conda_envs_path%/envs}"
+
+# Now add "/condabin/conda" to the end
+conda_bin_path="${conda_bin_path}/condabin/conda"
+
+# Use this new variable in your sed command:
+sed -i "s|use_condaenv(.*|use_condaenv(\"${name}\", conda = \"${conda_bin_path}\")|" ../src/script.rmd
+
+# Get the current directory
+current_dir=$(pwd)
+
+# Get the parent directory
+parent_dir=$(dirname "${current_dir}")
+
+# Use this new variable in your sed command:
+sed -i "s|setwd(.*|setwd(\"${parent_dir}\")|" ../src/script.rmd
+
+# Full path to the R executable
+r_path="${full_path}/bin/R"
+
+echo "If using VSCode, set your r.rterm.linux setting in your settings.json to \"${r_path}\""
+
+
 conda env create -f environment.yml
 
 conda activate $name

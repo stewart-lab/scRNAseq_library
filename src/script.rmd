@@ -20,10 +20,8 @@ library(scDblFinder)
 library(reticulate)
 library(purrr)
 library(jsonlite)
-# SET WD TO THE DIRECTORY WHERE THE SCRIPT IS LOCATED
-# IMPLEMENT WAY TO AUTOFILL CONDA NAME AND PATH TO CONDA BINARY VIA INSTALL SCRIPT
-use_condaenv("TESTv7", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
-setwd("/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library/")
+use_condaenv("PIPELINE_V4", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
+setwd("/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library")
 config <- fromJSON("config.json")
 source("src/sc_pipeline_functions.R")
 ```
@@ -90,16 +88,6 @@ batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
 # Clustering 
 ```{r}
 clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
-```
-
-# SAVE WORK
-```{r}
-saveRDS(clustered_seurat_obj$seurat_obj, file = "output/clustered_seurat_obj.rds")
-writeLines(capture.output(sessionInfo()), "output/session_info.txt")
-```
-
-```{r}
-final_objs <- find_differential_expression(reduced_clustered_seurat_obj$seurat_obj)
 ```
 
 

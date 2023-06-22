@@ -39,7 +39,6 @@ prep_seurat_and_soupX <- function(data.raw, data, project, dims = 1:30) {
   list(gamm = gamm, meta = meta, umap = umap, out = out)
 }
 
-
 create_seurat_and_sce <- function(out, project, feature_set) {
   # Create singular Seurat object
   seu <- CreateSeuratObject(counts = out, project = project)
