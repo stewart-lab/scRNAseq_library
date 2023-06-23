@@ -17,7 +17,7 @@ if ! command -v conda &> /dev/null
 then
     echo "conda could not be found"
     echo "Please install conda and try again"
-    exit 1
+    return 1
 fi
 
 #check that there is at least one argument:
@@ -25,7 +25,7 @@ if [ $# -eq 0 ]
   then
     echo "Virtual Environment name is required"
     echo "Usage: source install_venv.sh ENV_NAME [PATH]"
-    exit 1
+    return 1
 fi
 
 if [ "$(basename "$PWD")" != "install" ]

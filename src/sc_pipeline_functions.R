@@ -10,33 +10,35 @@ read_aligned_data <- function(base_directory, project_name) {
   )
 }
 
-prep_seurat_and_soupX <- function(data.raw, data, project, dims = 1:30) {
+prep_seurat_and_soupX <- function(data.raw, data, project) {
+  
+  dims = 1:config$prep_seurat_and_soupX$dims
   # Create SoupChannel object
   sc <- SoupChannel(data.raw, data)
 
   # Create a Seurat object without filtering
-  gamm <- CreateSeuratObject(counts = data, project = project)
+  seurat_obj <- CreateSeuratObject(counts = data, project = project)
   
   # Perform transformations and find clusters
-  gamm <- SCTransform(gamm, verbose = F)
-  gamm <- RunPCA(gamm, verbose = F)
+  seurat_obj <- SCTransform(seurat_obj, verbose = F)
+  seurat_obj <- RunPCA(seurat_obj, verbose = F)
   
   # Use the provided 'dims' parameter in the following functions
-  gamm <- RunUMAP(gamm, dims = dims, verbose = F)
-  gamm <- FindNeighbors(gamm, dims = dims, verbose = F)
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims, verbose = F)
+  seurat_obj <- FindNeighbors(seurat_obj, dims = dims, verbose = F)
   
-  gamm <- FindClusters(gamm, verbose = T)
+  seurat_obj <- FindClusters(seurat_obj, verbose = T)
   
   # Extract clusters from Seurat object and add to SoupChannel
-  meta <- gamm@meta.data
-  umap <- gamm@reductions$umap@cell.embeddings
+  meta <- seurat_obj@meta.data
+  umap <- seurat_obj@reductions$umap@cell.embeddings
   sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
   
   # Estimate contamination fraction
   sc <- autoEstCont(sc)
   out = adjustCounts(sc, roundToInt = TRUE)
   
-  list(gamm = gamm, meta = meta, umap = umap, out = out)
+  list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
 }
 
 create_seurat_and_sce <- function(out, project, feature_set) {
@@ -46,73 +48,79 @@ create_seurat_and_sce <- function(out, project, feature_set) {
   # Convert Seurat objects to SingleCellExperiment object
   sce <- as.SingleCellExperiment(seu)
   
-  # Post SoupX QC
-  combine_feature_plots(filtered_list_of_objs, feature_set, file_name_base = "post_soupx_qc")
-  
   list(seu = seu, sce = sce)
 }
-
-run_scDblFinder_and_filter <- function(sce) {
+run_scDblFinder_and_merge <- function(sce_list, save_plot = TRUE, file_name = "after_dbl_removal_and_merge", path = "output/") {
   set.seed(1234)
-  sce <- scDblFinder(sce)
-  table <- table(call=sce$scDblFinder.class)
-  sce <- sce[, sce$scDblFinder.class == "singlet"]
-  list(sce = sce, table = as.data.frame(table))
-}
-
-run_scDblFinder_and_merge <- function(sce_list, save_plot = TRUE, file_name = "after_dbl_removal_and_merge", path = "plot_outputs/") {
-
   result_list <- list()
+  dbl_table_list <- list()  # Initialize an empty list to store the tables
+  
   for (i in seq_along(sce_list)) {
     sce_list[[i]] <- scDblFinder(sce_list[[i]])
-    result_list[[paste0("table", i)]] <- as.data.frame(table(call=sce_list[[i]]$scDblFinder.class))
+    dbl_table <- as.data.frame(table(call=sce_list[[i]]$scDblFinder.class))
+    dbl_table_list[[i]] <- dbl_table  # Add the table to the list
     sce_list[[i]] <- sce_list[[i]][, sce_list[[i]]$scDblFinder.class == "singlet"]
-    result_list[[paste0("gamm", i)]] <- as.Seurat(sce_list[[i]])
+    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]])
   }
-  result_list$gamm <- merge(result_list$gamm1, y = result_list$gamm2)
+  
+  # Merge all the tables
+  merged_dbl_table <- do.call(rbind, dbl_table_list)
+  
+  # Write the merged table to the output directory
+  write.table(merged_dbl_table, file = paste0(path, "/merged_doublet_table.txt"), sep = "\t", row.names = TRUE, quote = FALSE)
+  
+  result_list$seurat_obj <- merge(result_list$seurat_obj1, y = result_list$seurat_obj2)
   if (save_plot) {
-    create_feature_scatter_plot(obj = result_list$gamm, feature1 = 'nCount_RNA', feature2 = 'nFeature_RNA', 
+    create_feature_scatter_plot(obj = result_list$seurat_obj, feature1 = 'nCount_RNA', feature2 = 'nFeature_RNA', 
                                 file_name = file_name, path = path)
   }
   
   return(result_list)
 }
 
-filter_cells <- function(gamm, mt.list, lower.nFeature = 200, upper.nFeature = 8000, max.percent.mt = 5,
-                         save_plots = TRUE, path = "plot_outputs/") {
+filter_cells <- function(seurat_obj, mt.list, path = "output/", save_plots = TRUE) {
+  # Get parameters from config
+  lower.nFeature = config$filter_cells$lower.nFeature
+  upper.nFeature = config$filter_cells$upper.nFeature
+  max.percent.mt = config$filter_cells$max.percent.mt
+  
   # Check if all features are in the matrix
-  if (!all(mt.list %in% rownames(gamm))) {
+  if (!all(mt.list %in% rownames(seurat_obj))) {
     for (mt in mt.list) {
-      print(paste(mt, " in rownames: ", all(mt %in% rownames(gamm))))
+      print(paste(mt, " in rownames: ", all(mt %in% rownames(seurat_obj))))
     }
   }
 
   # Calculate percent.mt and add to the metadata
-  percent_mt <- PercentageFeatureSet(gamm, features = mt.list, assay = 'RNA')
-  gamm[["percent.mt"]] <- percent_mt
+  percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = 'RNA')
+  seurat_obj[["percent.mt"]] <- percent_mt
   
   # Create pre-filter plot
-  pre_filter_plot <- create_feature_scatter_plot(gamm, 'nCount_RNA', 'percent.mt', file_name = "mt_unfiltered", save = save_plots, path = path)
+  pre_filter_plot <- create_feature_scatter_plot(seurat_obj, 'nCount_RNA', 'percent.mt', file_name = "percent_mt_unfiltered", save = save_plots, path = path)
   
   # Filter cells based on nFeature_RNA and percent.mt
-  gamm <- subset(gamm, subset = nFeature_RNA > lower.nFeature & nFeature_RNA < upper.nFeature & percent.mt < max.percent.mt)
+  seurat_obj <- subset(seurat_obj, subset = nFeature_RNA > lower.nFeature & nFeature_RNA < upper.nFeature & percent.mt < max.percent.mt)
   
   # Create post-filter plots
-  post_filter_plot1 <- create_feature_scatter_plot(gamm, 'nCount_RNA', 'percent.mt', file_name = "mt_filtered1", save = save_plots, path = path)
-  post_filter_plot2 <- create_feature_scatter_plot(gamm, 'nCount_RNA', 'nFeature_RNA', file_name = "mt_filtered2", save = save_plots, path = path)
+  post_filter_plot1 <- create_feature_scatter_plot(seurat_obj, 'nCount_RNA', 'percent.mt', file_name = "mt_filtered1", save = save_plots, path = path)
+  post_filter_plot2 <- create_feature_scatter_plot(seurat_obj, 'nCount_RNA', 'nFeature_RNA', file_name = "mt_filtered2", save = save_plots, path = path)
   
   # Combine plots and delete individual ones
-  seurat_objs_list <- list(seu1 = list(seu = gamm), seu2 = list(seu = gamm))
+  seurat_objs_list <- list(seu1 = list(seu = seurat_obj), seu2 = list(seu = seurat_obj))
   feature_set1 <- list(feature1 = 'nCount_RNA', feature2 = 'percent.mt')
   feature_set2 <- list(feature1 = 'nCount_RNA', feature2 = 'nFeature_RNA')
   combine_feature_plots(seurat_objs_list, feature_set1, feature_set2, same_feature_set = FALSE, file_name_base = "mt_filtered", path = path)
   
-  return(gamm)
+  return(seurat_obj)
 }
 
-normalize_data <- function(gamm, feature = "ECHS1", path = "plot_outputs/", min_size = 100, min_mean = 0.1) {
-  # Convert to SingleCellExperiment
-  sce <- as.SingleCellExperiment(gamm)
+normalize_data <- function(seurat_obj, path = "output/") {
+  # Get parameters from config
+  min_size = config$normalize_data$min_size
+  min_mean = config$normalize_data$min_mean
+  feature = config$normalize_data$feature
+  
+  sce <- as.SingleCellExperiment(seurat_obj)
 
   # Cluster the cells for scran
   clusters <- quickCluster(sce, use.ranks = FALSE, min.size = min_size)
@@ -124,16 +132,16 @@ normalize_data <- function(gamm, feature = "ECHS1", path = "plot_outputs/", min_
   sce <- logNormCounts(sce)
 
   # Replace Seurat normalized values with scran
-  gamm[["RNA"]] <- SetAssayData(gamm[["RNA"]],
-                                slot = "data", 
-                                new.data = logcounts(sce))
+  seurat_obj[["RNA"]] <- SetAssayData(seurat_obj[["RNA"]],
+                                      slot = "data", 
+                                      new.data = logcounts(sce))
 
-  gamm$sizeFactors <- sizeFactors(sce)
-  gamm <- UpdateSeuratObject(gamm)
+  seurat_obj$sizeFactors <- sizeFactors(sce)
+  seurat_obj <- UpdateSeuratObject(seurat_obj)
   
   # Create violin plots pre and post normalization
-  vin_pre <- VlnPlot(gamm, feature, slot = "counts")
-  vin_post <- VlnPlot(gamm, feature, slot = "data")
+  vin_pre <- VlnPlot(seurat_obj, feature, slot = "counts")
+  vin_post <- VlnPlot(seurat_obj, feature, slot = "data")
   
   # Save violin plots
   pdf(file = paste0(path, "violin_pre_norm.pdf"), width = 8, height = 6)
@@ -144,50 +152,52 @@ normalize_data <- function(gamm, feature = "ECHS1", path = "plot_outputs/", min_
   print(vin_post)
   dev.off()
 
-  return(gamm)
+  return(seurat_obj)
 }
 
-feature_selection <- function(gamm, analysis_type, n_features = 2000) {
+feature_selection <- function(seurat_obj) {
+  n_features = config$feature_selection$n_features
+  analysis_type = config$feature_selection$analysis_type
+  
   if (analysis_type == "Seurat") {
     # Seurat method
-    gamm <- FindVariableFeatures(gamm, selection.method = "vst", nfeatures = n_features)
+    seurat_obj <- FindVariableFeatures(seurat_obj, selection.method = "vst", nfeatures = n_features)
   } else if (analysis_type == "Scry") {
     # Scry method
-    m <- GetAssayData(gamm, slot = "counts", assay = "RNA")
+    m <- GetAssayData(seurat_obj, slot = "counts", assay = "RNA")
     devi <- scry::devianceFeatureSelection(m)
-    dev_ranked_genes <- rownames(gamm)[order(devi, decreasing = TRUE)]
+    dev_ranked_genes <- rownames(seurat_obj)[order(devi, decreasing = TRUE)]
     topdev <- head(dev_ranked_genes, n_features)
     # replace variable features with the deviance ranked genes
-    VariableFeatures(gamm) <- topdev
-    gamm <- UpdateSeuratObject(gamm)
+    VariableFeatures(seurat_obj) <- topdev
+    seurat_obj <- UpdateSeuratObject(seurat_obj)
   } else {
     stop("Invalid analysis_type. Please choose 'Seurat' or 'Scry'.")
   }
-  
-  return(gamm)
+  return(seurat_obj)
 }
 
-scale_data <- function(gamm) {
+scale_data <- function(seurat_obj) {
     # Get all gene names
-    all.genes <- rownames(gamm)
+    all.genes <- rownames(seurat_obj)
   
     # Scale the data
-    gamm <- ScaleData(gamm, features = all.genes)
+    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
   
-    return(gamm)
+    return(seurat_obj)
 }
 
-run_and_visualize_pca <- function(seurat_obj, path = "plot_outputs/", top_n_dims=5, top_n_features=5, heatmap_dims=1:15, num_cells=500) {
+run_and_visualize_pca <- function(seurat_obj, path = "output/") {
 
+  top_n_dims = config$run_and_visualize_pca$top_n_dims
+  heatmap_dims = 1:config$run_and_visualize_pca$heatmap_dims
+  num_cells = config$run_and_visualize_pca$num_cells
   # Perform PCA
   seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
   
-  # Print top dimensions and features
-  print(seurat_obj[["pca"]], dims = 1:top_n_dims, nfeatures = top_n_features)
-  
   # Visualize feature loadings
-  pdf(paste0(path, "feature_loadings.pdf"), width = 8, height = 6)
-  print(VizDimLoadings(seurat_obj, dims = 1:2, reduction = "pca"))
+  pdf(paste0(path, "top_n_dims_with_genes.pdf"), width = 8, height = 6)
+  print(VizDimLoadings(seurat_obj, dims = 1:top_n_dims, reduction = "pca"))
   dev.off()
 
   # Generate scatter plot of PCA results
@@ -204,8 +214,10 @@ run_and_visualize_pca <- function(seurat_obj, path = "plot_outputs/", top_n_dims
   return(seurat_obj)
 }
 
-perform_batch_correction <- function(seurat_obj, dims.use=1:20, max_iter=50, path = "plot_outputs/") {
+perform_batch_correction <- function(seurat_obj, path = "output/") {
   
+  dims.use = 1:config$perform_batch_correction$dims.use
+  max_iter = config$perform_batch_correction$max_iter
   # Generate pre-batch correction PCA plot
   pdf(paste0(path, "batch_uncorrected_pca.pdf"), width = 8, height = 6)
   p1_pre <- DimPlot(object = seurat_obj, reduction = "pca", pt.size = .1, group.by = "orig.ident")
@@ -230,12 +242,13 @@ perform_batch_correction <- function(seurat_obj, dims.use=1:20, max_iter=50, pat
   return(list(seurat_obj=seurat_obj, harmony_embeddings=harmony_embeddings))
 }
 
-perform_clustering <- function(seurat_obj, path = "plot_outputs/") {
+perform_clustering <- function(seurat_obj, path = "output/") {
   
   num_replicate = config$perform_clustering$num.replicate
   dims = 1:config$perform_clustering$dims
   dims_umap = 1:config$perform_clustering$dims_umap
   resolution = config$perform_clustering$resolution
+  algorithm = config$perform_clustering$algorithm
   
   # Perform JackStraw
   seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
@@ -271,7 +284,7 @@ perform_clustering <- function(seurat_obj, path = "plot_outputs/") {
   dev.off()
   
   # Cluster cells
-  seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = "leiden")
+  seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = algorithm)
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
@@ -283,33 +296,176 @@ perform_clustering <- function(seurat_obj, path = "plot_outputs/") {
   return(seurat_obj)
 }
 
-find_differential_expression <- function(seurat_obj, logfc.threshold = 0.25, min.pct = 0.25, top_n = 10) {
-  # Find markers for every cluster compared to all remaining cells, only positive ones
-  seurat_obj.markers <- FindAllMarkers(seurat_obj, only.pos = TRUE, min.pct = min.pct, logfc.threshold = logfc.threshold)
-
-  # Print the top 'n' markers for each cluster by avg_log2FC
-  seurat_obj.markers %>%
+find_differentially_expressed_features <- function(seurat_obj, path = "output/") {
+  
+  # Get parameters from the config file
+  min_pct <- config$find_differentially_expressed_features$min_pct
+  logfc_threshold <- config$find_differentially_expressed_features$logfc_threshold
+  top_n <- config$find_differentially_expressed_features$top_n
+  
+  # Find all markers
+  markers <- FindAllMarkers(seurat_obj, only.pos = TRUE, min.pct = min_pct, logfc.threshold = logfc_threshold)
+  markers %>%
     group_by(cluster) %>%
-    slice_max(n = top_n, order_by = avg_log2FC) %>%
-    print(n = top_n * length(unique(seurat_obj.markers$cluster)))
+    slice_max(n = 2, order_by = avg_log2FC) %>%
+    print(n=36)
 
-  # Find ROC markers for cluster 1
-  cluster1.markers <- FindMarkers(seurat_obj, ident.1 = 1, logfc.threshold = logfc.threshold, test.use = "roc", only.pos = TRUE)
+  # Create violin plot
+  VlnPlot(seurat_obj, features = c("APOA1", "VIM"))
+  VlnPlot(seurat_obj, features = c("APOA1", "VIM"), slot = "counts", log = TRUE)
 
-  # Visualize marker expression
-  VlnPlot(seurat_obj, features = c("SFRP2", "TRPM3"))
+  # Feature plot
+  plot <- FeaturePlot(seurat_obj, features = c("APOA1", "VIM", "CENPE", "AGMO"), slot='data', reduction='umap')
 
-  # Generate an expression heatmap for the top 'n' markers for each cluster
-  seurat_obj.markers %>%
+  # UMAP plots
+  plot1 <- UMAPPlot(seurat_obj, group.by="orig.ident")
+  plot2 <- UMAPPlot(seurat_obj, label = T)
+  plot3 <- FeaturePlot(seurat_obj, c("APOA1", "VIM", "CENPE", "AGMO"), ncol=2, pt.size = 0.1)
+
+  # Combine plots
+  combined_plot <- ((plot1 / plot2) | plot3) + plot_layout(width = c(1,2))
+
+  # Save plot
+  pdf(file = paste0(path, "/combined_plot.pdf"))
+  print(combined_plot)
+  dev.off()
+
+  # Extract top_n markers
+  markers %>%
     group_by(cluster) %>%
-    top_n(n = top_n, wt = avg_log2FC) -> top_n_markers
+    top_n(n = top_n, wt = avg_log2FC) -> topMarkers
 
-  DoHeatmap(seurat_obj, features = top_n_markers$gene) + NoLegend()
+  # Write out top_n markers
+  write.table(topMarkers, file = paste0(path, "/seurat_obj.DE.markers.top", top_n, "_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
 
-  return(list("AllMarkers" = seurat_obj.markers, "Cluster1Markers" = cluster1.markers, "TopNMarkers" = top_n_markers))
+  # Heatmap of top_n markers
+  heatmap <- DoHeatmap(seurat_obj, features = topMarkers$gene) + NoLegend()
+
+  # Save heatmap
+  pdf(file = paste0(path, "/heatmap_top_n_markers.pdf"))
+  print(heatmap)
+  dev.off()
+
+  # Write out all markers
+  write.table(markers, file = paste0(path, "/seurat_obj.DE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
+  
+  return(list("Markers" = markers, "TopMarkers" = topMarkers))
 }
 
-create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, file_name = NULL, path = "plot_outputs/") {
+analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = "output/") {
+  # read in known GAMM retinoid markers
+  known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE)
+  
+  # match with any DE markers from data by merging dataframes
+  marker_df <- merge(seurat_obj$markers.df, known.markers, by = "gene")
+  
+  # write out marker df with known DE markers
+  write.table(marker_df, file = paste0(output_path, "seurat_obj.knownDE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
+  
+  # first get unique cell type vector
+  cell.types <- unique(marker_df$Cell.type)
+  print(cell.types)
+  
+  # check gene number between known markers and DE known markers
+  genesk <- unique(known.markers$gene)
+  k <- length(genesk)
+  genesDEk <- unique(marker_df$gene)
+  DEk <- length(genesDEk)
+  percent.markers.de <- (DEk / k) * 100
+  percent.markers.de
+  
+  # check a specific marker
+  df <- subset(marker_df, Cell.type == "Synaptic marker", select = c('gene'))
+  length(df$gene)
+  df2 <- subset(known.markers, Cell.type == "Synaptic marker", select = c('gene'))
+  length(df2$gene)
+  
+  # subset all and plot using for loop
+  for (i in 1:length(cell.types)) {
+    new_df <- subset(marker_df, Cell.type == cell.types[i], select = c('gene', 'Cell.type', 'cluster'))
+    new_vec <- unique(as.vector(new_df$gene))
+    
+    pdf(paste0(output_path, cell.types[i], "_featureplot.pdf"), width = 8, height = 6, bg = "white")          
+    # umap plot highlighting gene expression
+    print(FeaturePlot(seurat_obj, features = new_vec))
+    dev.off()
+    
+    pdf(paste0(output_path, cell.types[i], "_dotplot.pdf"), width = 8, height = 6, bg = "white")
+    # expression dot plot
+    dot.plot <- DotPlot(object = seurat_obj, features = new_vec)
+    print(dot.plot + labs(title = cell.types[i]))
+    dev.off()
+  }
+}
+
+score_and_plot_markers <- function(seurat_obj, known_markers_path = "../GammLab_Retinal-specific_genelist.txt", output_path = "output/", vim_high = c("13", "15", "16", "17")) {
+
+  # Convert Seurat object to SingleCellExperiment
+  sce_obj <- as.SingleCellExperiment(seurat_obj)
+  
+  # Score markers
+  marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE)
+  
+  # For each cluster, perform operations
+  clusters <- unique(seurat_obj@meta.data$seurat_clusters)
+  clusters <- as.vector(clusters)
+  
+  # Read in known GAMM retinoid markers
+  known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
+  known.markers.df <- as.data.frame(known.markers)
+  
+  for (i in 1:length(clusters)) {
+    # Get cluster marker info
+    clust <- marker.info[[clusters[i]]]
+    
+    # Order by median Cohen's d
+    ordered <- clust[order(clust$median.logFC.cohen, decreasing = TRUE),]
+    
+    # Get top 100
+    top100 <- ordered[1:100, ]
+    top100 <- as.data.frame(top100)
+    
+    # Match with any DE markers from data by merging dataframes
+    marker_df <- merge(top100, known.markers.df, by = 'row.names')
+    
+    # Subset data
+    new_df <- marker_df[, c('Row.names', 'rank.logFC.cohen', 'Cell.type')]
+    new_vec <- unique(as.vector(new_df$Row.names))
+    
+    # Get top 10 ranked
+    new_df.ordered <- new_df[order(new_df$rank.logFC.cohen),]
+    new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < 11)
+    
+    new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
+    
+    # UMAP plot highlighting gene expression
+    pdf(paste0(output_path, clusters[i], "_featureplot_top10ranks2.pdf"), width = 8, height = 11, bg = "white")
+    print(FeaturePlot(seurat_obj, features = new_vec2, label = TRUE))
+    dev.off()
+  }
+  
+  # Write all marker info
+  marker.info.df <- as.data.frame(marker.info)
+  write.table(marker.info.df, file = paste0(output_path, "marker.info.S2.txt"), quote = FALSE, sep = "\t", row.names = TRUE)
+}
+
+annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_file = "GAMM_S2_labeled-clusters.rds") {
+
+
+  # Rename the clusters based on the new IDs
+  names(new_cluster_ids) <- levels(seurat_obj)
+  seurat_obj <- RenameIdents(seurat_obj, new_cluster_ids)
+  
+  # Generate and plot the UMAP plot
+  DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+  
+  # Save the Seurat object
+  saveRDS(seurat_obj, file = output_file)
+  
+  return(seurat_obj)
+}
+
+create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, file_name = NULL, path = "output/") {
 
   plot <- FeatureScatter(object = obj, feature1 = feature1, feature2 = feature2)
   
@@ -328,7 +484,7 @@ create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, fi
   return(plot)
 }
 
-combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 = NULL, same_feature_set = TRUE, file_name_base = "post_SoupX_plot", path = "plot_outputs/") {
+combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 = NULL, same_feature_set = TRUE, file_name_base = "post_SoupX_plot", path = "output/") {
   
   # If same_feature_set is TRUE, use feature_set1 for both plots
   if (same_feature_set) {
