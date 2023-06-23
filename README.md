@@ -35,7 +35,6 @@ where ENV_NAME is the name of your environment and ENV_PATH is the path to your 
 
 4. Edit the script.rmd file to include your data and run the script. 
 
-References:
+## References:
 
-# scRNAseq_library
 Star solo paper: doi: https://doi.org/10.1101/2021.05.05.442755
