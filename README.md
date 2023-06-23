@@ -15,7 +15,9 @@ Follow the steps below to create your Conda environment:
 
 1. **Clone the repository**
 
-``` git clone git@github.com:stewart-lab/scRNAseq_library.git # Start by cloning the repository ```
+```bash
+git clone git@github.com:stewart-lab/scRNAseq_library.git # Start by cloning the repository
+```
 
 
 2. **Navigate to the repository folder**
