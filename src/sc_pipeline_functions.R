@@ -1,4 +1,3 @@
-
 read_aligned_data <- function(base_directory, project_name) {
   filtered_data_directory <- paste0(base_directory, "/filtered/")
   raw_data_directory <- paste0(base_directory, "/raw/")
@@ -12,7 +11,8 @@ read_aligned_data <- function(base_directory, project_name) {
 
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   
-  dims = 1:config$prep_seurat_and_soupX$dims
+  dims_umap = 1:config$prep_seurat_and_soupX$dims
+  umap.method = config$prep_seurat_and_soupX$umap.method
   # Create SoupChannel object
   sc <- SoupChannel(data.raw, data)
 
@@ -24,8 +24,16 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   seurat_obj <- RunPCA(seurat_obj, verbose = F)
   
   # Use the provided 'dims' parameter in the following functions
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims, verbose = F)
-  seurat_obj <- FindNeighbors(seurat_obj, dims = dims, verbose = F)
+if (umap.method == "uwot") {
+  # Run UMAP
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method)
+} else if (umap.method == "umap-learn") {
+  # Run UMAP
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, metric = "correlation")
+} else {
+  stop("Invalid UMAP method")
+}
+  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, verbose = F)
   
   seurat_obj <- FindClusters(seurat_obj, verbose = T)
   
@@ -50,7 +58,7 @@ create_seurat_and_sce <- function(out, project, feature_set) {
   
   list(seu = seu, sce = sce)
 }
-run_scDblFinder_and_merge <- function(sce_list, save_plot = TRUE, file_name = "after_dbl_removal_and_merge", path = "output/") {
+run_scDblFinder_and_merge <- function(sce_list, save_plot = TRUE, file_name = "after_dbl_removal_and_merge", path = output) {
   set.seed(1234)
   result_list <- list()
   dbl_table_list <- list()  # Initialize an empty list to store the tables
@@ -78,7 +86,7 @@ run_scDblFinder_and_merge <- function(sce_list, save_plot = TRUE, file_name = "a
   return(result_list)
 }
 
-filter_cells <- function(seurat_obj, mt.list, path = "output/", save_plots = TRUE) {
+filter_cells <- function(seurat_obj, mt.list, path = output, save_plots = TRUE) {
   # Get parameters from config
   lower.nFeature = config$filter_cells$lower.nFeature
   upper.nFeature = config$filter_cells$upper.nFeature
@@ -114,7 +122,7 @@ filter_cells <- function(seurat_obj, mt.list, path = "output/", save_plots = TRU
   return(seurat_obj)
 }
 
-normalize_data <- function(seurat_obj, path = "output/") {
+normalize_data <- function(seurat_obj, path = output) {
   # Get parameters from config
   min_size = config$normalize_data$min_size
   min_mean = config$normalize_data$min_mean
@@ -187,7 +195,7 @@ scale_data <- function(seurat_obj) {
     return(seurat_obj)
 }
 
-run_and_visualize_pca <- function(seurat_obj, path = "output/") {
+run_and_visualize_pca <- function(seurat_obj, path = output) {
 
   top_n_dims = config$run_and_visualize_pca$top_n_dims
   heatmap_dims = 1:config$run_and_visualize_pca$heatmap_dims
@@ -214,7 +222,7 @@ run_and_visualize_pca <- function(seurat_obj, path = "output/") {
   return(seurat_obj)
 }
 
-perform_batch_correction <- function(seurat_obj, path = "output/") {
+perform_batch_correction <- function(seurat_obj, path = output) {
   
   dims.use = 1:config$perform_batch_correction$dims.use
   max_iter = config$perform_batch_correction$max_iter
@@ -242,13 +250,13 @@ perform_batch_correction <- function(seurat_obj, path = "output/") {
   return(list(seurat_obj=seurat_obj, harmony_embeddings=harmony_embeddings))
 }
 
-perform_clustering <- function(seurat_obj, path = "output/") {
-  
+perform_clustering <- function(seurat_obj, path = output) {
   num_replicate = config$perform_clustering$num.replicate
   dims = 1:config$perform_clustering$dims
   dims_umap = 1:config$perform_clustering$dims_umap
   resolution = config$perform_clustering$resolution
   algorithm = config$perform_clustering$algorithm
+  umap.method = config$perform_clustering$umap.method
   
   # Perform JackStraw
   seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
@@ -273,9 +281,16 @@ perform_clustering <- function(seurat_obj, path = "output/") {
 
   # Perform K-nearest neighbor (KNN) graph using harmony embeddings
   seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, reduction='harmony')
-  
+
+  if (umap.method == "uwot") {
   # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, reduction = "harmony")
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, reduction = "harmony")
+  } else if (umap.method == "umap-learn") {
+  # Run UMAP
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, metric = "correlation", reduction = "harmony")
+  } else {
+  stop("Invalid UMAP method")
+  }
 
   # Save UMAP lanes plot
   pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
@@ -291,12 +306,10 @@ perform_clustering <- function(seurat_obj, path = "output/") {
   umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .1)
   print(umap_clusters)
   dev.off()
-  
   # Return the updated Seurat object
   return(seurat_obj)
-}
-
-find_differentially_expressed_features <- function(seurat_obj, path = "output/") {
+ }
+find_differentially_expressed_features <- function(seurat_obj, path = output) {
   
   # Get parameters from the config file
   min_pct <- config$find_differentially_expressed_features$min_pct
@@ -347,12 +360,12 @@ find_differentially_expressed_features <- function(seurat_obj, path = "output/")
   dev.off()
 
   # Write out all markers
-  write.table(markers, file = paste0(path, "/seurat_obj.DE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
+   write.table(markers, file = paste0(path, "/seurat_obj.DE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
   
   return(list("Markers" = markers, "TopMarkers" = topMarkers))
 }
 
-analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = "output/") {
+analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = output) {
   # read in known GAMM retinoid markers
   known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE)
   
@@ -398,7 +411,7 @@ analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Reti
   }
 }
 
-score_and_plot_markers <- function(seurat_obj, known_markers_path = "../GammLab_Retinal-specific_genelist.txt", output_path = "output/", vim_high = c("13", "15", "16", "17")) {
+score_and_plot_markers <- function(seurat_obj, known_markers_path = "../GammLab_Retinal-specific_genelist.txt", output_path = output, vim_high = c("13", "15", "16", "17")) {
 
   # Convert Seurat object to SingleCellExperiment
   sce_obj <- as.SingleCellExperiment(seurat_obj)
@@ -465,7 +478,7 @@ annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_file 
   return(seurat_obj)
 }
 
-create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, file_name = NULL, path = "output/") {
+create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, file_name = NULL, path = output) {
 
   plot <- FeatureScatter(object = obj, feature1 = feature1, feature2 = feature2)
   
@@ -484,7 +497,7 @@ create_feature_scatter_plot <- function(obj, feature1, feature2, save = TRUE, fi
   return(plot)
 }
 
-combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 = NULL, same_feature_set = TRUE, file_name_base = "post_SoupX_plot", path = "output/") {
+combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 = NULL, same_feature_set = TRUE, file_name_base = "post_SoupX_plot", path = output) {
   
   # If same_feature_set is TRUE, use feature_set1 for both plots
   if (same_feature_set) {

@@ -1,6 +1,7 @@
 {
   "prep_seurat_and_soupX": {
-    "dims": 30
+    "dims": 30,
+    "umap.method": "umap-learn"
   },
   "filter_cells": {
     "lower.nFeature": 200,
@@ -30,7 +31,8 @@
     "dims": 20,
     "dims_umap": 15,
     "resolution": 0.5,
-    "algorithm": "leiden"
+    "algorithm": "leiden",
+    "umap.method": "umap-learn"
   },
   "find_differentially_expressed_features": {
     "min_pct": 0.25,
