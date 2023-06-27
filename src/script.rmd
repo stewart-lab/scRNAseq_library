@@ -1,11 +1,11 @@
 ---
-title: "Your Title"
+title: "scRNAseq_pipeline"
 output: html_document
 ---
 
 # ENVIRONMENT SETUP
 
-```{r setup, include=FALSE}
+```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(Seurat)
@@ -20,11 +20,15 @@ library(scDblFinder)
 library(reticulate)
 library(purrr)
 library(jsonlite)
+library(rmarkdown)
 use_condaenv("PIPELINE_1.03", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
 setwd("/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library")
-output <- "output"
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("output_", timestamp)
 dir.create(output, showWarnings = FALSE)
-config <- fromJSON("config.json")
+file.copy("config.json", file.path(output, "config.json"))
+config <- fromJSON(file.path(output, "config.json"))
+output <- paste0(output, "/")
 source("src/sc_pipeline_functions.R")
 ```
 
@@ -97,25 +101,3 @@ clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
 de_results <- find_differentially_expressed_features(clustered_seurat_obj)
 ```
 
-# Analyze Known Markers
-```{r}
-analyze_known_markers(de_results, clustered_seurat_obj)
-```
-
-# Score and plot Markers
-```{r}
-score_and_plot_markers(de_results, clustered_seurat_obj)
-```
-
-# Annotate clusters and save
-```{r}
-new_cluster_ids <- c("Retinal Prog-Muller glia-1","Pan PR-Synaptic-Neuronal proj", 
-                    "Pan PR-Synaptic-Neuronal proj-Rod-1","Pan PR-Rod-Neuronal proj-1",
-                    "Pan PR-Rod-Neuronal proj-2","Pan PR-Synaptic-Neuronal proj-Rod-2",
-                    "mix1","Bipolar cells fetal-Synaptic-1","Pan PR-Rod-Neuronal proj-3",
-                    "Phototransduction?","Phototransduction?-PanPR","Cone-PanPR-Neuronal proj-Ganglion cell(fetal)",
-                    "mix2","Retinal Progenitor","Muller glia-Retinal prog-Rod-PanPR","Retinal Prog-Muller glia-2",
-                    "Retinal Prog-Muller glia-3","Bipolar cells fetal-Synaptic-2")
-
-seurat_obj <- annotate_clusters_and_save(seurat_obj, new_cluster_ids, output_file = "GAMM_S2_labeled-clusters.rds")
-```
