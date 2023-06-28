@@ -387,14 +387,208 @@ gamm.markers %>%
   top_n(n = 10, wt = avg_log2FC) -> top10
 DoHeatmap(gamm, features = top10$gene) + NoLegend()
 
-# Assigning cell type identity to clusters
+# or plot together with cluster map
+plot1 <- UMAPPlot(gamm, group.by="orig.ident")
+plot2 <- UMAPPlot(gamm, label = T)
+plot3 <- FeaturePlot(gamm, c("APOA1", "VIM", "CENPE", "AGMO"), ncol=2, pt.size = 0.1)
+((plot1 / plot2) | plot3) + plot_layout(width = c(1,2))
+# DoHeatmap() generates an expression heatmap for given cells and features. 
+# In this case, we are plotting the top 20 markers
+gamm.markers %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+# write out top10 markers
+top10.df <- as.data.frame(top10)
+write.table(top10.df, file="gamm.DE.markers.top10_S2.txt",quote = F, sep = "\t", row.names=F)
+# run heatmap
+DoHeatmap(gamm, features = top10$gene) + NoLegend()
+# write out all markers
+gamm.markers.df <- as.data.frame(gamm.markers)
+write.table(gamm.markers.df, file="gamm.DE.markers_S2.txt",quote = F, sep = "\t", row.names=F)
 
-# Here canonical markers easily match the unbiased clustering to known cell types
-new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
-                     "NK", "DC", "Platelet")
-names(new.cluster.ids) <- levels(pbmc)
-pbmc <- RenameIdents(pbmc, new.cluster.ids)
-DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+# Assigning cell type identity to clusters
+# read in known GAMM retinoid markers
+known.markers<- read.csv2("../GammLab_Retinal-specific_genelist.txt",sep = "\t", header = TRUE)
+known.markers.df <- as.data.frame(known.markers)
+# match with any DE markers from data by merging dataframes
+marker_df <- merge(gamm.markers.df,known.markers.df,by="gene")
+# write out marker df with known DE markers
+write.table(marker_df, file="gamm.knownDE.markers_S2.txt",quote = F, sep = "\t", row.names=F)
+
+# cell.type subsets
+# first get unique cell type vector
+cell.types <- unique(marker_df$Cell.type)
+print(cell.types)
+# check gene number between known markers and DE known markers
+genesk<- unique(known.markers.df$gene)
+k<-length(genesk)
+genesDEk<- unique(marker_df$gene)
+DEk<-length(genesDEk)
+percent.markers.de<-(DEk/k)*100
+percent.markers.de
+# check a specific marker
+df<-subset(marker_df,Cell.type == "Synaptic marker",select = c('gene'))
+length(df$gene)
+df2<-subset(known.markers.df,Cell.type == "Synaptic marker",select = c('gene'))
+length(df2$gene)
+# subset all and plot using for loop
+library(ggplot2)
+for (i in 1:length(cell.types)){
+  new_df<- subset(marker_df,Cell.type == cell.types[i],select = c('gene','Cell.type','cluster'))
+  new_vec<- unique(as.vector(new_df$gene))
+  pdf(paste0(cell.types[i], "_featureplot.pdf", collapse = ""),        # File name
+      width = 8, height = 6, # Width and height in inches
+      bg = "white")          # Background color
+  # umap plot highlighting gene expression
+  print(FeaturePlot(gamm, features = new_vec))
+  
+  dev.off()
+  
+  pdf(paste0(cell.types[i], "_dotplot.pdf", collapse = ""),         # File name
+      width = 8, height = 6, # Width and height in inches
+      bg = "white")          # Background color
+  
+  # expression dot plot
+  dot.plot<-DotPlot(object = gamm, features = new_vec)
+  print(dot.plot +labs(title = cell.types[i]))
+  
+  dev.off()
+  
+}
+# score markers by pairwise comparisons across clusters 
+library(scran)
+sce.gamm <- as.SingleCellExperiment(gamm)
+sce.gamm
+marker.info <- scoreMarkers(sce.gamm, sce.gamm@colData@listData$seurat_clusters)
+marker.info
+colnames(marker.info[["1"]]) # statistics for cluster 1.
+# rank marker by AUC
+clust_1 <- marker.info[["1"]]
+ordered <- clust_1[order(clust_1$mean.AUC, decreasing=TRUE),]
+head(ordered[,1:4]) # showing basic stats only, for brevity.
+library(scater)
+plotExpression(sce.gamm, features=head(rownames(ordered)), 
+               x="seurat_clusters", colour_by="seurat_clusters")
+# AUC only clster 1
+auc.only <- clust_1[,grepl("AUC", colnames(clust_1))]
+auc.only[order(auc.only$mean.AUC,decreasing=TRUE),]
+# cohen's d (standardized log FC: the difference in the mean log-expression
+# between groups is scaled by the average standard dev across groups)
+cohen.only <- clust_1[,grepl("logFC.cohen", colnames(clust_1))]
+cohen.only[order(cohen.only$mean.logFC.cohen,decreasing=TRUE),]
+# using median cohen d:
+ordered <- clust_1[order(clust_1$median.logFC.cohen,decreasing=TRUE),]
+head(ordered[,1:4]) # showing basic stats only, for brevity.
+# plot
+plotExpression(sce.gamm, features=head(rownames(ordered)), 
+               x="seurat_clusters", colour_by="seurat_clusters")
+# using ranked cohen d
+# top 5 genes (T=5)
+ordered <- clust_1[order(clust_1$rank.logFC.cohen),]
+top.ranked <- ordered[ordered$rank.logFC.cohen <= 5,]
+rownames(top.ranked)
+# heatmap
+plotGroupedHeatmap(sce.gamm, features=rownames(top.ranked), group="seurat_clusters", 
+                   center=TRUE, zlim=c(-3, 3))
+
+# obtain full effects
+marker.info <- scoreMarkers(sce.gamm, sce.gamm@colData@listData$seurat_clusters, full.stats=TRUE)
+clust_1 <- marker.info[["1"]]
+clust_1$full.AUC
+# identify the genes that distinguish cluster 1 from other clusters with high VIM expression
+vim.high <- c("13", "15", "16", "17") # based on inspection of the previous Figure.
+subset <- clust_1$full.AUC[,colnames(clust_1$full.AUC) %in% vim.high]
+to.show <- subset[computeMinRank(subset) <= 10,]
+to.show
+
+plotGroupedHeatmap(sce.gamm[,sce.gamm@colData@listData$seurat_clusters %in% vim.high],
+                   features=rownames(to.show), group="seurat_clusters", center=TRUE, zlim=c(-3, 3))
+
+colLabels(sce.gamm)
+colLabels(sce.gamm)<-sce.gamm@colData@listData$seurat_clusters
+plotGroupedHeatmap(sce.gamm[,colLabels(sce.gamm) %in% vim.high],
+                   features=rownames(to.show), group="label", center=TRUE, zlim=c(-3, 3))
+# assign cluster labels based on markers
+marker.info <- scoreMarkers(sce.gamm, sce.gamm@colData@listData$seurat_clusters)
+# write all marker info
+marker.info.df <- as.data.frame(marker.info)
+write.table(marker.info.df, file="marker.info.S1.txt",quote = F, sep = "\t", row.names=T)
+# get clusters
+clusters<- unique(gamm@meta.data$seurat_clusters)
+clusters<- as.vector(clusters)
+clusters
+# read in known GAMM retinoid markers
+known.markers<- read.csv2("../GammLab_Retinal-specific_genelist.txt",sep = "\t", header = TRUE, row.names = 1)
+known.markers.df <- as.data.frame(known.markers)
+# for loop to get info on each cluster
+for (i in 1:length(clusters)){
+  clust<- marker.info[[clusters[i]]]
+  ordered <- clust[order(clust$median.logFC.cohen,decreasing=TRUE),]
+  top100 <- ordered[1:100,]
+  top100<-as.data.frame(top100)
+  #top<- subset(clust, median.logFC.cohen >= 0.25)
+  #top<- as.data.frame(top)
+  # match with any DE markers from data by merging dataframes
+  marker_df <- merge(top100,known.markers.df,by='row.names')
+  if (nrow(marker_df) == 0){
+    print(paste0("This data frame is empty: ", clusters[i]))
+  }else{
+    # write out marker df with known DE markers
+    write.table(marker_df, file=paste0("gamm.knownDE.markers_S1_clust_",clusters[i],".txt", collapse = ""),quote = F, sep = "\t", row.names=F)
+    # subset data
+    new_df<- marker_df[,c('Row.names','rank.logFC.cohen','Cell.type')]
+    new_vec<- unique(as.vector(new_df$Row.names))
+    # # make plots
+    pdf(paste0(clusters[i],"_featureplot.pdf", collapse = ""),        # File name
+        width = 8, height = 11, # Width and height in inches
+        bg = "white")          # Background color
+    # umap plot highlighting gene expression
+    print(FeaturePlot(gamm, features = new_vec), label=T)
+    
+    dev.off()
+    # top 10 ranked
+    new_df.ordered <- new_df[order(new_df$rank.logFC.cohen),]
+    new_df.ordered<- subset(new_df.ordered, rank.logFC.cohen < 11)
+    write.table(new_df.ordered, file=paste0("gamm.knownDE.markers_S1_clust_top10",clusters[i],".txt", collapse = ""),quote = F, sep = "\t", row.names=F)
+    new_vec2<- unique(as.vector(new_df.ordered$Row.names))
+    # make plots
+    pdf(paste0(clusters[i],"_featureplot_top10ranks.pdf", collapse = ""),        # File name
+        width = 8, height = 11, # Width and height in inches
+        bg = "white")          # Background color
+    # umap plot highlighting gene expression
+    print(FeaturePlot(gamm, features = new_vec2), label=T)
+    dev.off()
+    # dot plots
+    pdf(paste0(clusters[i], "_dotplot.pdf", collapse = ""),         # File name
+        width = 8, height = 6, # Width and height in inches
+        bg = "white")          # Background color
+    dot.plot<-DotPlot(object = gamm, features = new_vec)
+    print(dot.plot +labs(title = paste0("cluster_",clusters[i])))
+    
+    dev.off()
+  }}
+
+# Annotate clusters based on markers
+#S2
+new.cluster.ids <- c("Retinal Prog-Muller glia-1","Pan PR-Synaptic-Neuronal proj", 
+                     "Pan PR-Synaptic-Neuronal proj-Rod-1","Pan PR-Rod-Neuronal proj-1",
+                     "Pan PR-Rod-Neuronal proj-2","Pan PR-Synaptic-Neuronal proj-Rod-2",
+                     "mix1","Bipolar cells fetal-Synaptic-1","Pan PR-Rod-Neuronal proj-3",
+                     "Phototransduction?","Phototransduction?-PanPR","Cone-PanPR-Neuronal proj-Ganglion cell(fetal)",
+                     "mix2","Retinal Progenitor","Muller glia-Retinal prog-Rod-PanPR","Retinal Prog-Muller glia-2",
+                     "Retinal Prog-Muller glia-3","Bipolar cells fetal-Synaptic-2")
+#S1
+new.cluster.ids <- c("Retinal Prog-Muller glia-1", "Neuronal proj-Ganglion cell-PanPRs", 
+                     "Neuronal proj-PanPRs","Ganglion cell-1","Ganglion cell-2",
+                     "Ganglion cell (fetal)-1","Retinal Progenitor","Neuronal proj-Ganglion cell",
+                     "Retinal Prog-Muller glia-2","Ganglion cell (fetal)-2",
+                     "Ganglion cell (fetal)-Synaptic markers","Retinal Prog-Muller glia-Microglia (fetal)",
+                     "Neuronal projection","Retinal Progenitor (fetal)","Retinal Prog-Muller glia-3")
+names(new.cluster.ids) <- levels(gamm)
+gamm <- RenameIdents(gamm, new.cluster.ids)
+DimPlot(gamm, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+
 # save object
-saveRDS(pbmc, file = "output/pbmc3k_final.rds")
+saveRDS(gamm, file = "GAMM_S1_labeled-clusters.rds")
 sessionInfo()
+
