@@ -34,9 +34,9 @@ source("src/sc_pipeline_functions.R")
 
 # Load Data
 ```{r}
-project_s1_1 <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-1_mm_mt/Solo.out/GeneFull", "gamm_s1-1")
-project_s1_2 <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S1-2_mm_mt/Solo.out/GeneFull", "gamm_s1-2")
-all_aligned_data <- list(project_s1_1, project_s1_2)
+project_s2_1 <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S2-1_mm_mt/Solo.out/GeneFull", "gamm_s2-1")
+project_s2_2 <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S2-2_mm_mt/Solo.out/GeneFull", "gamm_s2-2")
+all_aligned_data <- list(project_s2_1, project_s2_2)
 ```
 
 # Data Prep
@@ -98,6 +98,10 @@ clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
 
 # Find markers with Differential expressed features (genes)
 ```{r}
-de_results <- find_differentially_expressed_features(clustered_seurat_obj)
-```
+if (config$config$DE_method) == "Seurat" {
+  de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+} else if (config$config$DE_method) == "Scran" {
+  de_results <- find_differentially_expressed_features_m3drop(clustered_seurat_obj)
+}
+
 

@@ -309,6 +309,7 @@ perform_clustering <- function(seurat_obj, path = output) {
   # Return the updated Seurat object
   return(seurat_obj)
  }
+
 find_differentially_expressed_features <- function(seurat_obj, path = output) {
   
   # Get parameters from the config file
@@ -365,52 +366,6 @@ find_differentially_expressed_features <- function(seurat_obj, path = output) {
   return(list("Markers" = markers, "TopMarkers" = topMarkers))
 }
 
-analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = output) {
-  # read in known GAMM retinoid markers
-  known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE)
-  
-  # match with any DE markers from data by merging dataframes
-  marker_df <- merge(seurat_obj$markers.df, known.markers, by = "gene")
-  
-  # write out marker df with known DE markers
-  write.table(marker_df, file = paste0(output_path, "seurat_obj.knownDE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
-  
-  # first get unique cell type vector
-  cell.types <- unique(marker_df$Cell.type)
-  print(cell.types)
-  
-  # check gene number between known markers and DE known markers
-  genesk <- unique(known.markers$gene)
-  k <- length(genesk)
-  genesDEk <- unique(marker_df$gene)
-  DEk <- length(genesDEk)
-  percent.markers.de <- (DEk / k) * 100
-  percent.markers.de
-  
-  # check a specific marker
-  df <- subset(marker_df, Cell.type == "Synaptic marker", select = c('gene'))
-  length(df$gene)
-  df2 <- subset(known.markers, Cell.type == "Synaptic marker", select = c('gene'))
-  length(df2$gene)
-  
-  # subset all and plot using for loop
-  for (i in 1:length(cell.types)) {
-    new_df <- subset(marker_df, Cell.type == cell.types[i], select = c('gene', 'Cell.type', 'cluster'))
-    new_vec <- unique(as.vector(new_df$gene))
-    
-    pdf(paste0(output_path, cell.types[i], "_featureplot.pdf"), width = 8, height = 6, bg = "white")          
-    # umap plot highlighting gene expression
-    print(FeaturePlot(seurat_obj, features = new_vec))
-    dev.off()
-    
-    pdf(paste0(output_path, cell.types[i], "_dotplot.pdf"), width = 8, height = 6, bg = "white")
-    # expression dot plot
-    dot.plot <- DotPlot(object = seurat_obj, features = new_vec)
-    print(dot.plot + labs(title = cell.types[i]))
-    dev.off()
-  }
-}
-
 score_and_plot_markers <- function(seurat_obj, known_markers_path = "../GammLab_Retinal-specific_genelist.txt", output_path = output, vim_high = c("13", "15", "16", "17")) {
 
   # Convert Seurat object to SingleCellExperiment
@@ -460,6 +415,52 @@ score_and_plot_markers <- function(seurat_obj, known_markers_path = "../GammLab_
   # Write all marker info
   marker.info.df <- as.data.frame(marker.info)
   write.table(marker.info.df, file = paste0(output_path, "marker.info.S2.txt"), quote = FALSE, sep = "\t", row.names = TRUE)
+}
+
+analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = output) {
+  # read in known GAMM retinoid markers
+  known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE)
+  
+  # match with any DE markers from data by merging dataframes
+  marker_df <- merge(seurat_obj$markers.df, known.markers, by = "gene")
+  
+  # write out marker df with known DE markers
+  write.table(marker_df, file = paste0(output_path, "seurat_obj.knownDE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
+  
+  # first get unique cell type vector
+  cell.types <- unique(marker_df$Cell.type)
+  print(cell.types)
+  
+  # check gene number between known markers and DE known markers
+  genesk <- unique(known.markers$gene)
+  k <- length(genesk)
+  genesDEk <- unique(marker_df$gene)
+  DEk <- length(genesDEk)
+  percent.markers.de <- (DEk / k) * 100
+  percent.markers.de
+  
+  # check a specific marker
+  df <- subset(marker_df, Cell.type == "Synaptic marker", select = c('gene'))
+  length(df$gene)
+  df2 <- subset(known.markers, Cell.type == "Synaptic marker", select = c('gene'))
+  length(df2$gene)
+  
+  # subset all and plot using for loop
+  for (i in 1:length(cell.types)) {
+    new_df <- subset(marker_df, Cell.type == cell.types[i], select = c('gene', 'Cell.type', 'cluster'))
+    new_vec <- unique(as.vector(new_df$gene))
+    
+    pdf(paste0(output_path, cell.types[i], "_featureplot.pdf"), width = 8, height = 6, bg = "white")          
+    # umap plot highlighting gene expression
+    print(FeaturePlot(seurat_obj, features = new_vec))
+    dev.off()
+    
+    pdf(paste0(output_path, cell.types[i], "_dotplot.pdf"), width = 8, height = 6, bg = "white")
+    # expression dot plot
+    dot.plot <- DotPlot(object = seurat_obj, features = new_vec)
+    print(dot.plot + labs(title = cell.types[i]))
+    dev.off()
+  }
 }
 
 annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_file = "GAMM_S2_labeled-clusters.rds") {
