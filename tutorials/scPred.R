@@ -107,3 +107,7 @@ reference <- trainModel(reference, model = "mda", allowParallel = TRUE)
 stopCluster(cl)
 
 devtools::session_info()
+
+# specify hold out
+reference <- trainModel(reference, savePredictions = "all")
+caret::plot.train(get_classifiers(reference)[["NK cell"]])
