@@ -67,7 +67,10 @@ gamm <- CreateSeuratObject(counts = gamm.data1, project = "gamm_s2", min.cells =
 #Single SCTransform command replaces NormalizeData, ScaleData, and FindVariableFeatures. 
 # We will also correct for % MT genes and cell cycle scores using vars.to.regress
 human_D205.seurat <- human_D205.seurat %>% 
-  SCTransform() %>% 
+  #SCTransform() %>% 
+  NormalizeData() %>% 
+  FindVariableFeatures() %>% 
+  ScaleData() %>% 
   RunPCA() %>% 
   RunUMAP(dims = 1:30)
 # plot the umap for cell type
