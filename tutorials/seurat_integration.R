@@ -140,3 +140,80 @@ p2 <- DimPlot(immune.combined.sct, reduction = "umap", group.by = "seurat_annota
               repel = TRUE)
 p1 + p2
 
+# mapping and annotating query datasets
+library(Seurat)
+library(SeuratData)
+# dataset load
+InstallData("panc8")
+
+# First, we split the combined object into a list, with each dataset as an element 
+data("panc8")
+pancreas.list <- SplitObject(panc8, split.by = "tech")
+pancreas.list <- pancreas.list[c("celseq", "celseq2", "fluidigmc1", "smartseq2")]
+# preprocess
+for (i in 1:length(pancreas.list)) {
+  pancreas.list[[i]] <- NormalizeData(pancreas.list[[i]], verbose = FALSE)
+  pancreas.list[[i]] <- FindVariableFeatures(pancreas.list[[i]], selection.method = "vst", nfeatures = 2000,
+                                             verbose = FALSE)
+}
+# identify ‘anchors’ between the individual datasets.
+# here there are 3 pancreatic cell datasets
+reference.list <- pancreas.list[c("celseq", "celseq2", "smartseq2")]
+pancreas.anchors <- FindIntegrationAnchors(object.list = reference.list, dims = 1:30)
+# We then pass these anchors to the IntegrateData() function, which returns a Seurat object.
+pancreas.integrated <- IntegrateData(anchorset = pancreas.anchors, dims = 1:30)
+# Seurat object will contain a new Assay with the integrated expression matrix. 
+# Note that the original (uncorrected values) are still stored in the object in the “RNA” assay,
+
+# scale, run PCA, and visulaize with umap the integrated matrix
+library(ggplot2)
+library(cowplot)
+library(patchwork)
+# switch to integrated assay. The variable features of this assay are automatically set during
+# IntegrateData
+DefaultAssay(pancreas.integrated) <- "integrated"
+# Run the standard workflow for visualization and clustering
+pancreas.integrated <- ScaleData(pancreas.integrated, verbose = FALSE)
+pancreas.integrated <- RunPCA(pancreas.integrated, npcs = 30, verbose = FALSE)
+pancreas.integrated <- RunUMAP(pancreas.integrated, reduction = "pca", dims = 1:30, verbose = FALSE)
+p1 <- DimPlot(pancreas.integrated, reduction = "umap", group.by = "tech")
+p2 <- DimPlot(pancreas.integrated, reduction = "umap", group.by = "celltype", label = TRUE, repel = TRUE) +
+  NoLegend()
+p1 + p2
+
+# Cell type classification using an integrated reference
+# project metadata onto query object
+# In data transfer, Seurat does not correct or modify the query expression data.
+# In data transfer, Seurat has an option (set by default) to project the PCA structure 
+# of a reference onto the query, instead of learning a joint structure with CCA. 
+# We generally suggest using this option when projecting data between scRNA-seq datasets.
+
+# TransferData() function to classify the query cells based on reference data (a vector of reference cell type labels).
+# TransferData() returns a matrix with predicted IDs and prediction scores, which we can add to the query metadata.
+pancreas.query <- pancreas.list[["fluidigmc1"]]
+pancreas.anchors <- FindTransferAnchors(reference = pancreas.integrated, query = pancreas.query,
+                                        dims = 1:30, reference.reduction = "pca")
+predictions <- TransferData(anchorset = pancreas.anchors, refdata = pancreas.integrated$celltype,
+                            dims = 1:30)
+pancreas.query <- AddMetaData(pancreas.query, metadata = predictions)
+
+# evaluate how well our predicted cell type annotations match the full reference. 
+pancreas.query$prediction.match <- pancreas.query$predicted.id == pancreas.query$celltype
+table(pancreas.query$prediction.match)
+# examine some canonical cell type markers for specific pancreatic islet cell populations.
+table(pancreas.query$predicted.id)
+VlnPlot(pancreas.query, c("REG1A", "PPY", "SST", "GHRL", "VWF", "SOX10"), group.by = "predicted.id")
+# projection of a query onto the reference UMAP structure.
+pancreas.integrated <- RunUMAP(pancreas.integrated, dims = 1:30, reduction = "pca", return.model = TRUE)
+pancreas.query <- MapQuery(anchorset = pancreas.anchors, reference = pancreas.integrated, query = pancreas.query,
+                           refdata = list(celltype = "celltype"), reference.reduction = "pca", reduction.model = "umap")
+
+# visualize
+p1 <- DimPlot(pancreas.integrated, reduction = "umap", group.by = "celltype", label = TRUE, label.size = 3,
+              repel = TRUE) + NoLegend() + ggtitle("Reference annotations")
+p2 <- DimPlot(pancreas.query, reduction = "ref.umap", group.by = "predicted.celltype", label = TRUE,
+              label.size = 3, repel = TRUE) + NoLegend() + ggtitle("Query transferred labels")
+p1 + p2
+
+
+
