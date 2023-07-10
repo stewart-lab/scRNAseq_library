@@ -1,0 +1,160 @@
+---
+title: "preprocess_for_cross-species"
+author: "Beth Moore"
+date: "2023-07-07"
+output: html_document
+---
+# Preprocessing for cross species analysis
+# to have cross species, we need ortholog genes
+# we then need to subset both reference and query by these genes
+# reference data will also be subseted by its metadata
+
+# Load libraries, set wd, and source functions
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/human_ref')
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(SoupX)
+library(scDblFinder)
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("output_", timestamp)
+dir.create(output, showWarnings = FALSE)
+file.copy("~/Desktop/GitHub/scRNAseq_library/config.json", file.path(output, "config.json"))
+config <- fromJSON(file.path(output, "config.json"))
+output <- paste0(output, "/")
+source("~/Desktop/GitHub/scRNAseq_library/src/sc_pipeline_functions.R")
+```
+# Read in data
+```{r data}
+exp.matrix.flt <- Read10X("GeneFull/filtered/")
+exp.matrix.raw <- Read10X("GeneFull/raw/")
+```
+# read in orthologs
+```{r orthologs}
+orthologs <- read.csv2("Human_Pig_Biomart_Filtered_mod.txt", sep="\t", header=TRUE)
+```
+# subset matrices
+```{r subset}
+# subset genes so they match only orthologous ones
+human.orthos <- as.vector(orthologs$human.gene.name)
+exp.matrix.flt<- exp.matrix.flt[rownames(exp.matrix.flt) %in% human.orthos, ]
+exp.matrix.raw<- exp.matrix.raw[rownames(exp.matrix.raw) %in% human.orthos, ]
+# subset orthologs to they only match expr matrix
+orthologs<- orthologs[orthologs$human.gene.name %in% rownames(exp.matrix.flt), ]
+# re-subset raw matrix
+human.orthos <- as.vector(orthologs$human.gene.name)
+exp.matrix.raw<- exp.matrix.raw[rownames(exp.matrix.raw) %in% human.orthos, ]
+# check length to make sure they are the same
+length(rownames(exp.matrix.flt))
+length(rownames(exp.matrix.raw))
+length(orthologs$human.gene.name)
+```
+# switch to pig genes
+```{r pig-genes}
+# reorder based on exp matrix genes
+ind_reorder <- match(rownames(exp.matrix.flt),orthologs$human.gene.name)
+orthologs.reorder<- orthologs[ind_reorder,]
+# now replace rownames of exp matrix with pig genes
+pig.orthos <- as.vector(orthologs.reorder$pig.gene.name)
+head(row.names(exp.matrix.flt))
+row.names(exp.matrix.flt) <- pig.orthos
+# check exp matrix row names
+head(row.names(exp.matrix.flt))
+length(rownames(exp.matrix.flt))
+# do the same with raw matrix
+# reorder based on exp matrix genes
+ind_reorder2 <- match(rownames(exp.matrix.raw),orthologs$human.gene.name)
+orthologs.reorder2<- orthologs[ind_reorder2,]
+# now replace rownames of exp matrix with pig genes
+pig.orthos2 <- as.vector(orthologs.reorder2$pig.gene.name)
+head(row.names(exp.matrix.raw))
+row.names(exp.matrix.raw) <- pig.orthos2
+# check exp matrix row names
+head(row.names(exp.matrix.raw))
+length(rownames(exp.matrix.raw))
+```
+# load pig data and subset so both pig and human are the same
+```{r pig-data}
+# load gamm pig data sample 2
+gamm.data.filtered <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S2-1_mm_mt/GeneFull/filtered/")
+gamm.data.raw <- Read10X(data.dir = "/Users/bmoore/Desktop/GitHub/scRNAseq/GAMM/output_S2-1_mm_mt/GeneFull/raw/")
+
+# subset pig data so that there is same genes
+dim(gamm.data.filtered)
+dim(gamm.data.raw)
+gamm.data.filtered<- gamm.data.filtered[rownames(gamm.data.filtered) %in% pig.orthos, ]
+gamm.data.raw<- gamm.data.raw[rownames(gamm.data.raw) %in% pig.orthos, ]
+dim(gamm.data.filtered)
+dim(gamm.data.raw)
+
+# subset human refernce based on gamm data
+exp.matrix.filtered<- exp.matrix.flt[rownames(exp.matrix.flt) %in% rownames(gamm.data.filtered), ]
+exp.matrix.raw<- exp.matrix.raw[rownames(exp.matrix.raw) %in% rownames(gamm.data.filtered), ]
+dim(exp.matrix.filtered)
+dim(exp.matrix.raw)
+DropletUtils:::write10xCounts("ref.filtered.exp.mtx", exp.matrix.filtered)
+DropletUtils:::write10xCounts("ref.raw.exp.mtx", exp.matrix.raw)
+exp.matrix.filtered <- Read10X("/Users/bmoore/Desktop/GitHub/scRNAseq_library/src/output_20230707_142106/ref.filtered.exp.mtx/")
+exp.matrix.raw <- Read10X("/Users/bmoore/Desktop/GitHub/scRNAseq_library/src/output_20230707_142106/ref.raw.exp.mtx/")
+# get rid of duplicates by averaging them
+# Aggregate rows based on row names
+exp.matrix.filtered <- aggregate(exp.matrix.filtered, by = list(rownames(exp.matrix.filtered)), FUN = mean)
+exp.matrix.raw <- aggregate(exp.matrix.raw, by = list(rownames(exp.matrix.raw)), FUN = mean)
+# use column 1 as rownames
+rownames(exp.matrix.filtered)<- exp.matrix.filtered$Group.1
+exp.matrix.filtered <- select(exp.matrix.filtered,  -c("Group.1"))
+# turn back to sparse matrix
+library(Matrix)
+exp.matrix.filtered<- as.matrix(exp.matrix.filtered)
+exp.matrix.filtered <- Matrix(exp.matrix.filtered, sparse = TRUE)
+
+```
+# run soupx
+```{r soupx}
+all_aligned_data_q <- list(gamm.data.filtered,gamm.data.raw)
+all_aligned_data_r <- list(exp.matrix.filtered,exp.matrix.raw)
+soupX_objs_q <- purrr::map(all_aligned_data_q, ~prep_seurat_and_soupX(data.raw = gamm.data.raw, data = gamm.data.filtered, project = "query"), .names = purrr::map_chr(all_data, 'project'))
+soupX_objs_r <- purrr::map(all_aligned_data_r, ~prep_seurat_and_soupX(data.raw = exp.matrix.raw, data = exp.matrix.filtered, project = "reference"), .names = purrr::map_chr(all_data, 'project'))
+# write out data
+DropletUtils:::write10xCounts("gamm_soupX_filtS1-1.mtx", soupX_objs_q[[1]]$out)
+DropletUtils:::write10xCounts("gamm_soupX_filtS1-2.mtx", soupX_objs_q[[2]]$out)
+```
+# get metadata
+```{r metadata}
+# read in meta.data
+metadata <- read.csv2("GSE142526_metadata/F6/cca_fetalvsorg_125CP_205_metadata.csv", sep=",", header=TRUE, row.names= 1)
+# subset by D205 data
+length(exp.matrix1@Dimnames[[2]])
+metadata <- subset(metadata, metadata$orig.ident=="D205")
+metadata<- as.data.frame(metadata)
+complete.cases(metadata)
+metadata<-na.omit(metadata)
+
+# get numbers for each celltype
+table(metadata$type)
+# drop AC1 because only 2
+metadata <- subset(x = metadata, type != 'AC1')
+# replace underscore with dash
+row.names(metadata) <- sub("_", "-", row.names(metadata))
+metadata.rows <-as.vector(row.names(metadata))
+dim(metadata)
+```
+# create seurat object
+```{r} 
+human_D205.seurat<- CreateSeuratObject(exp.matrix1, project = "human_D205", assay = "RNA",
+                                       min.cells = 3, min.features = 200)
+human_D205.seurat<-AddMetaData(object=human_D205.seurat, metadata=metadata)
+
+```
+
