@@ -405,6 +405,25 @@ DoHeatmap(gamm, features = top10$gene) + NoLegend()
 gamm.markers.df <- as.data.frame(gamm.markers)
 write.table(gamm.markers.df, file="gamm.DE.markers_S2.txt",quote = F, sep = "\t", row.names=F)
 
+# or plot together with cluster map
+plot1 <- UMAPPlot(gamm, group.by="orig.ident")
+plot2 <- UMAPPlot(gamm, label = T)
+plot3 <- FeaturePlot(gamm, c("APOA1", "VIM", "CENPE", "AGMO"), ncol=2, pt.size = 0.1)
+((plot1 / plot2) | plot3) + plot_layout(width = c(1,2))
+# DoHeatmap() generates an expression heatmap for given cells and features. 
+# In this case, we are plotting the top 20 markers
+gamm.markers %>%
+  group_by(cluster) %>%
+  top_n(n = 10, wt = avg_log2FC) -> top10
+# write out top10 markers
+top10.df <- as.data.frame(top10)
+write.table(top10.df, file="gamm.DE.markers.top10_S2.txt",quote = F, sep = "\t", row.names=F)
+# run heatmap
+DoHeatmap(gamm, features = top10$gene) + NoLegend()
+# write out all markers
+gamm.markers.df <- as.data.frame(gamm.markers)
+write.table(gamm.markers.df, file="gamm.DE.markers_S2.txt",quote = F, sep = "\t", row.names=F)
+
 # Assigning cell type identity to clusters
 # read in known GAMM retinoid markers
 known.markers<- read.csv2("../GammLab_Retinal-specific_genelist.txt",sep = "\t", header = TRUE)
@@ -590,3 +609,4 @@ DimPlot(gamm, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
 # save object
 saveRDS(gamm, file = "GAMM_S1_labeled-clusters.rds")
 sessionInfo()
+
