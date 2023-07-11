@@ -22,6 +22,10 @@
     "heatmap_dims": 15,
     "num_cells": 500
   },
+  "run_umap": {
+    "dims": 20,
+    "umap.method": "umap-learn"
+  },
   "perform_batch_correction": {
     "dims.use": 20,
     "max_iter": 50
