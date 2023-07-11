@@ -26,8 +26,9 @@ library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
+BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 use_condaenv("PIPELINE_1.03", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
-setwd("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/")
+setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_", timestamp)
 dir.create(output, showWarnings = FALSE)
@@ -35,12 +36,19 @@ file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "conf
 config <- fromJSON(file.path(output, "config.json"))
 output <- paste0(output, "/")
 source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+
 ```
 # Read in data
 ```{r data}
-exp.matrix <- read_aligned_data("~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_reh/Solo.out/GeneFull/","human_ref")
+exp.matrix <- read_aligned_data(
+    paste0(BETHS_GAMM_DATA_DIR,"human_data/reh_cellrep_2020/output_reh/Solo.out/GeneFull/"),
+    "human_ref"
+    )
 # load gamm pig data sample 2
-gamm.data <- read_aligned_data("/w5home/bmoore/scRNAseq/GAMM/output_S2_mm_mt/Solo.out/GeneFull/","gamm.data.S2")
+gamm.data <- read_aligned_data(
+    paste0(BETHS_GAMM_DATA_DIR,"output_S2_mm_mt/Solo.out/GeneFull/"),
+    "gamm.data.S2"
+    )
 ```
 
 # run soupx
@@ -85,6 +93,7 @@ rm(ref.matrix.soupx, gamm.matrix.soupx,lane_and_merged_seurat_obj)
 ```
 # read in orthologs
 ```{r orthologs}
+# Reminder: these are assumed to be in the working directory...
 orthologs <- read.csv2("Human_Pig_Biomart_Filtered_mod.txt", sep="\t", header=TRUE)
 ```
 # subset matrices
@@ -147,6 +156,7 @@ ref.matrix.flt <- Matrix(ref.matrix.flt, sparse = TRUE)
 # get metadata
 ```{r metadata}
 # read in meta.data
+# remember the set working directory in chunk 1, to imform this path
 metadata <- read.csv2("GSE142526_metadata/F6/cca_fetalvsorg_125CP_205_metadata.csv", sep=",", header=TRUE, row.names= 1)
 # subset by D205 data
 metadata <- subset(metadata, metadata$orig.ident=="D205")
