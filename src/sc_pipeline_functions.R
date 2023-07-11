@@ -250,6 +250,26 @@ perform_batch_correction <- function(seurat_obj, path = output) {
   return(list(seurat_obj=seurat_obj, harmony_embeddings=harmony_embeddings))
 }
 
+run_umap <- function(seurat_obj, path = output) {
+  pdf(paste0(path, "elbow_pca.pdf"), width = 8, height = 6)
+  elbow_pca <- ElbowPlot(seurat_obj, reduction='pca')
+  print(elbow_pca)
+  dev.off()
+  
+  dims = 1:config$run_umap$dims
+  umap.method = config$run_umap$umap.method
+  # Run UMAP
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims, umap.method = umap.method)
+  
+  # Generate UMAP plot
+  pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
+  print(DimPlot(seurat_obj, reduction = "umap"))
+  dev.off()
+  
+  # Return the updated Seurat object
+  return(seurat_obj)
+}
+
 perform_clustering <- function(seurat_obj, path = output) {
   num_replicate = config$perform_clustering$num.replicate
   dims = 1:config$perform_clustering$dims
