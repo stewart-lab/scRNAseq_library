@@ -88,14 +88,16 @@ run_scDblFinder_and_merge <- function(
   return(result_list)
 }
 
-filter_cells <- function(seurat_obj, species, mt.list = NULL, path = output, save_plots = TRUE) {
+filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
   # Get parameters from config
   lower.nFeature <- config$filter_cells$lower.nFeature
   upper.nFeature <- config$filter_cells$upper.nFeature
   max.percent.mt <- config$filter_cells$max.percent.mt
+  species <- config$filter_cells$species
 
   # Define mt features based on species
   if (species == "pig") {
+    mt.list <- mt_list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
     if (is.null(mt.list)) {
       warning("mt.list is not provided for pig species")
     } else {
@@ -267,6 +269,12 @@ perform_clustering <- function(seurat_obj, path = output) {
   resolution <- config$perform_clustering$resolution
   algorithm <- config$perform_clustering$algorithm
   umap.method <- config$perform_clustering$umap.method
+  save_obj_before_clustering <- config$perform_clustering$save_obj_before_clustering
+
+  # Save Seurat object before clustering
+  if (save_obj_before_clustering) {
+    saveRDS(seurat_obj, file = paste0(path, "seurat_obj_before_clustering.rds"))
+  }
 
   # Perform JackStraw
   seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
@@ -367,9 +375,10 @@ find_differentially_expressed_features <- function(seurat_obj, path = output) {
   return(list(markers = markers, topMarkers = topMarkers))
 }
 
-score_and_plot_markers <- function(seurat_obj, known_markers_path = "/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library/src/GammLab_Retinal-specific_genelist.txt", output_path = output) {
+score_and_plot_markers <- function(seurat_obj, output_path = output) {
   top_n_markers <- config$config$top_n_markers
   known_markers <- config$config$known_markers
+  known_markers_path <- config$known_markers_path
 
   # Convert Seurat object to SingleCellExperiment
   sce_obj <- as.SingleCellExperiment(seurat_obj)

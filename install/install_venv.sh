@@ -65,14 +65,6 @@ conda_bin_path="${conda_bin_path}/condabin/conda"
 # Use this new variable in your sed command:
 sed -i "s|use_condaenv(.*|use_condaenv(\"${name}\", conda = \"${conda_bin_path}\")|" ../src/script.rmd
 
-# Get the current directory
-current_dir=$(pwd)
-
-# Get the parent directory
-parent_dir=$(dirname "${current_dir}")
-
-# Use this new variable in your sed command:
-sed -i "s|setwd(.*|setwd(\"${parent_dir}\")|" ../src/script.rmd
 
 # Full path to the R executable
 r_path="${full_path}/bin/R"
@@ -84,5 +76,6 @@ conda env create -f environment.yml
 
 conda activate $name
 
+#R -e "devtools::install_github('powellgenomicslab/scPred')"
 R -e "devtools::install_github('immunogenomics/harmony')"
 
