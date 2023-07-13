@@ -233,9 +233,13 @@ scale_data <- function(seurat_obj) {
 }
 
 run_and_visualize_pca <- function(seurat_obj, path = output) {
-  top_n_dims <- config$run_and_visualize_pca$top_n_dims
-  heatmap_dims <- 1:config$run_and_visualize_pca$heatmap_dims
-  num_cells <- config$run_and_visualize_pca$num_cells
+
+  top_n_dims = config$run_and_visualize_pca$top_n_dims
+  heatmap_dims = 1:config$run_and_visualize_pca$heatmap_dims
+  num_cells = config$run_and_visualize_pca$num_cells
+  dims = 1:config$run_and_visualize_pca$dims
+  num_replicate = config$run_and_visualize_pca$num.replicate
+  
   # Perform PCA
   seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
 
@@ -253,7 +257,22 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
   pdf(paste0(path, "pca_heat_map.pdf"), width = 8, height = 6)
   print(DimHeatmap(seurat_obj, nfeatures = 5, dims = heatmap_dims, cells = num_cells, balanced = TRUE, fast = FALSE, combine = TRUE))
   dev.off()
+    # Save Elbow plots
+  pdf(paste0(path, "elbow_pca.pdf"), width = 8, height = 6)
+  elbow_pca <- ElbowPlot(seurat_obj, reduction='pca')
+  print(elbow_pca)
+  dev.off()
 
+  # Perform JackStraw
+  seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
+  seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
+  
+  # Save JackStraw plot
+  pdf(paste0(path, "jack_straw.pdf"), width = 8, height = 6)
+  jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
+  print(jack_straw)
+  dev.off()
+  
   # Return the updated Seurat object
   return(seurat_obj)
 }
@@ -261,6 +280,7 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
 perform_batch_correction <- function(seurat_obj, path = output) {
   dims.use <- 1:config$perform_batch_correction$dims.use
   max_iter <- config$perform_batch_correction$max_iter
+  
   # Generate pre-batch correction PCA plot
   pdf(paste0(path, "batch_uncorrected_pca.pdf"), width = 8, height = 6)
   p1_pre <- DimPlot(object = seurat_obj, reduction = "pca", pt.size = .1, group.by = "orig.ident")
@@ -286,15 +306,12 @@ perform_batch_correction <- function(seurat_obj, path = output) {
 }
 
 run_umap <- function(seurat_obj, path = output) {
-  pdf(paste0(path, "elbow_pca.pdf"), width = 8, height = 6)
-  elbow_pca <- ElbowPlot(seurat_obj, reduction='pca')
-  print(elbow_pca)
-  dev.off()
-  
-  dims = 1:config$run_umap$dims
+
+  dims_umap = 1:config$run_umap$dims_umap
   umap.method = config$run_umap$umap.method
+  umap.red = config$run_umap$umap.red
   # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims, umap.method = umap.method)
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, reduction = umap.red)
   
   # Generate UMAP plot
   pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
@@ -306,52 +323,13 @@ run_umap <- function(seurat_obj, path = output) {
 }
 
 perform_clustering <- function(seurat_obj, path = output) {
-  num_replicate <- config$perform_clustering$num.replicate
-  dims <- 1:config$perform_clustering$dims
-  dims_umap <- 1:config$perform_clustering$dims_umap
-  resolution <- config$perform_clustering$resolution
-  algorithm <- config$perform_clustering$algorithm
-  umap.method <- config$perform_clustering$umap.method
-  save_obj_before_clustering <- config$perform_clustering$save_obj_before_clustering
-
-  # Save Seurat object before clustering
-  if (save_obj_before_clustering) {
-    saveRDS(seurat_obj, file = paste0(path, "seurat_obj_before_clustering.rds"))
-  }
-
-  # Perform JackStraw
-  seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
-  seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
-
-  # Save JackStraw plot
-  pdf(paste0(path, "jack_straw.pdf"), width = 8, height = 6)
-  jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
-  print(jack_straw)
-  dev.off()
-
-  # Save Elbow plots
-  pdf(paste0(path, "elbow_harmony.pdf"), width = 8, height = 6)
-  elbow_harm <- ElbowPlot(seurat_obj, reduction = "harmony")
-  print(elbow_harm)
-  dev.off()
-
-  pdf(paste0(path, "elbow_pca.pdf"), width = 8, height = 6)
-  elbow_pca <- ElbowPlot(seurat_obj, reduction = "pca")
-  print(elbow_pca)
-  dev.off()
+  resolution = config$perform_clustering$resolution
+  algorithm = config$perform_clustering$algorithm
+  reduction = config$perform_clustering$reduction
+  dims_umap = config$perform_clustering$dims_umap
 
   # Perform K-nearest neighbor (KNN) graph using harmony embeddings
-  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, reduction = "harmony")
-
-  if (umap.method == "uwot") {
-    # Run UMAP
-    seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, reduction = "harmony")
-  } else if (umap.method == "umap-learn") {
-    # Run UMAP
-    seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, metric = "correlation", reduction = "harmony")
-  } else {
-    stop("Invalid UMAP method")
-  }
+  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, reduction=reduction)
 
   # Save UMAP lanes plot
   pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
@@ -400,7 +378,7 @@ find_differentially_expressed_features <- function(seurat_obj, path = output) {
   combined_plot <- ((plot1 / plot2) | plot3) + plot_layout(width = c(1, 2))
 
   # Save plot
-  pdf(file = paste0(path, "/combined_plot.pdf"))
+  pdf(file = paste0(path, "/combined_plot.pdf"),width = 8, height = 6)
   print(combined_plot)
   dev.off()
 
@@ -425,7 +403,6 @@ analyze_known_markers <- function(seurat_obj, de_results, output_path = output) 
   de.markers <- de_results[[1]]
   # match with any DE markers from data by merging dataframes
   marker_df <- merge(de.markers, known.markers, by = "gene")
-
   # write out marker df with known DE markers
   write.table(marker_df, file = paste0(output_path, "seurat_obj.knownDE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
 
@@ -530,11 +507,13 @@ annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_file 
   seurat_obj <- RenameIdents(seurat_obj, new_cluster_ids)
 
   # Generate and plot the UMAP plot
-  DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
 
+  pdf(paste0(output_path, "GAMM_S2_labeled-clusters.pdf"), bg = "white")
+  print(DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend())
+  dev.off()
   # Save the Seurat object
-  saveRDS(seurat_obj, file = output_file)
-
+  saveRDS(seurat_obj, file = paste0(output_path, output_file))
+  
   return(seurat_obj)
 }
 

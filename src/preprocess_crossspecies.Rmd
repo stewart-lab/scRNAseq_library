@@ -27,7 +27,7 @@ library(purrr)
 library(jsonlite)
 library(rmarkdown)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
-use_condaenv("PIPELINE_1.03", conda = "/isiseqruns/jfreeman_tmp_home/bin/miniconda3/condabin/conda")
+use_condaenv("scRNAseq_best")
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_", timestamp)
@@ -194,17 +194,53 @@ pig_mt_list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND
 human_D205.seurat_mt_filtered <- filter_cells(human_D205.seurat, mt.list = pig_mt_list)
 gamm.S2.seurat_mt_filtered <- filter_cells(gamm.S2.seurat, mt.list = pig_mt_list)
 ```
+# need to check if genes are the same after filtering, if not subset again
+```{r}
+human_D205.seurat.exp.mtx<- GetAssayData(human_D205.seurat_mt_filtered, slot="data")
+gamm.S2.seurat.exp.mtx<- GetAssayData(gamm.S2.seurat_mt_filtered, slot="data")
+dim(human_D205.seurat.exp.mtx)
+dim(gamm.S2.seurat.exp.mtx)
+# subset human refernce based on gamm data
+human_D205.seurat.exp.mtx<- human_D205.seurat.exp.mtx[rownames(human_D205.seurat.exp.mtx)
+ %in% rownames(gamm.S2.seurat.exp.mtx), ]
+ # subset gamm data based on human data
+gamm.S2.seurat.exp.mtx<- gamm.S2.seurat.exp.mtx[rownames(gamm.S2.seurat.exp.mtx)
+    %in% rownames(human_D205.seurat.exp.mtx), ]
+dim(human_D205.seurat.exp.mtx)
+dim(gamm.S2.seurat.exp.mtx)
+```
+# set data in new seurat object
+```{r}
+human_D205.seurat_mt_filtered_subset<- CreateSeuratObject(human_D205.seurat.exp.mtx, 
+    project = "human_D205", assay = "RNA")
+human_D205.seurat_mt_filtered_subset<-AddMetaData(object=
+    human_D205.seurat_mt_filtered_subset, metadata=metadata)
+gamm.S2.seurat_mt_filtered_subset<- CreateSeuratObject(gamm.S2.seurat.exp.mtx, 
+    project = "gamm_S2", assay = "RNA")
+
+dim(human_D205.seurat_mt_filtered_subset)
+dim(gamm.S2.seurat_mt_filtered_subset)
+```
+
+```
 # Normalization
 ```{r}
-human_D205.seurat_norm <- normalize_data(human_D205.seurat_mt_filtered)
-gamm.S2.seurat_norm <- normalize_data(gamm.S2.seurat_mt_filtered)
+human_D205.seurat_norm <- normalize_data(human_D205.seurat_mt_filtered_subset)
+gamm.S2.seurat_norm <- normalize_data(gamm.S2.seurat_mt_filtered_subset)
 saveRDS(human_D205.seurat_norm, file = "human_D205_norm.rds")
 saveRDS(gamm.S2.seurat_norm, file = "GAMM_S2_norm.rds")
 ```
-## further steps: reference undergoes feature selection, scaling, and dimensional reduction, query does not
+## further steps: 
+# for scPRED: reference undergoes feature selection, scaling, and dimensional reduction, query does not
+# for seurat integration: query also undergoes feature selection
 # Feature selection
 ```{r}
+gamm.S2.seurat_norm<-readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
+human_D205.seurat_norm<-readRDS(file = "output_20230711_155556/human_D205_norm.rds")
+gamm.S2.seurat_feat_select <- feature_selection(gamm.S2.seurat_norm)
 human_D205.seurat_feat_select <- feature_selection(human_D205.seurat_norm)
+saveRDS(gamm.S2.seurat_feat_select, file = "GAMM_S2_feat_select.rds")
+saveRDS(human_D205.seurat_feat_select, file = "human_D205_feat_select.rds")
 ```
 
 # Scaling data
