@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     wget \
     bash
 
+# Change default shell from dash (which is sh) to bash
+RUN ln -sf /bin/bash /bin/sh
+
 # Install conda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
     bash ~/miniconda.sh -b -p $HOME/miniconda && \
@@ -35,3 +38,4 @@ RUN ./install_venv.sh scrnaseq
 
 # Set the default command to start a Bash shell
 CMD ["/bin/bash"]
+
