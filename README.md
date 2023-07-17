@@ -1,5 +1,3 @@
-markdown
-Copy code
 # scRNA-seq Docker Environment Setup Guide
 
 This README provides instructions on how to set up a Docker environment for single-cell RNA sequencing (scRNA-seq) analysis.
@@ -29,37 +27,28 @@ Change your current directory to the top level of the cloned repository using
 cd <cloned_repo_dir>.
 ```
 
-3. **Build the Docker image**
-Run the following command:
-
-```bash
-docker build -t scrna-seq .
-```
-
-This will create a Docker image named scrna-seq.
-
-4. **Run the Docker image**
+3. **Run the Docker image**
 Start an interactive terminal session within the Docker container and map the output directory of the docker filesystem to the repository:
 
 ```bash
-docker run -v /output:scRNA-seq/output -it scrna-seq
+source run_docker.sh
 ```
 
-5. **Retrieve data (if necessary)**
+4. **Retrieve data (if necessary)**
 If you need data for your analysis, you can run the get_data.py script with one of the following --data arguments: REH, GAMM_S1, or GAMM_S2.
 
 ```bash
 python get_data.py --data GAMM_S1 # Example for getting GAMM_S1 data
 ```
 
-6. **Install R packages**
+5. **Install R packages**
 Next, run the script to install the necessary R packages:
 
 ```bash
 source install_R_packages.sh
 ```
 
-7. **Run the Analysis Script**
+6. **Run the Analysis Script**
 Finally, execute the R command to render your analysis results as a PDF:
 
 ```bash
