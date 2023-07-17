@@ -1,17 +1,20 @@
-# scRNA-seq Conda Environment Setup Guide
+markdown
+Copy code
+# scRNA-seq Docker Environment Setup Guide
 
-This README provides instructions on how to create a Conda environment using the `scRNAseq_venv.yml` file. 
+This README provides instructions on how to set up a Docker environment for single-cell RNA sequencing (scRNA-seq) analysis.
 
 ## Prerequisites
 
-1. [Anaconda](https://www.anaconda.com/products/distribution) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed on your system.
-   1. Check with `conda --version` in your terminal. https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html 
-2. VSCode is higly recommended as well. You can download it [here](https://code.visualstudio.com/download).
-   1. The R extension needs to be installed in VSCode. https://marketplace.visualstudio.com/items?itemName=Ikuyadeu.r
+1. [Docker](https://www.docker.com/products/docker-desktop) installed on your system.
+   - Verify your installation by typing `docker --version` in your terminal. If Docker is not installed, you can download it from [here](https://www.docker.com/products/docker-desktop).
+   
+2. Git installed on your system.
+   - Verify your installation by typing `git --version` in your terminal. If Git is not installed, you can download it from [here](https://git-scm.com/downloads).
 
 ## Instructions
 
-Follow the steps below to create your Conda environment:
+Follow the steps below to set up your Docker environment:
 
 1. **Clone the repository**
 
@@ -19,22 +22,49 @@ Follow the steps below to create your Conda environment:
 git clone git@github.com:stewart-lab/scRNAseq_library.git # Start by cloning the repository
 ```
 
-
 2. **Navigate to the repository folder**
+Change your current directory to the top level of the cloned repository using
 
-   Change your current directory to the <cloned_repo_dir>/install
-
-
-3. **Creating the Conda environment**
-
-Now run the following code
 ```bash
-source install_venv.sh ENV_NAME [ENV_PATH]
+cd <cloned_repo_dir>.
 ```
-where ENV_NAME is the name of your environment and ENV_PATH is the path to your (non-default?) conda environment directory (optional). If ENV_PATH is not specified, the environment will be created in the default conda environment directory.
 
-4. Edit the script.rmd file to include your data and run the script. 
+3. **Build the Docker image**
+Run the following command:
 
+```bash
+docker build -t scrna-seq .
+```
+
+This will create a Docker image named scrna-seq.
+
+4. **Run the Docker image**
+Start an interactive terminal session within the Docker container:
+
+```bash
+docker run -it scrna-seq
+```
+
+5. **Retrieve data (if necessary)**
+If you need data for your analysis, you can run the get_data.py script with one of the following --data arguments: REH, GAMM_S1, or GAMM_S2.
+
+```bash
+python get_data.py --data GAMM_S1 # Example for getting GAMM_S1 data
+```
+
+6. **Install R packages**
+Next, run the script to install the necessary R packages:
+
+```bash
+source install_R_packages.sh
+```
+
+7. **Run the Analysis Script**
+Finally, execute the R command to render your analysis results as a PDF:
+
+```bash
+R -e "rmarkdown::render('src/script.rmd', output_format = 'pdf_document')"
+```
 ## References:
 
 Star solo paper: doi: https://doi.org/10.1101/2021.05.05.442755
