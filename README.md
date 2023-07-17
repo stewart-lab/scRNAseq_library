@@ -39,10 +39,10 @@ docker build -t scrna-seq .
 This will create a Docker image named scrna-seq.
 
 4. **Run the Docker image**
-Start an interactive terminal session within the Docker container:
+Start an interactive terminal session within the Docker container and map the output directory of the docker filesystem to the repository:
 
 ```bash
-docker run -it scrna-seq
+docker run -v /output:scRNA-seq/output -it scrna-seq
 ```
 
 5. **Retrieve data (if necessary)**
