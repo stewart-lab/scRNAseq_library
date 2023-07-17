@@ -7,7 +7,6 @@ output: pdf_document
 
 ```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-Sys.setenv(RETICULATE_PYTHON = "/root/miniconda/envs/scrnaseq/bin/python")
 library(dplyr)
 library(Seurat)
 library(patchwork)
@@ -22,6 +21,7 @@ library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
+use_condaenv("/root/miniconda/envs/scrnaseq")
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("../output_", timestamp)
 dir.create(output, showWarnings = FALSE)
