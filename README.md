@@ -52,7 +52,7 @@ conda activate scrnaseq
 Finally, execute the R command to render your analysis results as a PDF:
 
 ```bash
-R -e "rmarkdown::render('src/script.rmd', output_format = 'pdf_document')"
+Rscript script.R
 ```
 # scRNA-seq Analysis Configuration Guide
 
