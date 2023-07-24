@@ -41,18 +41,18 @@ If you need data for your analysis, you can run the get_data.py script with one 
 python get_data.py --data GAMM_S1 # Example for getting GAMM_S1 data
 ```
 
-5. **Install R packages**
-Next, run the script to install the necessary R packages:
+5. **Turn on conda environment**
+Next, run this conda command to activate the correct environment:
 
 ```bash
-source install_R_packages.sh
+conda activate scrnaseq
 ```
 
 6. **Run the Analysis Script**
 Finally, execute the R command to render your analysis results as a PDF:
 
 ```bash
-R -e "rmarkdown::render('src/script.rmd', output_format = 'pdf_document')"
+Rscript script.R
 ```
 # scRNA-seq Analysis Configuration Guide
 
