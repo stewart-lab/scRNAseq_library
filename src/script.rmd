@@ -1,6 +1,9 @@
 ---
 title: "scRNAseq_pipeline"
 output: pdf_document
+params:
+  output: "default_output" 
+  config_path: "default_config_path" 
 ---
 
 # ENVIRONMENT SETUP
@@ -23,8 +26,8 @@ library(jsonlite)
 library(rmarkdown)
 use_condaenv("/root/miniconda/envs/scrnaseq")
 output <- params$output
-config <- jsonlite::fromJSON(file.path(output, "config.json"), simplifyDataFrame = FALSE)
-output <- paste0(output, "/")
+config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
+output <- paste0("../", output, "/")
 source("sc_pipeline_functions.R")
 ```
 
@@ -37,7 +40,7 @@ filtered_sce_list <- purrr::map(all_processed_data, "sce")
 feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 combine_feature_plots(seurat_objs_list, feature_set1, file_name_base = "post_soupx_qc")
 rm(all_processed_data, seurat_objs_list, feature_set1)
-gc()
+gc(full = TRUE)
 ```
 
 # Dbl Remover
@@ -73,14 +76,14 @@ gc()
 ```{r Scaling Data}
 scaled_seurat_obj <- scale_data(feature_selected_seurat_obj)
 rm(feature_selected_seurat_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Dimensional reduction
 ```{r Dimensional Reduction}
 dim_reduced_seurat_obj <- run_and_visualize_pca(scaled_seurat_obj)
 rm(scaled_seurat_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Batch correction

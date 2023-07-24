@@ -24,7 +24,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
 
   # Remove 'data' as it's no longer needed.
   rm(data)
-  gc()
+  gc(full = TRUE)
 
   # Perform transformations and find clusters
   seurat_obj <- SCTransform(seurat_obj, verbose = F)
@@ -69,7 +69,7 @@ process_lane <- function(lane) {
 
   # Now we no longer need 'soupX_obj', we can remove it.
   rm(soupX_obj)
-  gc()
+  gc(full = TRUE)
 
   # Here, you may want to save 'sce_obj' to a file if it's a large object.
   # Otherwise, return it.
