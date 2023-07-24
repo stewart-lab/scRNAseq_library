@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Change to the output directory
 cd output
 
@@ -7,5 +9,9 @@ output_dir=$(pwd)
 # Go back to the previous directory
 cd ..
 
+# Build the Docker image
+docker build -t my-scrna-seq:latest .
+
 # Run the Docker container with the correct volume mapping
-docker run -v ${output_dir}:/scRNA-seq/output -it jfreeman88/scrna-seq:latest
+docker run -v ${output_dir}:/scRNA-seq/output -it my-scrna-seq:latest
+
