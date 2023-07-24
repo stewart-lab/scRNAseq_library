@@ -15,8 +15,16 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   # Create SoupChannel object
   sc <- SoupChannel(data.raw, data)
 
+  # Remove 'data.raw' as it's no longer needed.
+  rm(data.raw)
+  gc()
+
   # Create a Seurat object without filtering
   seurat_obj <- CreateSeuratObject(counts = data, project = project)
+
+  # Remove 'data' as it's no longer needed.
+  rm(data)
+  gc()
 
   # Perform transformations and find clusters
   seurat_obj <- SCTransform(seurat_obj, verbose = F)
@@ -33,7 +41,6 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
     stop("Invalid UMAP method")
   }
   seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, verbose = F)
-
   seurat_obj <- FindClusters(seurat_obj, verbose = T)
 
   # Extract clusters from Seurat object and add to SoupChannel
@@ -46,6 +53,27 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   out <- adjustCounts(sc, roundToInt = TRUE)
 
   list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
+}
+
+process_lane <- function(lane) {
+  aligned_data <- read_aligned_data(lane$base_directory, lane$name)
+  soupX_obj <- prep_seurat_and_soupX(data.raw = aligned_data$raw, data = aligned_data$filtered, project = aligned_data$project)
+
+  # Now we no longer need 'aligned_data', we can remove it.
+  rm(aligned_data)
+  gc()
+
+  # Call 'create_seurat_and_sce()' while 'soupX_obj' is still in scope.
+  feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+  sce_obj <- create_seurat_and_sce(out = soupX_obj$out, project = lane$name, feature_set = feature_set1)
+
+  # Now we no longer need 'soupX_obj', we can remove it.
+  rm(soupX_obj)
+  gc()
+
+  # Here, you may want to save 'sce_obj' to a file if it's a large object.
+  # Otherwise, return it.
+  return(sce_obj)
 }
 
 create_seurat_and_sce <- function(out, project, feature_set) {
@@ -77,16 +105,17 @@ run_scDblFinder_and_merge <- function(
     sep = "\t", row.names = TRUE, quote = FALSE
   )
   # Merge all seurat objects in the list
-  result_list$seurat_obj <- Reduce(function(x, y) merge(x, y), result_list)
+  merged_seurat_obj <- Reduce(function(x, y) merge(x, y), result_list)
   if (save_plot) {
     create_feature_scatter_plot(
-      obj = result_list$seurat_obj,
+      obj = merged_seurat_obj,
       feature1 = "nCount_RNA", feature2 = "nFeature_RNA",
       file_name = file_name, path = path
     )
   }
-  return(result_list)
+  return(merged_seurat_obj)
 }
+
 
 filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
   # Get parameters from config
@@ -123,14 +152,8 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
   seurat_obj <- subset(seurat_obj, subset = nFeature_RNA > lower.nFeature & nFeature_RNA < upper.nFeature & percent.mt < max.percent.mt)
 
   # Create post-filter plots
-  post_filter_plot1 <- create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt", file_name = "mt_filtered1", save = save_plots, path = path)
-  post_filter_plot2 <- create_feature_scatter_plot(seurat_obj, "nCount_RNA", "nFeature_RNA", file_name = "mt_filtered2", save = save_plots, path = path)
+  post_filter_plot <- create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt", file_name = "percent_mt_filtered", save = save_plots, path = path)
 
-  # Combine plots and delete individual ones
-  seurat_objs_list <- list(seu1 = list(seu = seurat_obj), seu2 = list(seu = seurat_obj))
-  feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "percent.mt")
-  feature_set2 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  combine_feature_plots(seurat_objs_list, feature_set1, feature_set2, same_feature_set = FALSE, file_name_base = "mt_filtered", path = path)
 
   return(seurat_obj)
 }
@@ -541,18 +564,24 @@ combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 =
   }
 
   # Create individual plots and save them as PDFs
-  plot1 <- create_feature_scatter_plot(seurat_objs_list[[1]]$seu, feature_set1$feature1, feature_set1$feature2, save = TRUE, file_name = paste0(file_name_base, "1"), path = path)
-  plot2 <- create_feature_scatter_plot(seurat_objs_list[[2]]$seu, feature_set2$feature1, feature_set2$feature2, save = TRUE, file_name = paste0(file_name_base, "2"), path = path)
+  plots_list <- lapply(seq_along(seurat_objs_list), function(i) {
+    if (i %% 2 == 1) { # if i is odd
+      create_feature_scatter_plot(seurat_objs_list[[i]], feature_set1$feature1, feature_set1$feature2, save = TRUE, file_name = paste0(file_name_base, i), path = path)
+    } else { # if i is even
+      create_feature_scatter_plot(seurat_objs_list[[i]], feature_set2$feature1, feature_set2$feature2, save = TRUE, file_name = paste0(file_name_base, i), path = path)
+    }
+  })
 
   # Add plots together and save as a new PDF
-  pdf(paste0(path, file_name_base, "_combined.pdf"), width = 8, height = 6)
-  combined_plot <- plot1 + plot2
+  pdf(paste0(path, file_name_base, "_combined.pdf"), width = 8 * length(plots_list), height = 6)
+  combined_plot <- cowplot::plot_grid(plotlist = plots_list)
   print(combined_plot)
   dev.off()
 
   # Delete the individual plot files
-  file.remove(paste0(path, file_name_base, "1.pdf"))
-  file.remove(paste0(path, file_name_base, "2.pdf"))
+  for (i in seq_along(seurat_objs_list)) {
+    file.remove(paste0(path, file_name_base, i, ".pdf"))
+  }
 
   return(combined_plot)
 }

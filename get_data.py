@@ -4,7 +4,6 @@ import shutil
 import subprocess
 import json
 
-
 # Parse arguments
 parser = argparse.ArgumentParser(description="Download and extract data.")
 parser.add_argument(
@@ -37,8 +36,14 @@ if args.data in download_links:
     # Get the directory where the script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Make the DATA directory
+    # Define the DATA directory
     data_dir = os.path.join(script_dir, "DATA")
+
+    # Check if the directory already exists and remove it if it does
+    if os.path.exists(data_dir):
+        shutil.rmtree(data_dir)
+
+    # Make the DATA directory
     os.makedirs(data_dir, exist_ok=True)
 
     # Change directory to the newly created DATA directory
@@ -57,7 +62,6 @@ if args.data in download_links:
     )
 
     # Move the downloaded file to the DATA directory
-    # Move the downloaded file to the DATA directory
     source_file = os.path.join(
         data_dir, "www.morgridge.net", "dmz", "jfreeman", f"{args.data}_DATA.tar.gz"
     )
@@ -66,9 +70,6 @@ if args.data in download_links:
 
     # Remove the extra directories
     shutil.rmtree(os.path.join(data_dir, "www.morgridge.net"))
-
-    # Extract the tar.gz file
-    # ...
 
     # Extract the tar.gz file
     subprocess.run(["tar", "-zxvf", f"{args.data}_DATA.tar.gz"], check=True)
@@ -80,12 +81,13 @@ if args.data in download_links:
     if os.path.isdir(nested_dir):
         # Move each file in the nested directory to the DATA directory
         for filename in os.listdir(nested_dir):
+            dest_file_path = os.path.join(data_dir, filename)
+            if os.path.isfile(dest_file_path):
+                os.remove(dest_file_path)
             shutil.move(os.path.join(nested_dir, filename), data_dir)
 
         # Remove the extra directories
         shutil.rmtree(os.path.join(data_dir, "dmz"))
-
-    # ...
 
     # Remove the tar.gz file
     os.remove(f"{args.data}_DATA.tar.gz")
@@ -93,9 +95,16 @@ if args.data in download_links:
     # Change back to the script directory
     os.chdir(script_dir)
 
-    # Load the config.json file
     with open(os.path.join(script_dir, "config.json"), "r") as f:
         config = json.load(f)
+
+    config["lanes"] = []
+
+    if args.data in ["GAMM_S1", "GAMM_S2"]:
+        config["filter_cells"]["species"] = "pig"
+
+    elif args.data == "REH":
+        config["filter_cells"]["species"] = "human"
 
     # Recursively search through the directories
     gene_full_dirs = []
