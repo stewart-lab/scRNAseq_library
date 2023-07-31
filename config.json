@@ -50,6 +50,6 @@
     "score_and_plot_markers": {
         "top_n_markers": 10,
         "known_markers": "TRUE",
-        "known_markers_path": "/isiseqruns/jfreeman_tmp_home/GAMM/scRNAseq_library/src/GammLab_Retinal-specific_genelist.txt"
+        "known_markers_path": "./known_marker_lists/GammLab_Retinal-specific_genelist.txt"
     }
 }

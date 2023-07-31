@@ -1,0 +1,382 @@
+gene 	Cell type 	Also known as	Comments
+PDC	Neuronal projection-Pan PRs (fetal) 		
+RTBDN	Interphotoreceptor Matrix-Pan PRs		
+UNC13C	Synaptic marker		
+A2M	Interphotoreceptor Matrix		
+ABCA4	Pan PRs		
+ADCY1	Synaptic marker		
+AIF1	Microglia (fetal) 		
+AIPL1	Pan PRs		
+ALDH1A3	RPE		
+ANKRD33	Pan PR	ENSSSCG00000000231	Critical role in PR maturation 
+AP2A	"Early GCs, HCs and ACs"		
+APBA1	Synaptic marker		
+APBA3	Synaptic Marker		
+APOE	RPE or Muller glia		
+AQP4	Muller glia 		
+ARR3	Cone		
+ASCL1	"Pan PR, Retinal Progenitor, Early HCs, AC, and BPCs"		
+ASPN	Interphotoreceptor Matrix		
+ATOH7	Ganglion cell (fetal) 		
+BARHL2	Amacrine cell		
+BEST1	RPE		
+BHLHB4	Bipolar Cell 		
+BHLHB5	Amacrine cell or Bipolar Cell 		
+BHLHE22	Bipolar Cell or Amacrine cell 		
+BHLHE23	Bipolar Cell 		
+BRN3	Ganglion cell 		
+C1QA	Microglia (fetal) 		
+C1QB	Microglia (fetal) 		
+C1QC	Microglia (fetal) 		
+C2ORF71	Pan PRs		
+CA10	Bipolar Cell (fetal) 		
+CA2	Muller glia 		
+CA8	Bipolar Cell 		
+CABP5	Bipolar Cell 		
+CADPS	Synaptic marker	ENSSSCG00000011489	
+CALB1	Early HCs and ACs		
+CALB2	Early HCs and ACs		
+CAMK4	Synaptic marker (glutamatergic) 		
+CASZ1	Rod		
+CCND1	Retinal Progenitor 		
+CDH10	Synaptic marker		
+CDHR1	Pan PRs		
+CERKL	Neuronal projection		
+CHAT	Amacrine Cell 		
+CHN2	Bipolar Cell (fetal) 		
+CHRNB4	Cone		
+CLU	Muller glia 		
+CNGA1	Rod		
+CNGA3	Cone		
+CNGB1	Rod	ENSSSCG00000002811	
+CNGB3	Cone		
+CNTFR	Muller glia 		
+CNTN2	Ganglion cell (fetal) 		
+CNTNAP2	Ganglion cell	ENSSSCG00000034739	Associated with CNTN2
+COL2A1	Retinal Progenitor (fetal) 		
+CPAMD8	Retinal Progenitor (fetal) 		
+CPLX3	Neuronal projection		
+CRALBP	Muller glia 		
+CRB1	Retinal Progenitor (fetal) 		
+CROCC	Pan PR (inner segment) 		
+CRX	Pan PRs or RPE		
+CSF1R	Microglia (fetal) 		
+CSF2RA	Microglia (fetal) 		
+CTBP2	Synaptic markers		
+CTCF	Pan PRs		
+CX3CR1	Microglia (fetal) 		
+DCT	RPE		
+DHRS3	RPE (fetal) 		
+DIRAS2	Amacrine Cell (fetal) 		
+DISC1	Synaptic marker		
+DKK3	Muller glia 		
+DLGAP1	Synaptic markers		
+DMD	Synaptic Marker	ENSSSCG00000052612	
+DSCAML1	Synaptic marker		
+EBF1	Ganglion cell (fetal) 		
+EBF3	Ganglion cell (fetal) 		
+EGFR	Muller glia 		
+ELAVL3	Early GCs and ACs		
+ELAVL4	Early GCs and ACs (Glutamatergic synapse) 		
+ELN	RPE (fetal) 		
+ELOVL4	Pan PRs		
+EOMES	Retinal Progenitor		
+EP300	Pan PRs		
+EPHB2	Neuronal projection		
+EPS8	Synaptic marker		
+ESRRB	Rod		
+EYS	Phototransduction (IPM)	ENSSSCG00000004269	
+EZR	RPE		
+FABP7	Muller glia (fetal) 		
+FCER1G	Microglia (fetal) 		
+FGF19	Retinal Progenitor 		
+FOX04	Retinal Progenitor		
+FOX06	Retinal Progenitor		
+FOXN4	Horizontal Cell (AC?)		
+FSCN2	Neuronal projection		
+FXYD7	Ganglion cell (fetal) 		
+FZD5	Retinal Progenitor (fetal) 		
+GABBR2	Synaptic marker		
+GABRB2	Neuronal projection		
+GABRR1	Synaptic marker		
+GAD1	Amacrine Cell 		
+GAD2	Amacrine Cell 		
+GADD45A	Retinal Progenitor 		
+GAP43	Ganglion cell (fetal) 		
+GAS7	Pan PRs		
+GFAP	Retinal Progenitor and muller glia 		
+GFK1	Rod		
+GJA1	RPE (fetal) 		
+GJA10	Horizontal Cell 		
+GLI1	Retinal Progenitor 		
+GLI2	Retinal Progenitor 		
+GLUL	Retinal Progenitor or Muller glia		
+GNAO1	Bipolar Cell 		
+GNAT1	Rod		
+GNAT2	Cone		
+GNB1	Rod		
+GNB3	Phototransduction (GTPase complex) 		
+GNB5	Phototransduction (GTPase complex) 		
+GNG13	Bipolar Cell 		
+GNG2	Phototransduction (GTPase complex) 	ENSSSCG00000040110	ENSSSCG00000045794
+GNGT1	Rod (GTPase complex) 		
+GNGT2	Cone		
+GPNMB	RPE (fetal) 		
+GPR107	Phototransduction?		
+GPR158	Phototransduction?		
+GPR160	Phototransduction?		
+GRID1	Synaptic marker		
+GRIK2	Glutamatergic synapse		
+GRIN1	Ganglion cell 		
+GRIN2A	Ganglion cell 		
+GRK1	Rod		
+GRK7	Phototransduction 		
+GRM5	Synaptic marker		
+GRM6	Bipolar Cell (fetal) 		
+GUCA1A	Pan PRs (cone?)		
+GUCA1B	Rod		
+GUCA1C	Phototransduction 		
+GUCY1A1	Synaptic marker		
+GUCY2D	Pan PRs		
+GUCY2F	Phototransduction 		
+HCN1	Neuronal projection		
+HES1	Retinal Progenitor or Muller glia (fetal) 		
+HES5	Retinal Progenitor or Muller glia (fetal) 		
+HES6	Ganglion cell 		
+HESR2	Muller glia (fetal) 		
+HEY2	Muller glia (fetal) 		
+HSBP1	Amacrine Cell 		
+HUC	Early GCs and ACs		
+HUD	Early GCs and ACs		
+IFITM3	Retinal Progenitor	ENSSSCG00000038912	
+IGFBP5	RPE (fetal) 		
+IMPG1	Pan PRs		
+IMPG2	Pan PRs		
+INA	Ganglion cell (fetal) 		
+IRX5	Bipolar Cell 		
+ISL1	"Ganglion cell (fetal), could be Amacrine cell "		
+ISLET1	Ganglion cell 		
+ISLET2	Ganglion cell 		
+ITGA4	Neuronal projection		
+ITGB2	Microglia (fetal) 		
+KCNAB1	Neuronal projection		
+KCNB1	Synaptic marker		
+KCNB2	Neuronal projection		
+KCNG4	Bipolar Cell 		
+KCNJ10	Muller glia 		
+KCNJ2	Muller glia 		
+KCNMA1	Bipolar Cell (fetal) 		
+KCNQ3	Pan PR (Neuronal projection)		
+KLC3	Neuronal projection		
+KLF7	Ganglion cell (fetal) 		
+L1CAM	Ganglion cell (fetal) 		
+LAMB4	Interphotoreceptor Matrix		
+LAPTM5	Microglia (fetal) 		
+LEF1	Retinal Progenitor 		
+LG14	Muller glia (fetal) 		
+LGALS1	Muller glia?		
+LHX1	Horizontal Cell 		
+LHX2	Muller glia 		
+LHX4	Bipolar Cells and Cones (fetal) 		
+LHX9	Amacrine Cell (fetal) 		
+LIN28B	Retinal Progenitor 		
+LIN7A	Synaptic marker		
+LRIT1	Pan PRs		
+LRRTM2	Synaptic markers		
+LRTM1	Bipolar Cell (fetal) 		
+MAK	Pan PR (connecting cilia) 		
+MAPT	Ganglion cell (fetal) 		
+MCTP2	Synaptic marker		
+MEF2C	Cone		
+MEG3	Ganglion cell (fetal) 		
+MEIS1	Retinal Progenitors		
+MEIS2	Amacrine Cell (fetal) 		
+MIR181A1HG	Amacrine Cell (fetal) 		
+MIS18BP1	Retinal Progenitor (fetal) 		
+MITF	RPE (fetal) 		
+MKI67	Retinal Progenitor (fetal) 	ENSSSCG00000026302	
+MT2A	Muller glia?	ENSSSCG00000030300	
+MYO3B	Pan PR (inner segment) 		
+MYT1L	Amacrine Cell (fetal) 		
+NCAM2	Neuronal projection		
+NEFL	Ganglion cell (fetal) 		
+NEFM	Ganglion cell (fetal) 	ENSSSCG00000009648	
+NETO1	Bipolar Cell (fetal; synaptic marker) 		
+NEUROD1	"Ganglion Cell, Amacrine Cell, Pan PRs (fetal) "		
+NEUROD4	"Bipolar Cell (fetal), PR cell, Amacrine Cell, or Horizontal cell "		
+NEUROD6	Amacrine cell		
+NGFR	Neuronal projection		
+NHLH2	Ganglion cell (fetal) 		
+NOTCH1	Muller glia 		
+NPTX1	Cone (Neuronal projection) 		
+NR2E1	Retinal Progenitor		
+NR2E3	Rod		
+NR2F1	Cone (fetal)		
+NR2F2	Cone (fetal)		
+NR4A2	Amacrine cell		
+NRL	Rod		
+NRN1	Ganglion cell (fetal) 		
+NRTN	Neuronal projection		
+NRXN1	Synaptic markers	ENSSSCG00000053662	
+NRXN2	Amacrine Cell 		
+NRXN3	Amacrine Cell (fetal) or synaptic marker	ENSSSCG00000058517	
+NSG1	Glutamatergic synapse		
+NTM	Ganglion cell (fetal) 		
+NTNG1	Glutamatergic synapse		
+NTRK1	Horizontal Cell 		
+NXNL2	Rod		
+OCA2	RPE		
+OLFM1	Neuronal projection		
+OLIG2	Retinal Progenitor 		
+ONECUT1	Retinal Progenitor or Horizontal cell		
+ONECUT2	Horizontal Cell (fetal) 		
+ONECUT3	Horizontal Cell (fetal) 		
+OPN1MW	Cone		
+OPN1SW	Cone		
+OSBP2	Pan PR (Neuronal projection; rod?)		
+OTX2	"Retinal Progenitor, Early PRs"		
+PAX6	Retinal Progenitor 		
+PCDH15	Pan PR	ENSSSCG00000010426	
+PCNA	Retinal Progenitor 	ENSSSCG00000056538	
+PCP2	Bipolar Cell 		
+PDE6A	Rod		
+PDE6B	Rod		
+PDE6C	Cone		
+PDE6G	Rod		
+PDE6H	Cone		
+PFN1	Ganglion cell (fetal) 		
+PH3	Retinal Progenitor 		
+PIAS3	Rod (Pan PR?)		
+PLP1	Muller glia (fetal) 		
+PLPP3	Retinal Progenitor (fetal) 		
+PLPPR4	Synaptic marker		
+PLXDC1	Bipolar Cell (fetal) 		
+PMEL	RPE		
+PMEPA1	Muller glia (fetal) 		
+POU4F1	Ganglion cell 		
+POU4F2	Ganglion cell 		
+POU4F3	Ganglion cell 		
+POU6F2	Ganglion cell (fetal) 		
+PPEF2	Pan PR		
+PRCD	Pan PRs		
+PRDM1	Pan PRs	BLIMP1	
+PRDM13	Amacrine Cell 		
+PRDM8	Bipolar Cell (fetal) 		
+PRKCA	Bipolar Cell 		
+PROM1	Pan PRs		
+PROX1	Horizontal Cell (fetal) 		
+PRPH	Ganglion cell (fetal) 		
+PRPH2	Pan PRs		
+PRTG	Retinal Progenitor 		
+PSD95	Synaptic markers		
+PTF1A	Amacrine Cell or Horizontal cell 		
+RAB27A	RPE		
+RASGRF1	Cone (neuronal projection)		
+RAX	Retinal Progenitor or Muller glia		
+RAX2	Pan PRs		
+RBFOX1	Early GCs and ACs		
+RBFOX3	Ganglion cell 		
+RBP3	Pan PRs (fetal) 		
+RBPMS	Ganglion cell 		
+RCVRN	Pan PRs and BPCs		
+RD3	Pan PRs		
+RDH5	RPE		
+REEP6	Rod (PR inner segment) 	ENSSSCG00000026387	
+RERE	Retinal development (controls apoptosis)	ENSSSCG00000033497	
+RGS9	Pan PRs		
+RGS9BP	Rod		
+RHO	Rod		
+RIT2	Ganglion cell 		
+RLBP1	RPE or Muller glia		
+RNASET2	Microglia (fetal) 		
+ROBO2	Neuronal projection		
+ROM1	Rod		
+RORA	Cone		
+RORB	Pan PRs		
+RP1	Pan PRs		
+RP11-184I16.4	Pan PRs (fetal) 		
+RP11-714M23.2	Horizontal Cell (fetal) 		
+RP1L1	Pan PRs		
+RPE65	RPE		
+RPGRIP1	Pan PR (connecting cilia) 		
+RS1	Pan PRs		
+RTN1	Ganglion cell (fetal) 		
+RXRA	Pan PRs		
+RXRG	Cone or Ganglion cell (fetal) 		
+S100A1	Muller glia 		
+S100A11	Microglia (fetal) 		
+SAG	Rod		
+SALL3	Cone or Horizontal cells		
+SAMD7	Pan PRs		
+SATB2	Amacrine cell		
+SCGN	Bipolar Cell 		
+SCN3A	Bipolar Cell (fetal) 		
+SEMA5B	Neuronal projection		
+SEMA7A	Synaptic markers		
+SEPTIN4	Neuronal projection	ENSSSCG00000017643	
+SERPINF1	RPE (fetal) 		
+SFRP2	Retinal Progenitor (fetal) 		
+SHISA2	Retinal Progenitor (fetal) 		
+SIX3	Retinal Progenitor or Horizontal cell		
+SIX6	Retinal Progenitor 		
+SLC17A7	Synaptic markers		
+SLC1A3	Retinal Progenitor or Muller glia (fetal) 		
+SLC1A7	Bipolar Cell 		
+SLC24A1	Phototransduction 		
+SLC24A2	Cone		
+SLC24A4	Cone		
+SLC4A10	Bipolar Cell (fetal; synaptic marker) 		
+SLC6A6	Pan PR (neuronal projection)		
+SLC6A9	Bipolar Cell or Amacrine cell 		
+SLC7A8	RPE (fetal) 		
+SLCO5A1	Bipolar Cell		
+SNCA	Ganglion cell (fetal) 		
+SNCB	Neuronal projection		
+SNCG	Ganglion cell 		
+SORD	Cilium		
+SOX2	Retinal Progenitor or Muller glia		
+SOX9	Retinal Progenitor or Muller glia		
+SPON1	Muller glia (fetal) 		
+SPTBN5	Pan PRs		
+SRGAP2	Retinal development? 	ENSSSCG00000015645	
+ST18	Bipolar Cell (fetal) 		
+SUFU	Retinal Progenitor 		
+SULF2	Horizontal Cell (fetal) 		
+SYN1	Synaptic markers		
+SYP	Synaptic markers		
+SYT4	Ganglion cell (fetal) 		
+TACR1	Amacrine Cell 		
+TACR3	Neuronal projection		
+TBX5	Retinal Progenitor		
+TF	Muller glia (fetal) 		
+TFAP2A	Amacrine Cell (fetal) 		
+TFAP2B	Amacrine Cell (fetal) 		
+TFBS	Retinal Progenitor		
+TH	Amacrine Cell 		
+THRB	Cone		
+THY1	Ganglion cell 		
+TIMP3	RPE		
+TMEM108	Synaptic Marker		
+TMEM215	Bipolar Cell (fetal) 		
+TNR	Glutamatergic synapse		
+TRAK1	Neuronal projection		
+TRLBP1	Muller glia (fetal) 		
+TRPM1	RPE or Bipolar cell 		
+TTR	RPE (fetal) 		
+TUBB2A	Ganglion cell (fetal) 		
+TUBB3	Ganglion cell 		
+TUJ1	Ganglion cell 		
+TULP1	Pan PRs		
+TYROBP	Microglia (fetal) 		
+TYRP1	RPE		
+UNC119	Pan PRs		
+UNC13A	Synaptic markers	ENSSSCG00000013880	
+UNC13D	Synaptic markers		
+USH2A	Pan PRs	ENSSSCG00000038066	
+VIM	Retinal Progenitor or Muller glia		
+VSX1	Bipolar Cell 		
+VSX2	"Retinal Progenitor, Bipolar cell, or Muller glia"		
+VWF	Interphotoreceptor Matrix		
+WIF1	Muller glia (fetal) 		
+ZIC1	Retinal Progenitor		
+ZNF385A	Neuronal projection		

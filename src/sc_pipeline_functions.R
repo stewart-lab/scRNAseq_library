@@ -398,93 +398,13 @@ find_differentially_expressed_features <- function(seurat_obj, path = output) {
   return(list(markers = markers, topMarkers = topMarkers))
 }
 
-score_and_plot_markers <- function(seurat_obj, output_path = output) {
-  top_n_markers <- config$config$top_n_markers
-  known_markers <- config$config$known_markers
-  known_markers_path <- config$known_markers_path
-
-  # Convert Seurat object to SingleCellExperiment
-  sce_obj <- as.SingleCellExperiment(seurat_obj)
-
-  # Score markers
-  marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE)
-
-  # Convert each DataFrame in marker.info to a regular data frame
-  marker.info <- lapply(marker.info, function(x) as.data.frame(as.matrix(x)))
-
-  # For each cluster, perform operations
-  clusters <- unique(seurat_obj@meta.data$seurat_clusters)
-  clusters <- as.vector(clusters)
-
-  # Check if known_markers is true in the config file
-  if (known_markers) {
-    # Read in known GAMM retinoid markers
-    known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
-    known.markers.df <- as.data.frame(known.markers)
-  }
-
-  for (i in 1:length(clusters)) {
-    # Get cluster marker info
-    clust <- marker.info[[clusters[i]]]
-
-    # Order by median Cohen's d
-    ordered <- clust[order(clust$median.logFC.cohen, decreasing = TRUE), ]
-
-    # Debug print
-    print(paste("Length of ordered:", nrow(ordered)))
-
-    # Get top_n markers specified in the config file
-    top_n_df <- ordered[1:top_n_markers, ]
-    top_n_df <- as.data.frame(top_n_df)
-
-    # Debug print
-    print(paste("Length of top_n:", nrow(top_n_df)))
-
-    if (known_markers) {
-      # Match with any DE markers from data by merging dataframes
-      top_n_df <- merge(top_n_df, known.markers.df, by = "row.names")
-    }
-
-    # Subset data
-    new_df <- top_n_df[, c("Row.names", "rank.logFC.cohen", "Cell.type")]
-    new_vec <- unique(as.vector(new_df$Row.names))
-
-    # Debug print
-    print(paste("Length of new_vec:", length(new_vec)))
-  }
-
-  # Get all unique column names in the list of data frames
-  all_column_names <- unique(unlist(lapply(marker.info, colnames)))
-
-  # Function to add missing columns with NA values to a data frame
-  add_missing_columns <- function(df) {
-    missing_columns <- setdiff(all_column_names, colnames(df))
-    df[missing_columns] <- NA
-    return(df)
-  }
-
-  # Add missing columns to each data frame in the list
-  marker.info <- lapply(marker.info, add_missing_columns)
-
-  # rbind the data frames
-  marker.info.df <- do.call(rbind, marker.info)
-
-  # Convert to a regular data frame (from a data.frame list)
-  marker.info.df <- as.data.frame(marker.info.df)
-
-  write.table(marker.info.df, file = paste0(output_path, "marker.info.S2.txt"), quote = FALSE, sep = "\t", row.names = TRUE)
-}
-
-
-
-
-
-analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Retinal-specific_genelist.txt", output_path = output) {
+analyze_known_markers <- function(seurat_obj, de_results, output_path = output) {
   # read in known GAMM retinoid markers
+  known_markers_path <- config$score_and_plot_markers$known_markers_path
   known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE)
-
+  de.markers <- de_results[[1]]
   # match with any DE markers from data by merging dataframes
-  marker_df <- merge(seurat_obj$markers.df, known.markers, by = "gene")
+  marker_df <- merge(de.markers, known.markers, by = "gene")
 
   # write out marker df with known DE markers
   write.table(marker_df, file = paste0(output_path, "seurat_obj.knownDE.markers_S2.txt"), quote = FALSE, sep = "\t", row.names = FALSE)
@@ -522,6 +442,65 @@ analyze_known_markers <- function(seurat_obj, known_markers_path = "GammLab_Reti
     dot.plot <- DotPlot(object = seurat_obj, features = new_vec)
     print(dot.plot + labs(title = cell.types[i]))
     dev.off()
+  }
+}
+
+score_and_plot_markers <- function(seurat_obj, output_path = output) {
+  known_markers_path <- config$score_and_plot_markers$known_markers_path
+  # Convert Seurat object to SingleCellExperiment
+  sce_obj <- as.SingleCellExperiment(seurat_obj)
+
+  # Score markers
+  marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE)
+
+  # For each cluster, perform operations
+  clusters <- unique(seurat_obj@meta.data$seurat_clusters)
+  clusters <- as.vector(clusters)
+
+  # Read in known GAMM retinoid markers
+  known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
+  known.markers.df <- as.data.frame(known.markers)
+
+  for (i in 1:length(clusters)) {
+    # Get cluster marker info
+    clust <- marker.info[[clusters[i]]]
+
+    # Order by median Cohen's d
+    ordered <- clust[order(clust$median.logFC.cohen, decreasing = TRUE), ]
+
+    # Get top 100
+    top100 <- ordered[1:100, ]
+    top100 <- as.data.frame(top100)
+    # write out top100 genes
+    write.table(top100, file = paste0(output_path, "gamm.top100genes_S2_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = T)
+    # Match with any DE markers from data by merging dataframes
+    marker_df <- merge(top100, known.markers.df, by = "row.names")
+    if (nrow(marker_df) == 0) {
+      print(paste0("This data frame is empty: ", clusters[i]))
+    } else {
+      # write out marker df with known DE markers
+      write.table(marker_df, file = paste0(output_path, "gamm.knownDE.markers_S2_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = F)
+
+      # Subset data
+      new_df <- marker_df[, c("Row.names", "rank.logFC.cohen", "Cell.type")]
+      new_vec <- unique(as.vector(new_df$Row.names))
+
+      # Get top 10 ranked
+      new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
+      new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < 11)
+
+      new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
+      print(new_vec2)
+      print(clusters[i])
+      if (identical(new_vec2, character(0))) {
+        print(paste0("This vector does not have any ranks in top 10: ", clusters[i]))
+      } else {
+        # UMAP plot highlighting gene expression
+        pdf(paste0(output_path, clusters[i], "_featureplot_top10ranks2.pdf"), bg = "white")
+        print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
+        dev.off()
+      }
+    }
   }
 }
 

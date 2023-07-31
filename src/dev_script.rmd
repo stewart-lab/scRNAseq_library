@@ -1,10 +1,9 @@
 ---
 title: "scRNAseq_pipeline"
 output: pdf_document
-params:
-  output: "default_output" 
-  config_path: "default_config_path" 
 ---
+
+
 
 # ENVIRONMENT SETUP
 
@@ -24,11 +23,16 @@ library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
-use_condaenv("/root/miniconda/envs/scrnaseq")
-output <- params$output
-config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
-output <- paste0("../", output, "/")
-source("sc_pipeline_functions.R")
+library(GEOfastq)
+use_condaenv("/isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs/gpt5")
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+setwd("/isiseqruns/jfreeman_tmp_home/scRNAseq_library")
+output <- paste0("output/output_", timestamp)
+dir.create(output, showWarnings = TRUE)
+file.copy("config.json", file.path(output, "config.json"))
+config <- fromJSON(file.path(output, "config.json"))
+output <- paste0(output, "/")
+source("src/sc_pipeline_functions.R")
 ```
 
 # Load data
@@ -95,7 +99,8 @@ gc()
 
 # Clustering 
 ```{r Clustering}
-clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
+seurat_obj <- readRDS("/isiseqruns/jfreeman_tmp_home/scrna_dev/GAMM_S1_before_cluster.rds")
+clustered_seurat_obj <- perform_clustering(seurat_obj)
 rm(batch_corrected_obj)
 gc()
 ```
@@ -103,9 +108,9 @@ gc()
 # Find markers with Differential expressed features (genes)
 ```{r Differential Expression}
 if (config$DE_method == "Seurat") {
-  de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+    de_results <- find_differentially_expressed_features(clustered_seurat_obj)
 } else if (config$DE_method == "Scran") {
-  de_results <- find_differentially_expressed_features_m3drop(clustered_seurat_obj)
+    de_results <- find_differentially_expressed_features_m3drop(clustered_seurat_obj)
 }
 ```
 
@@ -118,4 +123,18 @@ analyze_known_markers(clustered_seurat_obj, de_results, output)
 # note: results overwrite
 ```{r analyze_known_markers2}
 score_and_plot_markers(clustered_seurat_obj, output)
+```
+# manual annotation
+```{r manual_annot}
+# cluster ids for gamm S2 at 0.5 with consolidated markers (for clusters 1-18)
+new.cluster.ids1 <- c("Retinal Progenitor-Muller Glia", "Pan PRs", "Pan PRs-Rods", "Pan PRs-Rods", "Pan PRs-Rods", "Pan PRs-Rods", "Ganglion cell", "Bipolar Cells-Ganglion cell", "Pan PRs-Rods", "unknown", "Pan PRs", "Cones-Pan PRs", "unknown", "unknown", "Muller Glia-PanPRs-Rods", "unknown", "Muller Glia", "Bipolar Cells")
+# annotate
+gamms2 <- annotate_clusters_and_save(gamms2, new.cluster.ids1, output)
+# cluster ids for gamm S2 at 0.14 with consolidated markers (for clusters 1-8)
+new.cluster.ids2 <- c(
+    "Pan PRs-Rods", "Muller Glia", "Ganglion cell", "Bipolar Cells", "Pan PRs-Rods",
+    "Rods-Muller Glia-Pan PRs", "unknown", "Cones-Pan PRs"
+)
+# annotate
+gamms2_recluster <- annotate_clusters_and_save(gamms2_recluster, new.cluster.ids2, output)
 ```
