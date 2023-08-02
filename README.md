@@ -17,7 +17,7 @@ Follow the steps below to set up your Docker environment:
 1. **Clone the repository**
 
 ```bash
-git clone -b gpt4 https://github.com/stewart-lab/scRNAseq_library.git # Start by cloning the repository
+git clone https://github.com/stewart-lab/scRNAseq_library.git # Start by cloning the repository
 ```
 
 2. **Navigate to the repository folder**
