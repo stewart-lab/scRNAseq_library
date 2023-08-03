@@ -93,9 +93,16 @@ rm(dim_reduced_seurat_obj)
 gc()
 ```
 
+# UMAP
+```{r UMAP}
+umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj)
+rm(batch_corrected_obj)
+gc()
+```
+
 # Clustering 
 ```{r Clustering}
-clustered_seurat_obj <- perform_clustering(batch_corrected_obj$seurat_obj)
+clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
 rm(batch_corrected_obj)
 gc()
 ```

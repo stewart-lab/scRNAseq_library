@@ -23,7 +23,6 @@ library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
-library(GEOfastq)
 use_condaenv("/isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs/gpt5")
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 setwd("/isiseqruns/jfreeman_tmp_home/scRNAseq_library")
@@ -97,10 +96,17 @@ rm(dim_reduced_seurat_obj)
 gc()
 ```
 
+# UMAP
+```{r UMAP}
+seurat_obj <- readRDS("/isiseqruns/jfreeman_tmp_home/scrna_dev/GAMM_S1_before_cluster.rds")
+umap_seurat_obj <- run_umap(seurat_obj)
+rm(batch_corrected_obj)
+gc()
+```
+
 # Clustering 
 ```{r Clustering}
-seurat_obj <- readRDS("/isiseqruns/jfreeman_tmp_home/scrna_dev/GAMM_S1_before_cluster.rds")
-clustered_seurat_obj <- perform_clustering(seurat_obj)
+clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
 rm(batch_corrected_obj)
 gc()
 ```
@@ -109,20 +115,10 @@ gc()
 ```{r Differential Expression}
 if (config$DE_method == "Seurat") {
     de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+    analyze_known_markers(clustered_seurat_obj, de_results, output)
 } else if (config$DE_method == "Scran") {
-    de_results <- find_differentially_expressed_features_m3drop(clustered_seurat_obj)
+    score_and_plot_markers(clustered_seurat_obj, output)
 }
-```
-
-# analyse known markers
-# note: results overwrite
-```{r analyze_known_markers}
-analyze_known_markers(clustered_seurat_obj, de_results, output)
-```
-# analyze known markers 2
-# note: results overwrite
-```{r analyze_known_markers2}
-score_and_plot_markers(clustered_seurat_obj, output)
 ```
 # manual annotation
 ```{r manual_annot}

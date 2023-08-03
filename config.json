@@ -35,14 +35,13 @@
   },
   "perform_batch_correction": {
     "dims.use": 20,
-    "max_iter": 50,
-    "dims": 20
+    "max_iter": 50
   },
   "perform_clustering": {
-    "reduction": "umap",
+    "reduction": "harmony",
     "resolution": 0.5,
     "algorithm": "leiden",
-    "dims_umap": 20
+    "dims_umap": 15
   },
   "find_differentially_expressed_features": {
     "min_pct": 0.25,
@@ -52,6 +51,6 @@
     "score_and_plot_markers": {
         "top_n_markers": 10,
         "known_markers": "TRUE",
-        "known_markers_path": "./known_marker_lists/GammLab_Retinal-specific_genelist.txt"
+        "known_markers_path": "../known_marker_lists/GammLab_Retinal-specific_genelist.txt"
     }
 }
