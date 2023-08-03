@@ -126,7 +126,7 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
 
   # Define mt features based on species
   if (species == "pig") {
-    mt.list <- mt_list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
+    mt.list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
     if (is.null(mt.list)) {
       warning("mt.list is not provided for pig species")
     } else {
@@ -134,10 +134,14 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
       if (!all(mt.list %in% rownames(seurat_obj))) {
         for (mt in mt.list) {
           print(paste(mt, " in rownames: ", all(mt %in% rownames(seurat_obj))))
+        if (all(mt %in% rownames(seurat_obj))==FALSE) {
+          print(paste(mt, " is not in rownames"))
+          # remove mt from mt.list
+          mt.list <- mt.list[!mt.list %in% mt]
         }
       }
       percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
-    }
+    }}
   } else if (species == "human") {
     percent_mt <- PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
   } else {
@@ -338,8 +342,8 @@ run_umap <- function(seurat_obj, path = output) {
   umap.method <- config$run_umap$umap.method
   umap.red <- config$run_umap$umap.red
   # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, reduction = umap.red)
-
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, 
+    reduction = umap.red, group.by = "orig.ident")
   # Generate UMAP plot
   pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
   print(DimPlot(seurat_obj, reduction = "umap"))

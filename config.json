@@ -9,8 +9,9 @@
   },
   "filter_cells": {
     "lower.nFeature": 200,
-    "upper.nFeature": 8000,
-    "max.percent.mt": 5
+    "upper.nFeature": 10000,
+    "max.percent.mt": 20,
+    "species": "pig"
   },
   "normalize_data": {
     "min_size": 100,
@@ -41,8 +42,10 @@
     "max_iter": 50
   },
   "perform_clustering": {
-    "reduction": "harmony",
+    "reduction": "harmony", 
+    // "reduction": "pca",
     "resolution": 0.14,
+    // "resolution": 0.5,
     "algorithm": "leiden",
     "dims_snn": 10
   },

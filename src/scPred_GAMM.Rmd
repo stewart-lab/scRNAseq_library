@@ -9,8 +9,13 @@ library(magrittr)
 library(harmony)
 library(rmarkdown)
 library(jsonlite)
+library(purrr)
+library(scran)
+library(patchwork)
+library(dplyr)
+library(reticulate)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
-use_condaenv("scRNAseq_best")
+use_condaenv(condaenv = 'scRNAseq_best', required = TRUE)
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_scPred_", timestamp)
@@ -23,20 +28,11 @@ source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 # run preprocess_crossspecies.Rmd first to get the data preprocessed the same way
 # get reference and query data
 ```{r get_data}
-human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
+human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_norm.rds")
 gamm <- readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
 ```
-# show umap of ref data
-```{r show_umap_ref}
-# we don't do clustering because clusters already annotated
-DimPlot(human_D205.seurat, group.by = "type", label = TRUE, repel = TRUE)
-
- # Save UMAP clusters plot
-  pdf(paste0(output, "umap_ref.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(human_D205.seurat, group.by = "type", 
-  reduction = "umap", label = TRUE, pt.size = .1)
-  print(umap_clusters)
-  dev.off()
+# subset metadata if needed
+```{r subset_metadata}
 # check metadata
 table(human_D205.seurat$type)
 # subset if needed
@@ -45,16 +41,77 @@ human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2','T2'))
 human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2'))
 table(human_D205.seurat$type)
 ```
+```{r subset_test_set}
+# Set the percentage of cells to sample (10% in this case)
+sampling_percentage <- 0.1
+# Calculate the number of cells to sample for each cell type
+cell_types <- unique(human_D205.seurat$type)
+cells_to_sample <- ceiling(table(human_D205.seurat$type) * sampling_percentage)
 
+# Create a copy of the original Seurat object to keep the unsubsetted cells
+human_D205.seurat.train <- human_D205.seurat
+
+# Initialize an empty list to store subsetted Seurat objects
+subset_list <- list()
+
+# Iterate through each cell type, subset the cells, and store the subset in the list
+for (cell_type in cell_types) {
+  cell_indices <- which(human_D205.seurat$type == cell_type)
+  sampled_indices <- sample(cell_indices, cells_to_sample[cell_type], replace = FALSE)
+  
+  subset_list[[cell_type]] <- human_D205.seurat[, sampled_indices]
+  # Remove the subsetted cells from the original Seurat object
+  human_D205.seurat.train <- human_D205.seurat.train[, -sampled_indices]
+}
+
+# Create a new Seurat object with the subsetted cells
+human_D205.seurat.test <- CreateSeuratObject(counts = subset_list[[1]]@assays$RNA@counts,
+                                           meta.data = subset_list[[1]]@meta.data)
+for (i in 2:length(subset_list)) {
+  human_D205.seurat.test <- merge(human_D205.seurat.test, subset_list[[i]])
+}
+
+human_D205.seurat.test$Idents <- human_D205.seurat.test$type
+```
+# Perform further analysis as needed on the seurat_test_object
+```{r normalize_test_set}
+human_D205.seurat.test_norm <- normalize_data(human_D205.seurat.test)
+saveRDS(human_D205.seurat.test_norm, file= paste0(output,"human_D205_test_norm.rds"))
+```
+
+# do analysis on training set
+```{r redo_analysis}
+# no need to normalize again
+#feature selection
+human_D205.seurat.train <- feature_selection(human_D205.seurat.train)
+# scale
+human_D205.seurat.train <- scale_data(human_D205.seurat.train)
+# run pca
+human_D205.seurat.train <- run_and_visualize_pca(human_D205.seurat.train)
+# run umap
+human_D205.seurat.train <- run_umap(human_D205.seurat.train)
+#save
+saveRDS(human_D205.seurat.train, file= paste0(output,"human_D205_train.rds"))
+```
+# show umap of ref data
+```{r show_umap_ref}
+# we don't do clustering because clusters already annotated
+ # Save UMAP clusters plot
+  pdf(paste0(output, "umap_ref.pdf"), width = 8, height = 6)
+  umap_clusters <- DimPlot(human_D205.seurat.train, group.by = "type", 
+  reduction = "umap", label = TRUE, pt.size = .1)
+  print(umap_clusters)
+  dev.off()
+  ```
 # training the classifyer
 ```{r train_classifyer}
 # getFeatureSpace will create a scPred object stored in the @misc slot. This 
 # object will contained all required information to classify cells.
-human_D205.seurat <- getFeatureSpace(human_D205.seurat, "type")
+human_D205.seurat.train <- getFeatureSpace(human_D205.seurat.train, "type")
 
 # train models for each cell type
 # cv has to be set BELOW min class
-human_D205.seurat <- trainModel(human_D205.seurat, resampleMethod = "cv",
+human_D205.seurat.train <- trainModel(human_D205.seurat.train, resampleMethod = "cv",
                                 number = 10, seed = 704)
 # if you get this error:
 # There were missing values in resampled performance measures.
@@ -62,63 +119,88 @@ human_D205.seurat <- trainModel(human_D205.seurat, resampleMethod = "cv",
 ```
 ```{r check_classifyer}
 # get training prob for each cell-cell type
-get_probabilities(human_D205.seurat) %>% head()
+get_probabilities(human_D205.seurat.train) %>% head()
 # use get_scpred method to retrieve the scPred object from the Seurat object.
 # this gives stats on each cell type prediction
-get_scpred(human_D205.seurat)
-model_stats <- get_scpred(human_D205.seurat)
+get_scpred(human_D205.seurat.train)
+model_stats <- get_scpred(human_D205.seurat.train)
+model_stats
 # visualize cell type probabilties
-pdf(paste0(output, "celltype_model_prob_svmpoly.pdf"), width = 8, height = 6)
-plot_probabilities(human_D205.seurat)
+pdf(paste0(output, "celltype_model_prob_svmradial.pdf"), width = 8, height = 6)
+plot_probabilities(human_D205.seurat.train)
 dev.off()
 ```
 # OPTIONAL: can try other models from caret:
 # https://topepo.github.io/caret/available-models.html
 # pass in the model parameter
 # can reclassify a subset of cells (like those that didn't work well)
+
+# check test data
+```{r check_test}
+human_D205.seurat.test <- scPredict(human_D205.seurat.test, human_D205.seurat.train)
+# test set in predictions space
+pdf(paste0(output, "test_celltype_prediction_fin.pdf"), width = 8, height = 6)
+DimPlot(human_D205.seurat.test, group.by = "scpred_prediction", reduction = "scpred")
+dev.off()
+# run UMAP using the aligned data as an input
+human_D205.seurat.test <- RunUMAP(human_D205.seurat.test, reduction = "scpred", dims = 1:30)
+# plot the predicted labels for each cell type over the UMAP:
+pdf(paste0(output, "test_celltype_prediction_fin-umap.pdf"), width = 8, height = 6)
+DimPlot(human_D205.seurat.test, group.by = "scpred_prediction", label = TRUE, repel = TRUE)
+dev.off()
+# compare to original labels
+pdf(paste0(output, "test_celltype_original-label-umap-fin.pdf"), width = 8, height = 6)
+DimPlot(human_D205.seurat.test, group.by = "type", label = TRUE, repel = TRUE)
+dev.off()
+```
+# can reclassify a subset of cells (like those that didn't work well)
 ```{r train_classifyer2}
 # other models tried: rf, logreg, xgbTree, mda, AdaBoost.M1
-human_D205.seurat <- trainModel(human_D205.seurat, model = 'AdaBoost.M1', 
+human_D205.seurat.train <- trainModel(human_D205.seurat.train, model = 'AdaBoost.M1', 
                                    resampleMethod = "cv",
                                    number = 10, seed = 704,
-                                   reclassify = c("T1/T3","Prog/Glia","RGC"))
-get_scpred(human_D205.seurat)
-model_stats_ada <- get_scpred(human_D205.seurat)
+                                   reclassify = c("Midbrain","T1/T3","Prog/Glia","RGC"))
+get_scpred(human_D205.seurat.train)
+model_stats_ada <- get_scpred(human_D205.seurat.train)
 pdf(paste0(output, "celltype_model_prob_adaboost.pdf"), width = 8, height = 6)
-plot_probabilities(human_D205.seurat)
+plot_probabilities(human_D205.seurat.train)
 dev.off()
+# note run check test again to see if model improved on test data
 ```
 ```{r train_classifyer3}
 # other models 'glm'
-human_D205.seurat <- trainModel(human_D205.seurat, model = "glm", 
+human_D205.seurat.train <- trainModel(human_D205.seurat.train, model = "glm", 
                                    resampleMethod = "cv",
                                    number = 10, seed = 704,
-                                   reclassify = "T1/T3")
-get_scpred(human_D205.seurat)
+                                   reclassify = c("Midbrain","T1/T3","RGC"))
+get_scpred(human_D205.seurat.train)
 pdf(paste0(output, "celltype_model_prob_glm.pdf"), width = 8, height = 6)
-plot_probabilities(human_D205.seurat)
+plot_probabilities(human_D205.seurat.train)
 dev.off()
-
+# run test data again
 ```
 # get final model
 ```{r train_classifyer4}
 # reclassify prog/glia and rgc with svm-radial
-human_D205.seurat <- trainModel(human_D205.seurat, model = "svmRadial", 
+human_D205.seurat.train <- trainModel(human_D205.seurat.train, model = "svmRadial", 
                                    resampleMethod = "cv",
                                    number = 10, seed = 704,
-                                   reclassify = c("Prog/Glia","RGC","T1/T3"))
-get_scpred(human_D205.seurat)
-pdf(paste0(output, "celltype_model_prob_svmRadial.pdf"), width = 8, height = 6)
-plot_probabilities(human_D205.seurat)
+                                   reclassify = c("Midbrain","RGC"))
+get_scpred(human_D205.seurat.train)
+pdf(paste0(output, "celltype_model_prob_fin.pdf"), width = 8, height = 6)
+plot_probabilities(human_D205.seurat.train)
 dev.off()
 ```
-# save reference seurat object
+# save seurat object
 ```{r save_ref}
-saveRDS(human_D205.seurat, file = "human_D205_models2.rds")
+# save ref data
+saveRDS(human_D205.seurat.train, file = paste0(output, "human_D205_train_models.rds"))
+# rerun check test and then save test data
+saveRDS(human_D205.seurat.test, file = paste0(output, "human_D205_test.rds"))
 ```
 # if you need to read objects back in
 ```{r read_in}
-human_D205.seurat <- readRDS(file = "human_D205_models2.rds")
+human_D205.seurat.train <- readRDS(file = "human_D205_models.rds")
 gamm <- readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
 ```
 # classify cells
@@ -130,16 +212,16 @@ gamm <- readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
 # space used as reference. Once the data is aligned, cells are classified using the 
 # pre-trained models.
 # predict query
-gamm <- scPredict(gamm, human_D205.seurat)
+gamm <- scPredict(gamm, human_D205.seurat.train)
 
 #plot the classifications over the aligned data.
-pdf(paste0(output, "celltype_prediction_1.pdf"), width = 8, height = 6)
+pdf(paste0(output, "celltype_prediction_1_gamms2.pdf"), width = 8, height = 6)
 DimPlot(gamm, group.by = "scpred_prediction", reduction = "scpred")
 dev.off()
 # run UMAP using the aligned data as an input
 gamm <- RunUMAP(gamm, reduction = "scpred", dims = 1:30)
 # plot the predicted labels for each cell type over the UMAP:
-pdf(paste0(output, "celltype_prediction_1-umap.pdf"), width = 8, height = 6)
+pdf(paste0(output, "celltype_prediction_1-umap_gamms2.pdf"), width = 8, height = 6)
 DimPlot(gamm, group.by = "scpred_prediction", label = TRUE, repel = TRUE)
 dev.off()
 ```
@@ -153,14 +235,14 @@ labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA',
         "scDblFinder.score","percent.mt","CellType","ident","scDblFinder.weighted",
         "RNA_snn_res.0.5","scDblFinder.class","scDblFinder.cxds_score","seurat_clusters")]
 # visualize the probabilities over the UMAP plot:
-pdf(paste0(output, "celltype_prediction_featureplot.pdf"), width = 11, height = 9)
+pdf(paste0(output, "celltype_prediction_featureplot_gamms2.pdf"), width = 11, height = 9)
 print(FeaturePlot(gamm, labels, keep.scale = "all"))
 dev.off()
 ```
 # verify performance with manual annotation
 ```{r verify_performance}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("gamm_manual_annot_metadata_c0.14.txt", row.names = 1, 
+metadata.gamm <- read.csv("gamm_manual_annot_metadata_S2_mod.txt", row.names = 1, 
             header = TRUE, sep = "\t")
 # check metadata with query data
 colnames(gamm@assays$RNA@data)[1:10]
@@ -174,20 +256,20 @@ gamm <- AddMetaData(gamm, metadata.gamm)
 query.ref.data.table<- as.data.frame(crossTab(gamm, "CellType", "scpred_prediction"))
 # check out proportion of cells
 query.ref.data.table2<- as.data.frame(crossTab(gamm, "CellType", "scpred_prediction", output = "prop"))
-write.table(query.ref.data.table, file = paste0(output, "query_ref_data_table_c0.14.txt"), sep = "\t")
-write.table(query.ref.data.table2, file = paste0(output, "query_ref_data_table_proportion_c0.14.txt"), sep = "\t")
+write.table(query.ref.data.table, file = paste0(output, "query_ref_data_table_0.5.txt"), sep = "\t")
+write.table(query.ref.data.table2, file = paste0(output, "query_ref_data_table_proportion_0.5.txt"), sep = "\t")
 # get query umap with orignal labels
-pdf(paste0(output, "celltype_originallabels-umap_c0.14.pdf"), width = 8, height = 6)
-DimPlot(gamm, group.by = "CellType", repel = TRUE, label=TRUE)+ NoLegend()
+pdf(paste0(output, "query_celltype_originallabels-umap_0.5.pdf"), width = 8, height = 6)
+DimPlot(gamm, group.by = "CellType", repel = TRUE, label=TRUE)#+ NoLegend()
 dev.off()
 ```
 # save query seurat object
 ```{r save_query}
-saveRDS(gamm, file = "GAMM_S2_scpred_models_c0.14.rds")
+saveRDS(gamm, file = "GAMM_S2_scpred_c0.5.rds")
 ```
 ```{r access_classifiers}
 # access the classifiers
-classifiers<- get_classifiers(human_D205.seurat)
+classifiers<- get_classifiers(human_D205.seurat.train)
 
 saveRDS(classifiers, file = paste0(output, "classifiers.rds"))
 

@@ -1,5 +1,5 @@
 ---
-title: "seurat_integration_for_cross_species2"
+title: "seurat_integration_for_cross_species"
 author: "Beth Moore"
 date: "2023-07-21"
 output: html_document
@@ -17,16 +17,20 @@ library(reticulate)
 library(multtest)
 library(metap)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
-#use_condaenv("scRNAseq_best")
+use_condaenv("scRNAseq_best")
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
-#timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-#output <- paste0("output_seurat_", timestamp)
-#dir.create(output, showWarnings = FALSE)
-#file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
-output <- "output_seurat_20230731_094648/"
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("output_seurat_", timestamp)
+dir.create(output, showWarnings = FALSE)
+file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
+#output <- "output_seurat_20230731_094648/"
+cell.cycle.markers.s <- read.csv2("/w5home/bmoore/scRNAseq_library/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
+    sep = "\t", header = TRUE, row.names = 1)
+cell.cycle.markers.g2m <- read.csv2("/w5home/bmoore/scRNAseq_library/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
+    sep = "\t", header = TRUE, row.names = 1)
+varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
+output <- paste0(output, "/")
 config <- fromJSON(file.path(output, "config.json"))
-#output <- paste0(output, "/")
-
 source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 ```
 # if needed, install python packages
@@ -45,8 +49,8 @@ install.packages('metap')
 
 # load data
 ```{r load_data}
-gamms2<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230718_115135/GAMM_S2_feat_select.rds")
-human_D205.seurat<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230718_115135/human_D205_feat_select.rds")
+gamms2<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_preprocess20230808_113032/GAMM_S2_feat_select.rds")
+human_D205.seurat<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_preprocess20230808_113032/human_D205_feat_select.rds")
 ```
 # select features for integration across specues
 ```{r select_features}
@@ -68,19 +72,23 @@ DefaultAssay(gamm.combined) <- "integrated"
 ```
 
 # scale, dimensionality reduction, and clustering on combined data
-```{r scale_dim_cluster}
+```{r scale}
 # scale data
-gamm.combined<- scale_data(gamm.combined)
+gamm.combined<- scale_data(gamm.combined, vars_list = varslist, path = output)
+```
+```{r run_dim_reduction}
 # run PCA
 gamm.combined<- run_and_visualize_pca(gamm.combined)
 # run UMAP
 gamm.combined<- run_umap(gamm.combined)
+```
+```{r run_clustering}
 # run clustering
 ## Note: you must have the reduction in the config file set to pca in order for this to work
 gamm.combined<- perform_clustering(gamm.combined)
 ```
 ```{r save_data}
-saveRDS(gamm.combined, file= paste0(output,"gamm.combined.rds"))
+saveRDS(gamm.combined, file= paste0(output,"gamm.combined_cc.regress_1to1.rds"))
 ```
 ```{r load_data}
 gamm.combined<- readRDS(file = "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230731_094648/gamm.combined.rds")
@@ -93,8 +101,16 @@ p2 <- DimPlot(gamm.combined, reduction = "umap", label = TRUE, repel = TRUE)
 pdf(paste0(output, "seurat_integration-umap.pdf"), width = 11, height = 6)
 print(p1 + p2)
 dev.off()
+p3 <- DimPlot(gamm.combined, reduction = "pca", group.by = "orig.ident")
+p4 <- DimPlot(gamm.combined, reduction = "pca", label = TRUE, repel = TRUE)
+pdf(paste0(output, "seurat_integration-pca.pdf"), width = 11, height = 6)
+print(p3 + p4)
+dev.off()
 pdf(paste0(output, "seurat_integration-umap2.pdf"), width = 8, height = 6)
 DimPlot(gamm.combined, reduction = "umap", split.by = "orig.ident")
+dev.off()
+pdf(paste0(output, "seurat_integration-pca2.pdf"), width = 8, height = 6)
+DimPlot(gamm.combined, reduction = "pca", split.by = "orig.ident")
 dev.off()
 ```
 # Identify conserved markers
@@ -102,8 +118,8 @@ dev.off()
 # For performing differential expression after integration, we switch back to the original
 # data
 DefaultAssay(gamm.combined) <- "RNA"
-markers.7 <- FindConservedMarkers(gamm.combined, ident.1 = 7, grouping.var = "orig.ident", verbose = FALSE)
-head(markers.7)
+#markers.7 <- FindConservedMarkers(gamm.combined, ident.1 = 7, grouping.var = "orig.ident", verbose = FALSE)
+#head(markers.7)
 ```
 # order and subset markers
 ```{r}
@@ -114,7 +130,7 @@ as.data.frame(new_df.ordered) %>% write.csv(file = paste0(output, "DEgenes.7.csv
 ```
 # read in known markers
 ```{r}
-known.markers <- read.csv2("/w5home/bmoore/scRNAseq_library/DATA/GammLab_Retinal-specific_genelist.txt", sep = "\t", header = TRUE, row.names = 1)
+known.markers <- read.csv2("/w5home/bmoore/scRNAseq_library/known_marker_lists/Gamm_lab_Consolidated_markerList.txt", sep = "\t", header = TRUE, row.names = 1)
 known.markers.df <- as.data.frame(known.markers)
 ```
 # merge known markers with new markers
@@ -133,7 +149,7 @@ dev.off()
 ```
 # for loop to get conserved markers for each cluster
 ```{r}
-for (i in levels(gamm.combined)[7:10]){
+for (i in levels(gamm.combined)){
     print(i)
     # find DE genes
     de.genes <- FindConservedMarkers(gamm.combined, ident.1 = strtoi(i), grouping.var = "orig.ident", verbose = FALSE)
@@ -163,10 +179,10 @@ for (i in levels(gamm.combined)[7:10]){
 ```
 # annotate clusters
 ```{r}
-gamm.combined <- RenameIdents(gamm.combined, `1` = "Retinal Prog-Muller Glia", 
-    `2` = "Pan PR-BPC", `3` = "Pan PR-BPC",`4` = "BPC", `5` = "Amacrine cell-Synaptic", 
-    `6` = "Retinal Prog-Muller Glia", `7` = "none", `8` = "Rod-Neuronal projection", 
-    `9` = "BPC", `10` = "none"
+gamm.combined <- RenameIdents(gamm.combined, `1` = "Amacrine-Muller Glia", 
+    `2` = "none", `3` = "none",`4` = "none", `5` = "none", 
+    `6` = "none", `7` = "Pan PRs", `8` = "Cone", 
+    `9` = "none", `10` = "none", `11` = "none", `12` = "Cone"
     )
 pdf(paste0(output, "combined_umap_label.pdf"), width = 8, height = 6)
 print(DimPlot(gamm.combined, label = TRUE))
