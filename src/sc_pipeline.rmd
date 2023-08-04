@@ -48,28 +48,28 @@ gc(full = TRUE)
 # Run doublet finder and merge lanes
 lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(filtered_sce_list)
 rm(filtered_sce_list)
-gc()
+gc(full = TRUE)
 ```
 
 # Mitochondrial gene filtering
 ```{r MT Gene Filtering}
 seurat_obj_mt_filtered <- filter_cells(lane_and_merged_seurat_obj)
 rm(lane_and_merged_seurat_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Normalization
 ```{r Normalization}
 normalized_seurat_obj <- normalize_data(seurat_obj_mt_filtered)
 rm(seurat_obj_mt_filtered)
-gc()
+gc(full = TRUE)
 ```
 
 # Feature selection
 ```{r Feature Selection}
 feature_selected_seurat_obj <- feature_selection(normalized_seurat_obj)
 rm(normalized_seurat_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Scaling data
@@ -90,21 +90,21 @@ gc(full = TRUE)
 ```{r Batch Correction}
 batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
 rm(dim_reduced_seurat_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # UMAP
 ```{r UMAP}
 umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj)
 rm(batch_corrected_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Clustering 
 ```{r Clustering}
 clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
 rm(batch_corrected_obj)
-gc()
+gc(full = TRUE)
 ```
 
 # Find markers with Differential expressed features (genes)

@@ -324,10 +324,10 @@ perform_clustering <- function(seurat_obj, path = output) {
   resolution <- config$perform_clustering$resolution
   algorithm <- config$perform_clustering$algorithm
   reduction <- config$perform_clustering$reduction
-  dims_umap <- 1:config$perform_clustering$dims_umap
+  dims_snn <- 1:config$perform_clustering$dims_snn
 
   # Perform K-nearest neighbor (KNN) graph using harmony embeddings
-  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, reduction = reduction)
+  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_snn, reduction = reduction)
 
   # Save UMAP lanes plot
   pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)

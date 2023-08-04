@@ -39,9 +39,9 @@
   },
   "perform_clustering": {
     "reduction": "harmony",
-    "resolution": 0.5,
+    "resolution": 0.14,
     "algorithm": "leiden",
-    "dims_umap": 15
+    "dims_snn": 10
   },
   "find_differentially_expressed_features": {
     "min_pct": 0.25,
@@ -51,6 +51,6 @@
     "score_and_plot_markers": {
         "top_n_markers": 10,
         "known_markers": "TRUE",
-        "known_markers_path": "../known_marker_lists/GammLab_Retinal-specific_genelist.txt"
+        "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt"
     }
 }
