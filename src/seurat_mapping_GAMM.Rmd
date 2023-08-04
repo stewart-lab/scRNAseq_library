@@ -1,10 +1,10 @@
 ---
-title: "seurat_integration_for_cross_species"
+title: "seurat_mapping_for_cross_species"
 author: "Beth Moore"
 date: "2023-07-18"
 output: html_document
 ---
-# Seurat integration for cross species analysis
+# Seurat tansfer mapping for cross species analysis
 # do preprocessing on human and pig data (preprocess_crossspecies.Rmd)
 # both reference and query should undergo normalization and find variable features,
 # then only reference is scaled and undegoes dimentionality reduction
@@ -30,7 +30,7 @@ BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 use_condaenv("scRNAseq_best")
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-output <- paste0("output_seurat_", timestamp)
+output <- paste0("output_seurat_mapping_", timestamp)
 dir.create(output, showWarnings = FALSE)
 file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
 config <- fromJSON(file.path(output, "config.json"))
@@ -40,7 +40,7 @@ source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 
 # read in seurat objects that were preprocessed
 ```{r read_data}
-gamms2<- readRDS(file = "output_20230718_115135/GAMM_S2_feat_select.rds")
+gamms2<- readRDS(file = "output_seurat_20230718_115135/GAMM_S2_feat_select.rds")
 human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
 ```
 # prep for integration
@@ -53,16 +53,22 @@ features <- SelectIntegrationFeatures(object.list = ret.list, nfeatures = 3000)
 ```{r ref_umap}
 p2 <- DimPlot(human_D205.seurat, reduction = "umap", group.by = "type", label = TRUE, repel = TRUE) +
   NoLegend()
-p2
+pdf(paste0(output, "human_ref-umap.pdf"), width = 8, height = 6)
+print(p2)
+dev.off()
 ```
 ## mapping and annotating query datasets
 # get query data and find anchors
 ```{r get_query_data_add_anchors}
 gamm.anchors <- FindTransferAnchors(reference = human_D205.seurat, query = gamms2,
-                                        dims = 1:30, reference.reduction = "pca")
+                                        dims = 1:30, #reference.reduction = "pca",
+                                        reduction= "rpca")
 predictions <- TransferData(anchorset = gamm.anchors, refdata = human_D205.seurat$type,
                             dims = 1:30)
 gamms2 <- AddMetaData(gamms2, metadata = predictions)
+```
+```{r save_query_data}
+saveRDS(gamms2, file= paste0(output,"gamms2_rpca_pred.rds"))
 ```
 # evaluate how well our predicted cell type annotations match the full reference. 
 # need manual annotation data

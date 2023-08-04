@@ -222,12 +222,35 @@ feature_selection <- function(seurat_obj) {
   return(seurat_obj)
 }
 
-scale_data <- function(seurat_obj) {
+scale_data <- function(seurat_obj, vars_list = varslist, path = output) {
+  vars.2.regress = config$scale_data$vars.2.regress
   # Get all gene names
   all.genes <- rownames(seurat_obj)
-
   # Scale the data
-  seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+  if (vars.2.regress == "cell.cycle") {
+    s.genes <- varslist[4]$pig.gene.name
+    g2m.genes <- varslist[8]$pig.gene.name
+    seurat_obj<- CellCycleScoring(seurat_obj, s.features = s.genes, 
+      g2m.features = g2m.genes, set.ident = TRUE)
+    # visualize before regressing out cell cycle
+    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj))
+    dev.off()
+    # scale data and regress out cell cycle
+    seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c("S.Score", "G2M.Score"), 
+      features = all.genes)
+    # visualize after regressing out cell cycle
+    # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj))
+    dev.off()
+
+  } else {
+  
+  seurat_obj <- ScaleData(seurat_obj, features = all.genes)}
 
   return(seurat_obj)
 }
@@ -311,7 +334,8 @@ run_umap <- function(seurat_obj, path = output) {
   umap.method = config$run_umap$umap.method
   umap.red = config$run_umap$umap.red
   # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, reduction = umap.red)
+  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, 
+    reduction = umap.red, group.by = "orig.ident")
   
   # Generate UMAP plot
   pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
