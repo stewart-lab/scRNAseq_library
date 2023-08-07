@@ -1,6 +1,8 @@
 As of 8/29, test is to 
 
 A) Load dev_script.rmd in vscode, Run chunks of interest
+    + # ENVIRONMENT SETUP
+    + 
 B) Fire docker container, following the README
 
 Lets 

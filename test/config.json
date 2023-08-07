@@ -3,7 +3,7 @@
   "annotation_reference": "FALSE",
   "DE_method": "Scran",
   "lanes": [],
-  "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/",
+  "DATA_DIR": "./data/",
   "fastq_alignment": {
     "NUM_LANES": 1,
     "OUTPUT_PREFIX": "TEST",
