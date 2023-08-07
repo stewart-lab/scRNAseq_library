@@ -51,7 +51,7 @@ def download_fastq_from_srp(srp, out_dir):
 
 def convert_sra_to_fastq(sra_file):
     try:
-        command = f"fasterq-dump {sra_file} --split-files --outdir ."
+        command = f"parallel-fastq-dump -s {sra_file} --split-files --gzip --outdir ."
         subprocess.check_call(command, shell=True)
         print(f"Converted {sra_file} to FASTQ format.")
     except Exception as e:
