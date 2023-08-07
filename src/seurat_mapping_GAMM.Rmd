@@ -40,7 +40,7 @@ source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 
 # read in seurat objects that were preprocessed
 ```{r read_data}
-gamms2<- readRDS(file = "output_seurat_20230718_115135/GAMM_S2_feat_select.rds")
+gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
 human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
 ```
 # prep for integration
@@ -59,25 +59,34 @@ dev.off()
 ```
 ## mapping and annotating query datasets
 # get query data and find anchors
-```{r get_query_data_add_anchors}
+```{r find_anchors_and_transfer}
+reduc.type = "cca"
+if (reduc.type== "cca"){
+# for cca
 gamm.anchors <- FindTransferAnchors(reference = human_D205.seurat, query = gamms2,
-                                        dims = 1:30, #reference.reduction = "pca",
-                                        reduction= "rpca")
+                                        dims = 1:30,reduction= "cca")
+predictions <- TransferData(anchorset = gamm.anchors, refdata = human_D205.seurat$type,
+                            dims = 1:30, weight.reduction="cca")
+} else if (reduc.type== "pca"){
+# for pca
+gamm.anchors <- FindTransferAnchors(reference = human_D205.seurat, query = gamms2,
+                                        dims = 1:30, referemce.reduction= "pca")
 predictions <- TransferData(anchorset = gamm.anchors, refdata = human_D205.seurat$type,
                             dims = 1:30)
+}
+else {print("choose reduc.type either cc or pca")}
 gamms2 <- AddMetaData(gamms2, metadata = predictions)
 ```
-```{r save_query_data}
-saveRDS(gamms2, file= paste0(output,"gamms2_rpca_pred.rds"))
-```
+
+
 # evaluate how well our predicted cell type annotations match the full reference. 
 # need manual annotation data
 ```{r read_metadata}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("gamm_manual_annot_metadata_S2.txt", row.names = 1, 
+metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
             header = TRUE, sep = "\t")
 # check metadata with query data
-colnames(gamm@assays$RNA@data)[1:10]
+colnames(gamms2@assays$RNA@data)[1:10]
 rownames(metadata.gamm)[1:10]
 # remove "_1" from metadata
 rownames(metadata.gamm) <- sub("_1", "", rownames(metadata.gamm))
@@ -97,9 +106,17 @@ table(gamms2$CellType)
 #VlnPlot(pancreas.query, c("REG1A", "PPY", "SST", "GHRL", "VWF", "SOX10"), group.by = "predicted.id")
 # projection of a query onto the reference UMAP structure.
 ```{r project_query_on_ref}
+
 human_D205.seurat <- RunUMAP(human_D205.seurat, dims = 1:30, reduction = "pca", return.model = TRUE)
+if (reduc.type== "cca"){
+# for cca
 gamms2 <- MapQuery(anchorset = gamm.anchors, reference = human_D205.seurat, query = gamms2,
-                           refdata = list(celltype = "type"), reference.reduction = "pca", reduction.model = "umap")
+                           refdata = list(celltype = "type"), reference.reduction = "cca", reduction.model = "umap")}
+else if (reduc.type== "pca"){
+# for pca
+gamms2 <- MapQuery(anchorset = gamm.anchors, reference = human_D205.seurat, query = gamms2,
+                           refdata = list(celltype = "type"), reference.reduction = "pca", reduction.model = "umap")}
+else {print("choose reduc.type either cc or pca")} 
 ```
 # visualize
 ```{r visualize}
@@ -107,12 +124,12 @@ p1 <- DimPlot(human_D205.seurat, reduction = "umap", group.by = "type", label = 
               repel = TRUE) + ggtitle("Reference annotations")# + NoLegend()
 p2 <- DimPlot(gamms2, reduction = "ref.umap", group.by = "predicted.celltype", label = TRUE,
               label.size = 3, repel = TRUE) + ggtitle("Query transferred labels")
-pdf(paste0(output, "celltype_seurat_predictions-umap2.pdf"), width = 11, height = 6)
+pdf(paste0(output, "celltype_seurat_predictions-umap_cca_clabels.pdf"), width = 11, height = 6)
 print(p1 + p2)
 dev.off()
 p3 <- DimPlot(gamms2, reduction = "ref.umap", group.by = "CellType", label = TRUE,
               label.size = 3, repel = TRUE) + ggtitle("Manually annotated labels")
-pdf(paste0(output, "celltype_seurat_predictions-umap_c0.14.pdf"), width = 11, height = 6)
+pdf(paste0(output, "celltype_seurat_predictions-umap_0.5_cca_clabels.pdf"), width = 11, height = 6)
 print(p2 + p3)
 dev.off()
 ```
@@ -127,7 +144,7 @@ labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA',
         'RNA_snn_res.0.14','RNA_snn_res.0.5',"predicted.celltype.score","predicted.celltype",
         'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters')]
 # visualize the probabilities over the UMAP plot:
-pdf(paste0(output, "celltype_prediction_featureplot2.pdf"), width = 10, height = 10)
+pdf(paste0(output, "celltype_prediction_featureplot.pdf"), width = 10, height = 10)
 print(FeaturePlot(gamms2, labels, keep.scale = "all"))
 dev.off()
 ```
@@ -139,4 +156,10 @@ query.ref.data.table<- as.data.frame(crossTab(gamms2, "CellType", "predicted.cel
 query.ref.data.table2<- as.data.frame(crossTab(gamms2, "CellType", "predicted.celltype", output = "prop"))
 write.table(query.ref.data.table, file = paste0(output, "query_ref_data_table_s2.txt"), sep = "\t")
 write.table(query.ref.data.table2, file = paste0(output, "query_ref_data_table_proportion_s2.txt"), sep = "\t")
+```
+```{r save_query_data}
+saveRDS(gamms2, file= paste0(output,"gamms2_cca_pred.rds"))
+```
+```{r read_data}
+#gamms2 <- readRDS(file = "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_mapping_20230804_143108/gamms2_rpca_pred.rds")
 ```

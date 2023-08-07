@@ -21,6 +21,9 @@
     "n_features": 2000,
     "analysis_type": "Scry"
   },
+  "scale_data":{
+    "vars.2.regress": "cell.cycle"
+  },
   "run_and_visualize_pca": {
     "top_n_dims": 2,
     "heatmap_dims": 15,
@@ -39,7 +42,7 @@
     "dims": 20
   },
   "perform_clustering": {
-    "reduction": "umap",
+    "reduction": "pca",
     "resolution": 0.5,
     "algorithm": "leiden",
     "dims_umap": 20
