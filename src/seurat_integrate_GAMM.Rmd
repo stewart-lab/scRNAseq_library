@@ -49,8 +49,8 @@ install.packages('metap')
 
 # load data
 ```{r load_data}
-gamms2<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230718_115135/GAMM_S2_feat_select.rds")
-human_D205.seurat<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230718_115135/human_D205_feat_select.rds")
+gamms2<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_preprocess20230808_113032/GAMM_S2_feat_select.rds")
+human_D205.seurat<- readRDS(file = "~/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_preprocess20230808_113032/human_D205_feat_select.rds")
 ```
 # select features for integration across specues
 ```{r select_features}
@@ -88,7 +88,7 @@ gamm.combined<- run_umap(gamm.combined)
 gamm.combined<- perform_clustering(gamm.combined)
 ```
 ```{r save_data}
-saveRDS(gamm.combined, file= paste0(output,"gamm.combined_cc.regress.rds"))
+saveRDS(gamm.combined, file= paste0(output,"gamm.combined_cc.regress_1to1.rds"))
 ```
 ```{r load_data}
 gamm.combined<- readRDS(file = "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_20230731_094648/gamm.combined.rds")
@@ -118,8 +118,8 @@ dev.off()
 # For performing differential expression after integration, we switch back to the original
 # data
 DefaultAssay(gamm.combined) <- "RNA"
-markers.7 <- FindConservedMarkers(gamm.combined, ident.1 = 7, grouping.var = "orig.ident", verbose = FALSE)
-head(markers.7)
+#markers.7 <- FindConservedMarkers(gamm.combined, ident.1 = 7, grouping.var = "orig.ident", verbose = FALSE)
+#head(markers.7)
 ```
 # order and subset markers
 ```{r}
@@ -130,7 +130,7 @@ as.data.frame(new_df.ordered) %>% write.csv(file = paste0(output, "DEgenes.7.csv
 ```
 # read in known markers
 ```{r}
-known.markers <- read.csv2("/w5home/bmoore/scRNAseq_library/DATA/GammLab_Retinal-specific_genelist.txt", sep = "\t", header = TRUE, row.names = 1)
+known.markers <- read.csv2("/w5home/bmoore/scRNAseq_library/known_marker_lists/Gamm_lab_Consolidated_markerList.txt", sep = "\t", header = TRUE, row.names = 1)
 known.markers.df <- as.data.frame(known.markers)
 ```
 # merge known markers with new markers
@@ -149,7 +149,7 @@ dev.off()
 ```
 # for loop to get conserved markers for each cluster
 ```{r}
-for (i in levels(gamm.combined)[7:10]){
+for (i in levels(gamm.combined)){
     print(i)
     # find DE genes
     de.genes <- FindConservedMarkers(gamm.combined, ident.1 = strtoi(i), grouping.var = "orig.ident", verbose = FALSE)
@@ -179,10 +179,10 @@ for (i in levels(gamm.combined)[7:10]){
 ```
 # annotate clusters
 ```{r}
-gamm.combined <- RenameIdents(gamm.combined, `1` = "Retinal Prog-Muller Glia", 
-    `2` = "Pan PR-BPC", `3` = "Pan PR-BPC",`4` = "BPC", `5` = "Amacrine cell-Synaptic", 
-    `6` = "Retinal Prog-Muller Glia", `7` = "none", `8` = "Rod-Neuronal projection", 
-    `9` = "BPC", `10` = "none"
+gamm.combined <- RenameIdents(gamm.combined, `1` = "Amacrine-Muller Glia", 
+    `2` = "none", `3` = "none",`4` = "none", `5` = "none", 
+    `6` = "none", `7` = "Pan PRs", `8` = "Cone", 
+    `9` = "none", `10` = "none", `11` = "none", `12` = "Cone"
     )
 pdf(paste0(output, "combined_umap_label.pdf"), width = 8, height = 6)
 print(DimPlot(gamm.combined, label = TRUE))

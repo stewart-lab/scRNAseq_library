@@ -9,8 +9,9 @@
   },
   "filter_cells": {
     "lower.nFeature": 200,
-    "upper.nFeature": 8000,
-    "max.percent.mt": 5
+    "upper.nFeature": 10000,
+    "max.percent.mt": 20,
+    "species": "pig"
   },
   "normalize_data": {
     "min_size": 100,

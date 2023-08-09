@@ -9,6 +9,10 @@ library(magrittr)
 library(harmony)
 library(rmarkdown)
 library(jsonlite)
+library(purrr)
+library(scran)
+library(patchwork)
+library(dplyr)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 use_condaenv("scRNAseq_best")
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
@@ -45,16 +49,54 @@ human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2','T2'))
 human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2'))
 table(human_D205.seurat$type)
 ```
+```{r subset_test_set}
+# Set the percentage of cells to sample (10% in this case)
+sampling_percentage <- 0.1
+# Calculate the number of cells to sample for each cell type
+cell_types <- unique(human_D205.seurat$type)
+cells_to_sample <- ceiling(table(human_D205.seurat$type) * sampling_percentage)
+# Create an empty Seurat object to store the subset
+#human_D205.seurat.test <- CreateSeuratObject(counts = human_D205.seurat@assays$RNA@counts)
+# Create a copy of the original Seurat object to keep the unsubsetted cells
+human_D205.seurat.train <- human_D205.seurat
 
+# Initialize an empty list to store subsetted Seurat objects
+subset_list <- list()
+
+# Iterate through each cell type, subset the cells, and store the subset in the list
+for (cell_type in cell_types) {
+  cell_indices <- which(human_D205.seurat$type == cell_type)
+  sampled_indices <- sample(cell_indices, cells_to_sample[cell_type], replace = FALSE)
+  
+  subset_list[[cell_type]] <- human_D205.seurat[, sampled_indices]
+  # Remove the subsetted cells from the original Seurat object
+  human_D205.seurat.train <- human_D205.seurat.train[, -sampled_indices]
+}
+
+# Create a new Seurat object with the subsetted cells
+human_D205.seurat.test <- CreateSeuratObject(counts = subset_list[[1]]@assays$RNA@counts,
+                                           meta.data = subset_list[[1]]@meta.data)
+for (i in 2:length(subset_list)) {
+  human_D205.seurat.test <- merge(human_D205.seurat.test, subset_list[[i]])
+}
+
+human_D205.seurat.test$Idents <- human_D205.seurat.test$type
+```
+# Perform further analysis as needed on the seurat_test_object
+```{r normalize_test_set}
+human_D205.seurat.test_norm <- normalize_data(human_D205.seurat.test)
+saveRDS(human_D205.seurat.test_norm, file= "human_D205_test_norm.rds")
+saveRDS(human_D205.seurat.train, file= "human_D205_train.rds")
+```
 # training the classifyer
 ```{r train_classifyer}
 # getFeatureSpace will create a scPred object stored in the @misc slot. This 
 # object will contained all required information to classify cells.
-human_D205.seurat <- getFeatureSpace(human_D205.seurat, "type")
+human_D205.seurat.train <- getFeatureSpace(human_D205.seurat.train, "type")
 
 # train models for each cell type
 # cv has to be set BELOW min class
-human_D205.seurat <- trainModel(human_D205.seurat, resampleMethod = "cv",
+human_D205.seurat.train <- trainModel(human_D205.seurat.train, resampleMethod = "cv",
                                 number = 10, seed = 704)
 # if you get this error:
 # There were missing values in resampled performance measures.

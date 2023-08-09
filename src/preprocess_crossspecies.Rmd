@@ -30,7 +30,7 @@ BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 use_condaenv("scRNAseq_best")
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-output <- paste0("output_", timestamp)
+output <- paste0("output_preprocess", timestamp)
 dir.create(output, showWarnings = FALSE)
 file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
 config <- fromJSON(file.path(output, "config.json"))
@@ -56,8 +56,8 @@ gamm.data <- read_aligned_data(
 all_aligned_data <- list(exp.matrix,gamm.data)
 soupX_objs <- purrr::map(all_aligned_data, ~prep_seurat_and_soupX(data.raw = .x$raw, data = .x$filtered, project = .x$project), .names = purrr::map_chr(all_data, 'project'))
 # write out data
-DropletUtils:::write10xCounts("reh_soupX_filt_d205.mtx", soupX_objs[[1]]$out)
-DropletUtils:::write10xCounts("gamm_soupX_filt_S2.mtx", soupX_objs[[2]]$out)
+DropletUtils:::write10xCounts(paste0(output,"reh_soupX_filt_d205.mtx"), soupX_objs[[1]]$out)
+DropletUtils:::write10xCounts(paste0(output,"gamm_soupX_filt_S2.mtx"), soupX_objs[[2]]$out)
 ref.matrix.soupx<- soupX_objs[[1]]$out
 gamm.matrix.soupx<- soupX_objs[[2]]$out
 ```
@@ -76,25 +76,28 @@ lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(filtered_sce_list)
 ```
 # get sparse count matrices
 ```{r}
-dim(lane_and_merged_seurat_obj$seurat_obj1@assays$RNA@counts)
-dim(lane_and_merged_seurat_obj$seurat_obj1@assays$RNA@data)
-dim(lane_and_merged_seurat_obj$seurat_obj2@assays$RNA@counts)
-dim(lane_and_merged_seurat_obj$seurat_obj2@assays$RNA@data)
-all.equal(lane_and_merged_seurat_obj$seurat_obj2@assays$RNA@counts,
-lane_and_merged_seurat_obj$seurat_obj2@assays$RNA@data)
-all.equal(lane_and_merged_seurat_obj$seurat_obj1@assays$RNA@counts,
-lane_and_merged_seurat_obj$seurat_obj1@assays$RNA@data)
-ref.matrix.flt <- lane_and_merged_seurat_obj$seurat_obj1@assays$RNA@data
-gam.matrix.flt <- lane_and_merged_seurat_obj$seurat_obj2@assays$RNA@data
+obj.list <- SplitObject(lane_and_merged_seurat_obj, split.by = "orig.ident")
+human_ref<- obj.list$human_ref
+pig_query<- obj.list$gamm.data.S2
+dim(human_ref@assays$RNA@counts)
+dim(human_ref@assays$RNA@data)
+dim(pig_query@assays$RNA@counts)
+dim(pig_query@assays$RNA@data)
+all.equal(pig_query@assays$RNA@counts,
+pig_query@assays$RNA@data)
+all.equal(human_ref@assays$RNA@counts,
+human_ref@assays$RNA@data)
+ref.matrix.flt <- human_ref@assays$RNA@data
+gam.matrix.flt <- pig_query@assays$RNA@data
 # write out data
-DropletUtils:::write10xCounts("reh_dblfinder_filt_d205.mtx", ref.matrix.flt)
-DropletUtils:::write10xCounts("gamm_dblfinder_filt_S2.mtx", gam.matrix.flt)
-rm(ref.matrix.soupx, gamm.matrix.soupx,lane_and_merged_seurat_obj)
+DropletUtils:::write10xCounts(paste0(output,"reh_dblfinder_filt_d205.mtx"), ref.matrix.flt)
+DropletUtils:::write10xCounts(paste0(output,"gamm_dblfinder_filt_S2.mtx"), gam.matrix.flt)
+rm(ref.matrix.soupx, gamm.matrix.soupx)
 ```
 # read in orthologs
 ```{r orthologs}
 # Reminder: these are assumed to be in the working directory...
-orthologs <- read.csv2("Human_Pig_Biomart_Filtered_mod.txt", sep="\t", header=TRUE)
+orthologs <- read.csv2(paste0(BETHS_GAMM_DATA_DIR,"human_data/reh_cellrep_2020/biomart_export_human-pig_20230807_one-to-one.txt"), sep="\t", header=TRUE)
 ```
 # subset matrices
 ```{r subset}
@@ -133,8 +136,8 @@ dim(gam.matrix.flt)
 # subset human refernce based on gamm data
 ref.matrix.flt<- ref.matrix.flt[rownames(ref.matrix.flt) %in% rownames(gam.matrix.flt), ]
 dim(ref.matrix.flt)
-DropletUtils:::write10xCounts("ref.filtered.exp", ref.matrix.flt)
-DropletUtils:::write10xCounts("gamm.data.filtered.exp", gam.matrix.flt)
+DropletUtils:::write10xCounts(paste0(output,"ref.filtered.exp"), ref.matrix.flt)
+DropletUtils:::write10xCounts(paste0(output,"gamm.data.filtered.exp"), gam.matrix.flt)
 #ref.matrix.flt <- Read10X("ref.filtered.exp/")
 #gam.matrix.flt <- Read10X("gamm.data.filtered.exp/")
 ```
@@ -151,6 +154,7 @@ ref.matrix.flt <- select(ref.matrix.flt,  -c("Group.1"))
 library(Matrix)
 ref.matrix.flt<- as.matrix(ref.matrix.flt)
 ref.matrix.flt <- Matrix(ref.matrix.flt, sparse = TRUE)
+dim(ref.matrix.flt)
 ```
 
 # get metadata
@@ -169,7 +173,7 @@ table(metadata$type)
 # drop AC1 because only 2
 metadata <- subset(x = metadata, type != 'AC1')
 # replace underscore with dash
-row.names(metadata) <- sub("_1", "", row.names(metadata))
+#row.names(metadata) <- sub("_1", "", row.names(metadata))
 metadata.rows <-as.vector(row.names(metadata))
 dim(metadata)
 dim(ref.matrix.flt)
@@ -184,15 +188,13 @@ gamm.S2.seurat<- CreateSeuratObject(gam.matrix.flt, project = "gamm_S2", assay =
 ```
 # save seurat object
 ```{r}
-saveRDS(human_D205.seurat, file = "human_D205_ortholog.rds")
-saveRDS(gamm.S2.seurat, file = "GAMM_S2_ortholog.rds")
-
+saveRDS(human_D205.seurat, file = paste0(output,"human_D205_ortholog.rds"))
+saveRDS(gamm.S2.seurat, file = paste0(output,"GAMM_S2_ortholog.rds"))
 ```
 # Mitochondrial gene filtering
 ```{r}
-pig_mt_list <- c("ND1","ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
-human_D205.seurat_mt_filtered <- filter_cells(human_D205.seurat, mt.list = pig_mt_list)
-gamm.S2.seurat_mt_filtered <- filter_cells(gamm.S2.seurat, mt.list = pig_mt_list)
+human_D205.seurat_mt_filtered <- filter_cells(human_D205.seurat)
+gamm.S2.seurat_mt_filtered <- filter_cells(gamm.S2.seurat)
 ```
 # need to check if genes are the same after filtering, if not subset again
 ```{r}
@@ -221,6 +223,9 @@ gamm.S2.seurat_mt_filtered_subset<- CreateSeuratObject(gamm.S2.seurat.exp.mtx,
 dim(human_D205.seurat_mt_filtered_subset)
 dim(gamm.S2.seurat_mt_filtered_subset)
 ```
+# for human reference data, take out 10% of cells from each cell type for test set for scPred
+```{r}
+table(metadata$type)
 
 ```
 # Normalization
@@ -235,8 +240,8 @@ saveRDS(gamm.S2.seurat_norm, file = "GAMM_S2_norm.rds")
 # for seurat integration: query also undergoes feature selection
 # Feature selection
 ```{r}
-gamm.S2.seurat_norm<-readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
-human_D205.seurat_norm<-readRDS(file = "output_20230711_155556/human_D205_norm.rds")
+#gamm.S2.seurat_norm<-readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
+#human_D205.seurat_norm<-readRDS(file = "output_20230711_155556/human_D205_norm.rds")
 gamm.S2.seurat_feat_select <- feature_selection(gamm.S2.seurat_norm)
 human_D205.seurat_feat_select <- feature_selection(human_D205.seurat_norm)
 saveRDS(gamm.S2.seurat_feat_select, file = "GAMM_S2_feat_select.rds")
