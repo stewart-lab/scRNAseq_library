@@ -223,11 +223,7 @@ gamm.S2.seurat_mt_filtered_subset<- CreateSeuratObject(gamm.S2.seurat.exp.mtx,
 dim(human_D205.seurat_mt_filtered_subset)
 dim(gamm.S2.seurat_mt_filtered_subset)
 ```
-# for human reference data, take out 10% of cells from each cell type for test set for scPred
-```{r}
-table(metadata$type)
 
-```
 # Normalization
 ```{r}
 human_D205.seurat_norm <- normalize_data(human_D205.seurat_mt_filtered_subset)
@@ -237,7 +233,10 @@ saveRDS(gamm.S2.seurat_norm, file = "GAMM_S2_norm.rds")
 ```
 ## further steps: 
 # for scPRED: reference undergoes feature selection, scaling, and dimensional reduction, query does not
-# for seurat integration: query also undergoes feature selection
+#    # if doing a test set for scPred, stop here and load normalized data into scPred. 
+#    # Scpred will split the reference into training and testing, then do the rest of the steps.
+# for Seurat integration or mapping: query also undergoes feature selection
+
 # Feature selection
 ```{r}
 #gamm.S2.seurat_norm<-readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
