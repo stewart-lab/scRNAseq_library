@@ -73,11 +73,27 @@ gamm.anchors <- FindTransferAnchors(reference = human_D205.seurat, query = gamms
                                         dims = 1:30, referemce.reduction= "pca")
 predictions <- TransferData(anchorset = gamm.anchors, refdata = human_D205.seurat$type,
                             dims = 1:30)
-}
-else {print("choose reduc.type either cc or pca")}
+} else {
+  print("choose reduc.type either cc or pca")
+  }
 gamms2 <- AddMetaData(gamms2, metadata = predictions)
 ```
-
+# run umap on query data
+```{r run_umap_on_query}
+gamms2 <- scale_data(gamms2)
+gamms2 <- RunPCA(gamms2, features = VariableFeatures(object = gamms2))
+gamms2 <- RunUMAP(gamms2, dims = 1:30, reduction = "pca", return.model = TRUE)
+pg <- DimPlot(gamms2, reduction = "umap", group.by = "predicted.id", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("Query transferred labels")
+pdf(paste0(output, "celltype_seurat_predictions-query_umap.pdf"), width = 8, height = 6)
+print(pg)
+dev.off()
+pc <- DimPlot(gamms2, reduction = "umap", group.by = "CellType", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("Query manually annotated labels")
+pdf(paste0(output, "query-manual_annotation_umap.pdf"), width = 8, height = 6)
+print(pc)
+dev.off()
+```
 
 # evaluate how well our predicted cell type annotations match the full reference. 
 # need manual annotation data
@@ -111,12 +127,12 @@ human_D205.seurat <- RunUMAP(human_D205.seurat, dims = 1:30, reduction = "pca", 
 if (reduc.type== "cca"){
 # for cca
 gamms2 <- MapQuery(anchorset = gamm.anchors, reference = human_D205.seurat, query = gamms2,
-                           refdata = list(celltype = "type"), reference.reduction = "cca", reduction.model = "umap")}
-else if (reduc.type== "pca"){
+                           refdata = list(celltype = "type"), reference.reduction = "cca", reduction.model = "umap")
+} else if (reduc.type== "pca"){
 # for pca
 gamms2 <- MapQuery(anchorset = gamm.anchors, reference = human_D205.seurat, query = gamms2,
-                           refdata = list(celltype = "type"), reference.reduction = "pca", reduction.model = "umap")}
-else {print("choose reduc.type either cc or pca")} 
+                           refdata = list(celltype = "type"), reference.reduction = "pca", reduction.model = "umap")
+} else {print("choose reduc.type either cc or pca")} 
 ```
 # visualize
 ```{r visualize}
