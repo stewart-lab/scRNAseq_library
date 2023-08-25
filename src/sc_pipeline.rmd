@@ -116,3 +116,8 @@ if (config$DE_method == "Seurat") {
   score_and_plot_markers(clustered_seurat_obj, output)
 }
 ```
+# save the final object
+```{r Save Final Object}
+saveRDS(clustered_seurat_obj, file = paste0(output,"final_seurat_obj.rds"))
+```
+```

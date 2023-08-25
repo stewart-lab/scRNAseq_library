@@ -222,15 +222,44 @@ feature_selection <- function(seurat_obj) {
   return(seurat_obj)
 }
 
-scale_data <- function(seurat_obj) {
+scale_data <- function(seurat_obj, path = output) {
+  vars.2.regress = config$scale_data$vars.2.regress
   # Get all gene names
   all.genes <- rownames(seurat_obj)
-
   # Scale the data
-  seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+  if (vars.2.regress == "cell.cycle") {
+    cell.cycle.markers.s <- read.csv2("/scRNA-seq/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
+    sep = "\t", header = TRUE, row.names = 1)
+    cell.cycle.markers.g2m <- read.csv2("/scRNA-seq/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
+    sep = "\t", header = TRUE, row.names = 1)
+    varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
+    s.genes <- varslist[4]$pig.gene.name
+    g2m.genes <- varslist[8]$pig.gene.name
+    seurat_obj<- CellCycleScoring(seurat_obj, s.features = s.genes, 
+      g2m.features = g2m.genes, set.ident = TRUE)
+    # visualize before regressing out cell cycle
+    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj))
+    dev.off()
+    # scale data and regress out cell cycle
+    seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c("S.Score", "G2M.Score"), 
+      features = all.genes)
+    # visualize after regressing out cell cycle
+    # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj))
+    dev.off()
+
+  } else {
+  
+  seurat_obj <- ScaleData(seurat_obj, features = all.genes)}
 
   return(seurat_obj)
 }
+
 
 run_and_visualize_pca <- function(seurat_obj, path = output) {
   top_n_dims <- config$run_and_visualize_pca$top_n_dims
