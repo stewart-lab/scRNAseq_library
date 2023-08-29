@@ -43,9 +43,7 @@
   },
   "perform_clustering": {
     "reduction": "harmony", 
-    // "reduction": "pca",
     "resolution": 0.14,
-    // "resolution": 0.5,
     "algorithm": "leiden",
     "dims_snn": 10
   },
