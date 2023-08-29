@@ -2,21 +2,21 @@ gene	Cell type
 GAD1	Amacrine Cell 
 GAD2	Amacrine Cell 
 TH	Amacrine Cell 
-SLC6A9	Amacrine cell 
-CHAT	Amacrine Cells
-NRXN3	Amacrine Cells
+SLC6A9	Amacrine Cell 
+CHAT	Amacrine Cell 
+NRXN3	Amacrine Cell 
 CA10	Bipolar Cells
 NETO1	Bipolar Cells
 PRKCA	Bipolar Cells
-CNGA3	Cone
-CNGB3	Cone
-OPN1MW	Cone
-OPN1SW	Cone
+CNGA3	Cones
+CNGB3	Cones
+OPN1MW	Cones
+OPN1SW	Cones
 ARR3	Cones
 GNAT2	Cones
 PDE6C	Cones
-BRN3	Ganglion cell 
-TUBB3	Ganglion cell 
+BRN3	Ganglion Cells
+TUBB3	Ganglion Cells
 SNCG	Ganglion Cells
 ISL1	Ganglion Cells
 POU4F2	Ganglion Cells
@@ -26,16 +26,16 @@ ONECUT2	Horizontal Cells
 GFAP	Muller Glia
 S100A1	Muller Glia
 FABP7	Muller Glia
-IMPG2	Pan photoreceptors
-CRX	Pan photoreceptors
-RCVRN	Pan photoreceptors
+IMPG2	Pan PRs
+CRX	Pan PRs
+RCVRN	Pan PRs
 PROM1	Pan PRs
-SOX2	Retinal Progenitor Cell
-HES1	Retinal Progenitor Cell
-HES5	Retinal Progenitor Cell
-MKI67 (ENSSSCG00000026302)	Retinal Progenitor Cell
-VSX2	"Retinal Progenitor, Bipolar cell, or Muller glia"
-OTX2	"Retinal Progenitor, Early PRs"
+SOX2	Retinal Prog
+HES1	Retinal Prog
+HES5	Retinal Prog
+MKI67 (ENSSSCG00000026302)	Retinal Prog
+VSX2	Retinal Prog-Bipolar cell-Muller glia
+OTX2	Retinal Prog-Early PRs
 NR2E3	Rods
 RHO	Rods
 SAG	Rods

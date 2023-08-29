@@ -113,11 +113,19 @@ if (config$DE_method == "Seurat") {
   de_results <- find_differentially_expressed_features(clustered_seurat_obj)
   analyze_known_markers(clustered_seurat_obj, de_results, output)
 } else if (config$DE_method == "Scran") {
-  score_and_plot_markers(clustered_seurat_obj, output)
+  annot_df<- score_and_plot_markers(clustered_seurat_obj, output)
 }
 ```
-# save the final object
+# save the clustered object
 ```{r Save Final Object}
-saveRDS(clustered_seurat_obj, file = paste0(output,"final_seurat_obj.rds"))
+saveRDS(clustered_seurat_obj, file = paste0(output,"clustered_seurat_obj.rds"))
 ```
+# manual annotation
+```{r manual_annot}
+# order clusters from annotation data frame
+new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
+# get new cluster names ordered by cluster number
+new.cluster.ids <- new_df.ordered$Cell.type
+# annotate
+clustered_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
 ```

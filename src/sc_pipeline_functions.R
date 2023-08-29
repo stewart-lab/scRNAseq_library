@@ -484,7 +484,7 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   # Read in known GAMM retinoid markers
   known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
   known.markers.df <- as.data.frame(known.markers)
-
+  annot_df <- data.frame(Cluster= integer(), Cell.type = character())
   for (i in 1:length(clusters)) {
     # Get cluster marker info
     clust <- marker.info[[clusters[i]]]
@@ -501,6 +501,8 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
     marker_df <- merge(top100, known.markers.df, by = "row.names")
     if (nrow(marker_df) == 0) {
       print(paste0("This data frame is empty: ", clusters[i]))
+      new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
+      annot_df <- rbind(annot_df, new_row)
     } else {
       # write out marker df with known DE markers
       write.table(marker_df, file = paste0(output_path, "gamm.knownDE.markers_S2_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = F)
@@ -518,28 +520,44 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
       print(clusters[i])
       if (identical(new_vec2, character(0))) {
         print(paste0("This vector does not have any ranks in top 10: ", clusters[i]))
+        new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
+        annot_df <- rbind(annot_df, new_row)
       } else {
         # UMAP plot highlighting gene expression
         pdf(paste0(output_path, clusters[i], "_featureplot_top10ranks2.pdf"), bg = "white")
         print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
         dev.off()
+        allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
+        print(allcelltypes)
+        result_string = ""
+        for (j in 1:length(allcelltypes)){
+          new_element <- allcelltypes[j]
+          if (result_string == "") {
+            result_string <- new_element
+          } else {
+            result_string <- paste(result_string,"-", new_element) 
+          }
+        }
+        new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)
+        annot_df <- rbind(annot_df, new_row)
       }
     }
   }
+  return(annot_df)
 }
 
-annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_file = "GAMM_S2_labeled-clusters.rds") {
+annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_path = output) {
   # Rename the clusters based on the new IDs
   names(new_cluster_ids) <- levels(seurat_obj)
   seurat_obj <- RenameIdents(seurat_obj, new_cluster_ids)
 
   # Generate and plot the UMAP plot
 
-  pdf(paste0(output_path, "GAMM_S2_labeled-clusters.pdf"), bg = "white")
-  print(DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend())
+  pdf(paste0(output_path, "labeled-clusters.pdf"), bg = "white")
+  print(DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5))
   dev.off()
   # Save the Seurat object
-  saveRDS(seurat_obj, file = paste0(output_path, output_file))
+  saveRDS(seurat_obj, file = paste0(output_path, "seurat_obj_labeled.rds"))
 
   return(seurat_obj)
 }
