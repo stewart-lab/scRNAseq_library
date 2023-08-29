@@ -232,9 +232,9 @@ scale_data <- function(seurat_obj, path = output) {
   all.genes <- rownames(seurat_obj)
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
-    cell.cycle.markers.s <- read.csv2("/scRNA-seq/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
+    cell.cycle.markers.s <- read.csv2("cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
     sep = "\t", header = TRUE, row.names = 1)
-    cell.cycle.markers.g2m <- read.csv2("/scRNA-seq/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
+    cell.cycle.markers.g2m <- read.csv2("cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
     sep = "\t", header = TRUE, row.names = 1)
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
     s.genes <- varslist[4]$pig.gene.name

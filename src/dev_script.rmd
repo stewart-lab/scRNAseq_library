@@ -67,7 +67,9 @@ normalized_seurat_obj <- normalize_data(seurat_obj_mt_filtered)
 rm(seurat_obj_mt_filtered)
 gc()
 ```
-
+```{r test}
+normalized_seurat_obj <- readRDS("/w5home/bmoore/scRNAseq/GAMM/GAMM_S2/GAMM_S2_filtered-norm.rds")
+```
 # Feature selection
 ```{r Feature Selection}
 feature_selected_seurat_obj <- feature_selection(normalized_seurat_obj)
