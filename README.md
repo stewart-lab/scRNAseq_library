@@ -85,25 +85,32 @@ Here is the explanation for each key in the configuration file:
 
 - `feature_selection`: A dictionary for specifying feature selection parameters.
   - `n_features`: The number of features to select.
-  - `analysis_type`: The type of analysis to use.
+  - `analysis_type`: The type of analysis to use: "Scry" or "Seurat"
+
+ - `scale_data`: A dictionary for specifying scale data parameters
+   - `vars.2.regress`: genes to regress out- currently either "cell.cycle" or "NA"
 
 - `run_and_visualize_pca`: A dictionary for specifying PCA parameters.
   - `top_n_dims`: The top n dimensions for PCA.
   - `heatmap_dims`: The number of dimensions for the heatmap.
   - `num_cells`: The number of cells to use.
+  - `dims`: The number of dimensions to use for jackstraw.
+  - `num.replicate`: The number of replicates for jackstraw plot.
+
+- `run_umap`: a dictionary for running umap.
+   - `dims_umap`: The number of dimensions to use in umap reduction
+   - `umap.method`: Method to run umap: "umap-learn" or "uwot"
+   - `umap.red`: Reduction method to use: "pca" or "harmony" (or special cases)
 
 - `perform_batch_correction`: A dictionary for specifying batch correction parameters.
   - `dims.use`: The number of dimensions to use.
   - `max_iter`: The maximum number of iterations.
 
 - `perform_clustering`: A dictionary for specifying clustering parameters.
-  - `save_obj_before_clustering`: Whether to save object before clustering.
-  - `num.replicate`: The number of replicates.
-  - `dims`: The number of dimensions to use.
-  - `dims_umap`: The number of dimensions for UMAP.
-  - `resolution`: The resolution for clustering.
-  - `algorithm`: The algorithm used for clustering.
-  - `umap.method`: The method used for UMAP.
+  - `reduction`: Type of reduction to use for clustering: "harmony", "umap", or "pca"
+  - `resolution`: The resolution for clustering (higher for more clusters, lower for less clusters).
+  - `algorithm`: The algorithm used for clustering: "leiden"
+  - `dims_snn`: Number of dimensions to use for KNN graph
 
 - `find_differentially_expressed_features`: A dictionary for specifying parameters to find differentially expressed features.
   - `min_pct`: The minimum percentage for filtering.
@@ -113,7 +120,7 @@ Here is the explanation for each key in the configuration file:
 - `score_and_plot_markers`: A dictionary for specifying parameters for scoring and plotting markers.
   - `top_n_markers`: The top n markers to use.
   - `known_markers`: Whether to use known markers.
-  - `known_markers_path`: The path to the known markers.
+  - `known_markers_path`: The path to the known markers: "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt"
 
 Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat and SoupX documentation.
 
