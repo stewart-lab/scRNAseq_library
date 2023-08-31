@@ -109,7 +109,7 @@ gc()
 # Clustering 
 ```{r Clustering}
 clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
-rm(batch_corrected_obj)
+rm(umap_seurat_obj)
 gc()
 ```
 # read in after Clustering
@@ -132,6 +132,6 @@ new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
 # get new cluster names ordered by cluster number
 new.cluster.ids <- new_df.ordered$Cell.type
 # annotate
-clustered_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
+labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
 
 ```

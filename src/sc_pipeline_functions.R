@@ -138,10 +138,12 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
           print(paste(mt, " is not in rownames"))
           # remove mt from mt.list
           mt.list <- mt.list[!mt.list %in% mt]
+          View(mt.list)
         }
       }
-      percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
-    }}
+    }
+    percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
+  }
   } else if (species == "human") {
     percent_mt <- PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
   } else {
@@ -232,9 +234,9 @@ scale_data <- function(seurat_obj, path = output) {
   all.genes <- rownames(seurat_obj)
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
-    cell.cycle.markers.s <- read.csv2("cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
+    cell.cycle.markers.s <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
     sep = "\t", header = TRUE, row.names = 1)
-    cell.cycle.markers.g2m <- read.csv2("cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
+    cell.cycle.markers.g2m <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
     sep = "\t", header = TRUE, row.names = 1)
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
     s.genes <- varslist[4]$pig.gene.name
@@ -310,7 +312,7 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
 }
 
 perform_batch_correction <- function(seurat_obj, path = output) {
-  dims.use <- 1:config$run_and_visualize_pca$dims
+  dims.use <- 1:config$perform_batch_correction$dims.use
   max_iter <- config$perform_batch_correction$max_iter
 
   # Generate pre-batch correction PCA plot
