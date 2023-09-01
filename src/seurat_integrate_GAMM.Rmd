@@ -74,7 +74,7 @@ DefaultAssay(gamm.combined) <- "integrated"
 # scale, dimensionality reduction, and clustering on combined data
 ```{r scale}
 # scale data
-gamm.combined<- scale_data(gamm.combined, vars_list = varslist, path = output)
+gamm.combined<- scale_data(gamm.combined, path = output)
 ```
 ```{r run_dim_reduction}
 # run PCA
