@@ -1,0 +1,48 @@
+---
+title: "scRNAseq for Gamm"
+output: pdf_document
+---
+
+# Abstract
+We are trying to create good pig retenoids. We want to see how good it is by comparing scRNA expression to that of human cells. 
+We describe how good we did. ...
+
+# Results
+
+# Discussion
+
+# Conclusions
+
+# Methods
+
+## Data
+We are using pig and human data.
+
+- pig data is from Gamm lab
+    - sample 1 is retinal organoid from day XX
+    - sample 2 is retinal organoid from day 125
+    - each sample was run on two flow cell lanes for technical replicates
+- human data is from Reh 2020, GSE142526
+    - one sample from human retinal organoid day 205
+    - run on four flow cell lanes
+- TODO Get more Data
+    - Cowan
+    - ?
+    - Mouse ?
+
+
+## Star solo
+To map the reads we used star solo
+
+- Building the index
+    - pig genome: Sus_scrofa_berkshire.Berkshire_pig_v1.109 from Ensemble
+    - human genome: Homo_sapiens.GRCh38.108 from Ensemble
+
+
+## Dbl Remover
+
+## Mitochondrial gene filtering
+
+## Normalization
+
+## Feature selection
