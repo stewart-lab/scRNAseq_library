@@ -1,0 +1,26 @@
+A nested tibble tbl, with the following columns
+• cell_group - column including the cell groups being tested
+• parameter - The parameter being estimated, from the design matrix dscribed with the input
+formula_composition and formula_variability
+• factor - The factor in the formula corresponding to the covariate, if exists (e.g. it does not exist
+in case og Intercept or contrasts, which usually are combination of parameters)
+• c_lower - lower (2.5%) quantile of the posterior distribution for a composition (c) parameter.
+• c_effect - mean of the posterior distribution for a composition (c) parameter.
+• c_upper - upper (97.5%) quantile of the posterior distribution fo a composition (c) parameter.
+• c_pH0 - Probability of the null hypothesis (no difference) for a composition (c). This is not a
+p-value.
+• c_FDR - False-discovery rate of the null hypothesis (no difference) for a composition (c).
+• c_n_eff - Effective sample size - the number of independent draws in the sample, the higher
+the better (mc-stan.org/docs/2_25/cmdstan-guide/stansummary.html).
+• c_R_k_hat - R statistic, a measure of chain equilibrium, should be within 0.05 of 1.0 (mcstan.org/docs/2_25/cmdstan-guide/stansummary.html).
+• v_lower - Lower (2.5%) quantile of the posterior distribution for a variability (v) parameter
+• v_effect - Mean of the posterior distribution for a variability (v) parameter
+• v_upper - Upper (97.5%) quantile of the posterior distribution for a variability (v) parameter
+• v_pH0 - Probability of the null hypothesis (no difference) for a variability (v). This is not a
+p-value.
+• v_FDR - False-discovery rate of the null hypothesis (no difference), for a variability (v).
+• v_n_eff - Effective sample size for a variability (v) parameter - the number of independent
+draws in the sample, the higher the better (mc-stan.org/docs/2_25/cmdstan-guide/stansummary.html).
+• v_R_k_hat - R statistic for a variability (v) parameter, a measure of chain equilibrium, should
+be within 0.05 of 1.0 (mc-stan.org/docs/2_25/cmdstan-guide/stansummary.html).
+• count_data Nested input count data.
