@@ -9,6 +9,21 @@ We describe how good we did. ...
 
 # Results
 
+## cell type predictions: scPred vs Seurat mapping
+
+- bipolar and photoreceptors predicted well by both scPred and Seurat mapping.
+- Muller glia cells predicted better by seurat mapping
+- both predicted majority of ganglion cells as microglia
+- amacrine, horizontal, midbrain and progentior cells not predicted in pig
+``` {r}
+make_figure_1()
+```
+figure caption: Figure 1 compares scPred and Seurat Mapping predictions
+A. umap of scpred prediction vs manual annotation
+B. umap of seurat mapping prediciton vs manual
+C. table of scpred prediction vs manual
+D. table of seurat mapping prediciton vs manual
+
 # Discussion
 
 # Conclusions
@@ -37,9 +52,25 @@ To map the reads we used star solo
 - Building the index
     - pig genome: Sus_scrofa_berkshire.Berkshire_pig_v1.109 from Ensemble
     - human genome: Homo_sapiens.GRCh38.108 from Ensemble
+- Mapping
+    - parameter choice guided by star solo documentation (Ref)
+        - empty drops filtered
+        - EM used for multimapping
+        - 1 mismatch for UMI count allowed
+    - TODO: output path and n threads
 
+## Soup X
+To normalize for ambient mRNA
+- soup X
+    - compare raw and filtered counts to estimate the amount of ambient mRNA. 
+    - then adjust counts accordingly
+- parameters are umap method and dimensions
+- TODO: ? refactor (leverage run_umap code)
 
 ## Dbl Remover
+To remove droplets that contain two or more cells
+
+- Doublet Finder
 
 ## Mitochondrial gene filtering
 
