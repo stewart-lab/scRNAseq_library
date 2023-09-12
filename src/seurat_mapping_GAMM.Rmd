@@ -43,6 +43,15 @@ source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
 human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
 ```
+# subset cell types in reference
+# subset if needed
+```{r subset}
+human_D205.seurat<- subset(human_D205.seurat, subset = type != 'AC2')
+human_D205.seurat<- subset(human_D205.seurat, subset = type != 'T2')
+human_D205.seurat<- subset(human_D205.seurat, subset = type != 'Midbrain')
+human_D205.seurat<- subset(human_D205.seurat, subset = type != 'miG')
+table(human_D205.seurat$type)
+```
 # prep for integration
 ```{r prep_for_integration}
 ret.list<- list(gamms2,human_D205.seurat)
@@ -88,11 +97,6 @@ pg <- DimPlot(gamms2, reduction = "umap", group.by = "predicted.id", label = TRU
 pdf(paste0(output, "celltype_seurat_predictions-query_umap.pdf"), width = 8, height = 6)
 print(pg)
 dev.off()
-pc <- DimPlot(gamms2, reduction = "umap", group.by = "CellType", label = TRUE,
-              label.size = 3, repel = TRUE) + ggtitle("Query manually annotated labels")
-pdf(paste0(output, "query-manual_annotation_umap.pdf"), width = 8, height = 6)
-print(pc)
-dev.off()
 ```
 
 # evaluate how well our predicted cell type annotations match the full reference. 
@@ -109,6 +113,12 @@ rownames(metadata.gamm) <- sub("_1", "", rownames(metadata.gamm))
 rownames(metadata.gamm)[1:10]
 # add metadata to query data
 gamms2 <- AddMetaData(gamms2, metadata.gamm)
+# umap of manual annotation
+pc <- DimPlot(gamms2, reduction = "umap", group.by = "CellType", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("Query manually annotated labels")
+pdf(paste0(output, "query-manual_annotation_umap.pdf"), width = 8, height = 6)
+print(pc)
+dev.off()
 ```
 # compare predictions to manual annotations
 ```{r compare_predictions_to_manual_annotations}
