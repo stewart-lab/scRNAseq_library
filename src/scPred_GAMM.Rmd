@@ -188,7 +188,7 @@ dev.off()
 human_D205.seurat.train <- trainModel(human_D205.seurat.train, model = "svmRadial", 
                                    resampleMethod = "cv",
                                    number = 10, seed = 704,
-                                   reclassify = "Prog/Glia")
+                                   reclassify = c("RGC","T1/T3"))
 get_scpred(human_D205.seurat.train)
 pdf(paste0(output, "celltype_model_prob_fin.pdf"), width = 8, height = 6)
 plot_probabilities(human_D205.seurat.train)
