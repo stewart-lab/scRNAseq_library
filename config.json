@@ -2,52 +2,71 @@
     "title": "scRNA-seq analysis",
     "annotation_reference": "FALSE",
     "DE_method": "Scran",
-    "lanes": [],
-  "prep_seurat_and_soupX": {
-    "dims": 30,
-    "umap.method": "umap-learn"
-  },
-  "filter_cells": {
-    "lower.nFeature": 200,
-    "upper.nFeature": 8000,
-    "max.percent.mt": 5
-  },
-  "normalize_data": {
-    "min_size": 100,
-    "min_mean": 0.1,
-    "feature": "ECHS1"
-  },
-  "feature_selection": {
-    "n_features": 2000,
-    "analysis_type": "Scry"
-  },
-  "run_and_visualize_pca": {
-    "top_n_dims": 2,
-    "heatmap_dims": 15,
-    "num_cells": 500,
-    "dims": 20,
-    "num.replicate": 100
-  },
-  "run_umap": {
-    "dims_umap": 20,
-    "umap.method": "umap-learn",
-    "umap.red": "pca"
-  },
-  "perform_batch_correction": {
-    "dims.use": 20,
-    "max_iter": 50
-  },
-  "perform_clustering": {
-    "reduction": "harmony",
-    "resolution": 0.14,
-    "algorithm": "leiden",
-    "dims_snn": 10
-  },
-  "find_differentially_expressed_features": {
-    "min_pct": 0.25,
-    "logfc_threshold": 0.25,
-    "top_n": 11
-  },
+    "lanes": [ ],
+    "DATA_DIR": "./data/",
+    "fastq_alignment": {
+        "NUM_LANES": 1,
+        "OUTPUT_PREFIX": "TEST",
+        "READ_FILE1_PREFIX": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
+        "READ_FILE2_PREFIX": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
+        "CHEMISTRY_VERSION": "V3",
+        "SOLO_TYPE": "CB_UMI_Simple",
+        "SOLO_FEATURES": "Gene GeneFull SJ Velocyto",
+        "SOLO_CELL_FILTER": "EmptyDrops_CR",
+        "SOLO_MULTI_MAPPERS": "EM",
+        "READ_FILES_COMMAND": "zcat",
+        "SOLO_UMI_DEDUP": "1MM_CR",
+        "RUN_THREAD_N": 8
+    },
+    "prep_seurat_and_soupX": {
+        "dims": 30,
+        "umap.method": "umap-learn"
+    },
+    "filter_cells": {
+        "lower.nFeature": 200,
+        "upper.nFeature": 10000,
+        "max.percent.mt": 20,
+        "species": "human"
+    },
+    "normalize_data": {
+        "min_size": 100,
+        "min_mean": 0.1,
+        "feature": "ECHS1"
+    },
+    "feature_selection": {
+        "n_features": 2000,
+        "analysis_type": "Scry"
+    },
+    "scale_data": {
+        "vars.2.regress": "cell.cycle"
+    },
+    "run_and_visualize_pca": {
+        "top_n_dims": 2,
+        "heatmap_dims": 15,
+        "num_cells": 500,
+        "dims": 20,
+        "num.replicate": 100
+    },
+    "run_umap": {
+        "dims_umap": 20,
+        "umap.method": "umap-learn",
+        "umap.red": "pca"
+    },
+    "perform_batch_correction": {
+        "dims.use": 20,
+        "max_iter": 50
+    },
+    "perform_clustering": {
+        "reduction": "harmony",
+        "resolution": 0.5,
+        "algorithm": "leiden",
+        "dims_snn": 10
+    },
+    "find_differentially_expressed_features": {
+        "min_pct": 0.25,
+        "logfc_threshold": 0.25,
+        "top_n": 11
+    },
     "score_and_plot_markers": {
         "top_n_markers": 10,
         "known_markers": "TRUE",

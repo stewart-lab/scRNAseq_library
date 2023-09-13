@@ -1,0 +1,136 @@
+---
+title: "scRNAseq_pipeline"
+output: pdf_document
+---
+
+
+
+# ENVIRONMENT SETUP
+
+```{r env, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(SoupX)
+library(scDblFinder)
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+use_condaenv("/isiseqruns/jfreeman_tmp_home/bin/miniconda3/envs/gpt5")
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+setwd("/isiseqruns/jfreeman_tmp_home/scRNAseq_library")
+output <- paste0("output/output_", timestamp)
+dir.create(output, showWarnings = TRUE)
+file.copy("config.json", file.path(output, "config.json"))
+config <- fromJSON(file.path(output, "config.json"))
+output <- paste0(output, "/")
+source("src/sc_pipeline_functions.R")
+```
+
+# Load data
+```{r Load, SoupX and Obj Creation}
+# Process the data
+all_processed_data <- lapply(config$lanes, process_lane)
+seurat_objs_list <- purrr::map(all_processed_data, "seu")
+filtered_sce_list <- purrr::map(all_processed_data, "sce")
+feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+combine_feature_plots(seurat_objs_list, feature_set1, file_name_base = "post_soupx_qc")
+rm(all_processed_data, seurat_objs_list, feature_set1)
+gc(full = TRUE)
+```
+
+# Dbl Remover
+```{r scDbl Finder and lane merging}
+# Run doublet finder and merge lanes
+lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(filtered_sce_list)
+rm(filtered_sce_list)
+gc()
+```
+
+# Mitochondrial gene filtering
+```{r MT Gene Filtering}
+seurat_obj_mt_filtered <- filter_cells(lane_and_merged_seurat_obj)
+rm(lane_and_merged_seurat_obj)
+gc()
+```
+
+# Normalization
+```{r Normalization}
+normalized_seurat_obj <- normalize_data(seurat_obj_mt_filtered)
+rm(seurat_obj_mt_filtered)
+gc()
+```
+
+# Feature selection
+```{r Feature Selection}
+feature_selected_seurat_obj <- feature_selection(normalized_seurat_obj)
+rm(normalized_seurat_obj)
+gc()
+```
+
+# Scaling data
+```{r Scaling Data}
+scaled_seurat_obj <- scale_data(feature_selected_seurat_obj)
+rm(feature_selected_seurat_obj)
+gc(full = TRUE)
+```
+
+# Dimensional reduction
+```{r Dimensional Reduction}
+dim_reduced_seurat_obj <- run_and_visualize_pca(scaled_seurat_obj)
+rm(scaled_seurat_obj)
+gc(full = TRUE)
+```
+
+# Batch correction
+```{r Batch Correction}
+batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
+rm(dim_reduced_seurat_obj)
+gc()
+```
+
+# UMAP
+```{r UMAP}
+seurat_obj <- readRDS("/isiseqruns/jfreeman_tmp_home/scrna_dev/GAMM_S1_before_cluster.rds")
+umap_seurat_obj <- run_umap(seurat_obj)
+rm(batch_corrected_obj)
+gc()
+```
+
+# Clustering 
+```{r Clustering}
+clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
+rm(batch_corrected_obj)
+gc()
+```
+
+# Find markers with Differential expressed features (genes)
+```{r Differential Expression}
+if (config$DE_method == "Seurat") {
+    de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+    analyze_known_markers(clustered_seurat_obj, de_results, output)
+} else if (config$DE_method == "Scran") {
+    score_and_plot_markers(clustered_seurat_obj, output)
+}
+```
+# manual annotation
+```{r manual_annot}
+# cluster ids for gamm S2 at 0.5 with consolidated markers (for clusters 1-18)
+new.cluster.ids1 <- c("Retinal Progenitor-Muller Glia", "Pan PRs", "Pan PRs-Rods", "Pan PRs-Rods", "Pan PRs-Rods", "Pan PRs-Rods", "Ganglion cell", "Bipolar Cells-Ganglion cell", "Pan PRs-Rods", "unknown", "Pan PRs", "Cones-Pan PRs", "unknown", "unknown", "Muller Glia-PanPRs-Rods", "unknown", "Muller Glia", "Bipolar Cells")
+# annotate
+gamms2 <- annotate_clusters_and_save(gamms2, new.cluster.ids1, output)
+# cluster ids for gamm S2 at 0.14 with consolidated markers (for clusters 1-8)
+new.cluster.ids2 <- c(
+    "Pan PRs-Rods", "Muller Glia", "Ganglion cell", "Bipolar Cells", "Pan PRs-Rods",
+    "Rods-Muller Glia-Pan PRs", "unknown", "Cones-Pan PRs"
+)
+# annotate
+gamms2_recluster <- annotate_clusters_and_save(gamms2_recluster, new.cluster.ids2, output)
+```
