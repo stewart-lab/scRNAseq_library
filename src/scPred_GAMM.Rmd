@@ -162,7 +162,7 @@ dev.off()
 human_D205.seurat.train <- trainModel(human_D205.seurat.train, model = 'AdaBoost.M1', 
                                    resampleMethod = "cv",
                                    number = 10, seed = 704,
-                                   reclassify = "Prog/Glia")
+                                   reclassify = c("Prog/Glia","RGC"))
 get_scpred(human_D205.seurat.train)
 model_stats_ada <- get_scpred(human_D205.seurat.train)
 pdf(paste0(output, "celltype_model_prob_adaboost.pdf"), width = 8, height = 6)

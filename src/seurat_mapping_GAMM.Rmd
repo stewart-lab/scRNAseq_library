@@ -40,8 +40,8 @@ source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
 
 # read in seurat objects that were preprocessed
 ```{r read_data}
-gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
-human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
+gamms2<- readRDS(file = "output_preprocess20230912_144047_cc/GAMM_S2_feat_select.rds")
+human_D205.seurat<- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
 ```
 # subset cell types in reference
 # subset if needed
@@ -60,8 +60,7 @@ features <- SelectIntegrationFeatures(object.list = ret.list, nfeatures = 3000)
 ```
 # reference umap plot
 ```{r ref_umap}
-p2 <- DimPlot(human_D205.seurat, reduction = "umap", group.by = "type", label = TRUE, repel = TRUE) +
-  NoLegend()
+p2 <- DimPlot(human_D205.seurat, reduction = "umap", group.by = "type", label = TRUE, repel = TRUE)
 pdf(paste0(output, "human_ref-umap.pdf"), width = 8, height = 6)
 print(p2)
 dev.off()
@@ -168,7 +167,8 @@ labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA',
         'predicted.id','sizeFactors','scDblFinder.score','percent.mt','CellType',
         'ident','scDblFinder.weighted', 'prediction.score.max','prediction.match', 
         'RNA_snn_res.0.14','RNA_snn_res.0.5',"predicted.celltype.score","predicted.celltype",
-        'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters')]
+        'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters',"S.Score", "G2M.Score", 
+        "Phase", "old.ident")]
 # visualize the probabilities over the UMAP plot:
 pdf(paste0(output, "celltype_prediction_featureplot.pdf"), width = 10, height = 10)
 print(FeaturePlot(gamms2, labels, keep.scale = "all"))
