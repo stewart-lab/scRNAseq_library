@@ -37,6 +37,16 @@ This command will intialize the pipeline. You will be asked questions based upon
 ```bash
 source run_pipeline.sh 
 ```
+5. **Analysis questions**
+   - Have you loaded new data or would you like to realign? [y/N]:
+     - If yes, the previous alignment will be deleted and pipeline will look to the specified files in the DATA_DIR to realign with STARsolo
+     - If no, edits to the config file that are pipeline specfic (clustering, MT filtering, scaling) will be updated and a new time-stamped output will be generated
+     - If no the following follow-up question will be asked: If you'd like to load a stored experiment select data. If you have aligned FASTQs loaded and changed pipeline parameters, select fastq [data/fastq]:
+          - If data, that means you would like to load one of our pre-aligned datasets and you must select between the three: [REH,GAMM_S1,GAMM_S2]
+          - If fastq, the alignment step will be skipped but your presumabley new config parameters will be applied to the latest time-stamped run 
+    
+    
+   
 
 # scRNA-seq Analysis Configuration Guide
 
