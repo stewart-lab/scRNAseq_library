@@ -2,7 +2,8 @@
   "title": "scRNA-seq analysis",
   "annotation_reference": "FALSE",
   "DE_method": "Scran",
-  "lanes": [],
+  "species": "human",
+  "lanes": [ ],
   "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/",
   "fastq_alignment": {
     "NUM_LANES": 1,
@@ -25,8 +26,7 @@
   "filter_cells": {
     "lower.nFeature": 200,
     "upper.nFeature": 10000,
-    "max.percent.mt": 20,
-    "species": "human"
+    "max.percent.mt": 20
   },
   "normalize_data": {
     "min_size": 100,

@@ -122,7 +122,7 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
   lower.nFeature <- config$filter_cells$lower.nFeature
   upper.nFeature <- config$filter_cells$upper.nFeature
   max.percent.mt <- config$filter_cells$max.percent.mt
-  species <- config$filter_cells$species
+  species <- config$species
   if (is.null(species)) {
     stop("Species is NULL. Please check your config file.")
   }
@@ -232,11 +232,14 @@ feature_selection <- function(seurat_obj) {
 
 scale_data <- function(seurat_obj, path = output) {
   vars.2.regress <- config$scale_data$vars.2.regress
+  species <- config$species # Get species information
+
   # Get all gene names
   all.genes <- rownames(seurat_obj)
+
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
-    # TODO: option to select human.gene.name
+    # Read cell cycle markers
     cell.cycle.markers.s <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
       sep = "\t", header = TRUE, row.names = 1
     )
@@ -244,8 +247,19 @@ scale_data <- function(seurat_obj, path = output) {
       sep = "\t", header = TRUE, row.names = 1
     )
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
-    s.genes <- varslist[4]$pig.gene.name
-    g2m.genes <- varslist[8]$pig.gene.name
+
+    # Select species-specific cell cycle markers
+    if (species == "human") {
+      s.genes <- varslist[1]$human.gene.name
+      g2m.genes <- varslist[7]$human.gene.name
+    } else if (species == "pig") {
+      s.genes <- varslist[4]$pig.gene.name
+      g2m.genes <- varslist[8]$pig.gene.name
+    } else {
+      stop("Unsupported species")
+    }
+
+    # Perform cell cycle scoring
     seurat_obj <- CellCycleScoring(seurat_obj,
       s.features = s.genes,
       g2m.features = g2m.genes, set.ident = TRUE
