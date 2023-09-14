@@ -1,4 +1,4 @@
-# scRNA-seq Docker Environment Setup Guide
+# scRNA-seq Analysis Guide
 
 This README provides instructions on how to set up a Docker environment for single-cell RNA sequencing (scRNA-seq) analysis.
 
@@ -7,8 +7,9 @@ This README provides instructions on how to set up a Docker environment for sing
 1. [Docker](https://www.docker.com/products/docker-desktop) installed on your system.
    - Verify your installation by typing `docker --version` in your terminal. If Docker is not installed, you can download it from [here](https://www.docker.com/products/docker-desktop).
    
-2. Python installed on your system.
-   - Verify your installation by typing `python --version` in your terminal.
+2. [Python](https://docs.python.org/3/using/index.html) installed on your system.
+   - Verify your installation by typing `python --version` in your terminal.If Python is not installed, you can download it [here](https://docs.python.org/3/using/index.html)
+
 
 ## Instructions
 
@@ -36,6 +37,16 @@ This command will intialize the pipeline. You will be asked questions based upon
 ```bash
 source run_pipeline.sh 
 ```
+5. **Analysis questions**
+   - Have you loaded new data or would you like to realign? [y/N]:
+     - If yes, the previous alignment will be deleted and pipeline will look to the specified files in the DATA_DIR to realign with STARsolo
+     - If no, edits to the config file that are pipeline specfic (clustering, MT filtering, scaling) will be updated and a new time-stamped output will be generated
+     - If no the following follow-up question will be asked: If you'd like to load a stored experiment select data. If you have aligned FASTQs loaded and changed pipeline parameters, select fastq [data/fastq]:
+          - If data, that means you would like to load one of our pre-aligned datasets and you must select between the three: [REH,GAMM_S1,GAMM_S2]
+          - If fastq, the alignment step will be skipped but your presumabley new config parameters will be applied to the latest time-stamped run 
+    
+    
+   
 
 # scRNA-seq Analysis Configuration Guide
 
@@ -46,11 +57,11 @@ This README provides a brief description of the configuration file used in the s
 ### General Settings
 
 - `title`: The title for the analysis.
-- `annotation_reference`: Indicates whether annotation reference is used in the analysis. (e.g., "FALSE")
-- `DE_method`: The method used for differential expression analysis. (e.g., "Scran")
-- `species`: The species for the analysis. (e.g., "human")
-- `lanes`: A list to specify the lanes used in the analysis. (e.g., [])
-- `DATA_DIR`: The directory where the data is stored. (e.g., "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/")
+- `annotation_reference`: Indicates whether annotation reference is used in cluster labeling. (e.g., "FALSE")
+- `DE_method`: The method used for differential expression analysis. (we recommend "Scran")
+- `species`: The species for the analysis. (e.g., "human", "pig")
+- `lanes`: THIS WILL BE AUTOPOPULATED VIA THE PIPELINE
+- `DATA_DIR`: The directory where the FASTQs are stored. (e.g., "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/")
 
 ### Fastq Alignment Settings
 
