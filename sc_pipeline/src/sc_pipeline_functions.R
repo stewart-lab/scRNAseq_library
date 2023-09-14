@@ -1,6 +1,22 @@
-read_aligned_data <- function(base_directory, project_name) {
+read_aligned_data <- function(base_directory, project_name, output) {
+  # Existing directories
   filtered_data_directory <- paste0(base_directory, "/filtered/")
   raw_data_directory <- paste0(base_directory, "/raw/")
+
+  # Try to copy Summary.csv to output directory
+  summary_file_path <- paste0(base_directory, "/Summary.csv")
+  output_file_path <- paste0(output, "/Alignment_Summary.csv")
+
+  tryCatch({
+    file.copy(summary_file_path, output_file_path, overwrite = TRUE)
+    message("Summary.csv has been copied successfully.")
+  }, warning = function(w) {
+    message("Warning: ", conditionMessage(w))
+  }, error = function(e) {
+    message("Summary.csv could not be copied: ", conditionMessage(e))
+  }, finally = {
+    message("Continuing with the rest of the function.")
+  })
 
   list(
     filtered = Read10X(filtered_data_directory),
@@ -8,6 +24,7 @@ read_aligned_data <- function(base_directory, project_name) {
     project = project_name
   )
 }
+
 
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   dims_umap <- 1:config$prep_seurat_and_soupX$dims
@@ -56,7 +73,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
 }
 
 process_lane <- function(lane) {
-  aligned_data <- read_aligned_data(lane$base_directory, lane$name)
+  aligned_data <- read_aligned_data(lane$base_directory, lane$name, output)
   soupX_obj <- prep_seurat_and_soupX(data.raw = aligned_data$raw, data = aligned_data$filtered, project = aligned_data$project)
 
   # Now we no longer need 'aligned_data', we can remove it.
@@ -251,12 +268,17 @@ scale_data <- function(seurat_obj, path = output) {
     # Select species-specific cell cycle markers
     if (species == "human") {
       s.genes <- varslist[1]$human.gene.name
-      g2m.genes <- varslist[7]$human.gene.name
+      g2m.genes <- varslist[1]$human.gene.name
     } else if (species == "pig") {
       s.genes <- varslist[4]$pig.gene.name
       g2m.genes <- varslist[8]$pig.gene.name
     } else {
       stop("Unsupported species")
+    }
+    # Check if the genes in the list are present in the dataset
+    missing_genes <- setdiff(g2m.genes, rownames(seurat_obj))
+    if (length(missing_genes) > 0) {
+      print(paste("Missing genes: ", paste(missing_genes, collapse = ", ")))
     }
 
     # Perform cell cycle scoring
