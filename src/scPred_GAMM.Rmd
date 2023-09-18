@@ -242,11 +242,16 @@ pdf(paste0(output, "celltype_prediction_featureplot_gamms2.pdf"), width = 11, he
 print(FeaturePlot(gamm, labels, keep.scale = "all"))
 dev.off()
 ```
+# read predictions back in
+```{r read_in}
+gamm <- readRDS(file= "output_scPred_20230911_134940_cc/GAMM_S2_scpred_c0.5.rds")
+```
+
 # verify performance with manual annotation
 ```{r verify_performance}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
-            header = TRUE, sep = "\t")
+metadata.gamm <- read.csv("gamm_manual_annot_metadata_S2_mod.txt", row.names = 1, 
+            header = TRUE, sep = "\t") #consolidated marker list: gamm_manual_annot_metadata_c0.5.txt
 # check metadata with query data
 colnames(gamm@assays$RNA@data)[1:10]
 rownames(metadata.gamm)[1:10]

@@ -98,12 +98,17 @@ print(pg)
 dev.off()
 ```
 
+# read query data back in
+```{r read_in}
+gamms2 <- readRDS(file= "output_seurat_mapping_20230913_100651_cc/gamms2_cca_pred.rds")
+```
+
 # evaluate how well our predicted cell type annotations match the full reference. 
 # need manual annotation data
 ```{r read_metadata}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
-            header = TRUE, sep = "\t")
+metadata.gamm <- read.csv("gamm_manual_annot_metadata_S2_mod.txt", row.names = 1, 
+            header = TRUE, sep = "\t") # consolidated labels: gamm_manual_annot_metadata_c0.5.txt
 # check metadata with query data
 colnames(gamms2@assays$RNA@data)[1:10]
 rownames(metadata.gamm)[1:10]
