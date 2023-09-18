@@ -10,9 +10,9 @@ output <- "cell_composition/"
 # from seurat mapping
 gamms2<- readRDS(file = "output_seurat_mapping_20230913_100651_cc/gamms2_cca_pred.rds")
 # from scPred
-gamms2 <- readRDS(file = "output_scPred_20230911_134940_cc/GAMM_S2_scpred_c0.5.rds")
+gamms2 <- readRDS(file = "output_scPred_20230913_131047_filt/GAMM_S2_scpred_c0.5.rds")
 # human reference data
-human_D205.seurat<- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
+human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'AC2')
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'T2')
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'Midbrain')
@@ -38,13 +38,13 @@ table(seurat.combined$orig.ident)
 unique(seurat.combined$orig.ident)
 unique(sapply(X = strsplit(colnames(seurat.combined), split = "_"), FUN = "[", 1))
 table(Idents(object = seurat.combined))
-# set identity
-Idents(object = seurat.combined) <- "orig.ident"
-table(Idents(object = seurat.combined))
+# set identity if needed
+#Idents(object = seurat.combined) <- "orig.ident"
+# table(Idents(object = seurat.combined))
 
 # Rename identity classes
-seurat.combined <- RenameIdents(object = seurat.combined, `D205` = "human",
-                                `gamm_s1-2` = "pig")
+seurat.combined <- RenameIdents(object = seurat.combined, `human_D205` = "human",
+                                `gamm_S2` = "pig")
 table(Idents(object = seurat.combined))
 # stash identities
 seurat.combined[["idents"]] <- Idents(object = seurat.combined)
@@ -94,7 +94,7 @@ New_idents <- c(seurat.pig$predicted.id,seurat.human$type)
 New_idents <- c(seurat.pig$scpred_prediction,seurat.human$type)
 table(New_idents)
 seurat.combined@meta.data$"Newidents" <- as.factor(New_idents)
-
+seurat.combined <- subset(x= seurat.combined, orig.ident != "NA")
 # save seurat object
 saveRDS(seurat.combined, file = paste0(output,"pig-human.combined.rds"))
 
