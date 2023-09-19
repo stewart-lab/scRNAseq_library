@@ -1,0 +1,382 @@
+gene 	Cell type 	Also known as	Comments
+BARHL2	Amacrine Cell		
+NEUROD6	Amacrine Cell		
+NR4A2	Amacrine Cell		
+SATB2	Amacrine Cell		
+CHAT	Amacrine Cell		
+GAD1	Amacrine Cell		
+GAD2	Amacrine Cell		
+HSBP1	Amacrine Cell		
+NRXN2	Amacrine Cell		
+PRDM13	Amacrine Cell		
+TACR1	Amacrine Cell		
+TH	Amacrine Cell		
+DIRAS2	Amacrine Cell		
+LHX9	Amacrine Cell		
+MEIS2	Amacrine Cell		
+MIR181A1HG	Amacrine Cell		
+MYT1L	Amacrine Cell		
+TFAP2A	Amacrine Cell		
+TFAP2B	Amacrine Cell		
+NRXN3	Amacrine Cell	ENSSSCG00000058517	
+BHLHB5	Bipolar Cell or Amacrine cell		
+PTF1A	Amacrine Cell or Horizontal cell 		
+SLCO5A1	Bipolar Cell		
+BHLHB4	Bipolar Cell		
+BHLHE23	Bipolar Cell		
+CA8	Bipolar Cell		
+CABP5	Bipolar Cell		
+GNAO1	Bipolar Cell		
+GNG13	Bipolar Cell		
+IRX5	Bipolar Cell		
+KCNG4	Bipolar Cell		
+PCP2	Bipolar Cell		
+PRKCA	Bipolar Cell		
+SCGN	Bipolar Cell		
+SLC1A7	Bipolar Cell		
+VSX1	Bipolar Cell		
+NETO1	Bipolar Cell		
+SLC4A10	Bipolar Cell		
+CA10	Bipolar Cell		
+CHN2	Bipolar Cell		
+GRM6	Bipolar Cell		
+KCNMA1	Bipolar Cell		
+LRTM1	Bipolar Cell		
+PLXDC1	Bipolar Cell		
+PRDM8	Bipolar Cell		
+SCN3A	Bipolar Cell		
+ST18	Bipolar Cell		
+TMEM215	Bipolar Cell		
+NEUROD4	"Bipolar Cell (fetal), PR cell, Amacrine Cell, or Horizontal cell "		
+BHLHE22	Bipolar Cell or Amacrine cell		
+SLC6A9	Bipolar Cell or Amacrine cell		
+LHX4	Bipolar Cells and Cones (fetal) 		
+SORD	Cilium		
+ARR3	Cone		
+CHRNB4	Cone		
+CNGA3	Cone		
+CNGB3	Cone		
+GNAT2	Cone		
+GNGT2	Cone		
+MEF2C	Cone		
+OPN1MW	Cone		
+OPN1SW	Cone		
+PDE6C	Cone		
+PDE6H	Cone		
+RORA	Cone		
+SLC24A2	Cone		
+SLC24A4	Cone		
+THRB	Cone		
+NR2F1	Cone		
+NR2F2	Cone		
+RASGRF1	Cone		
+NPTX1	Cone		
+RXRG	Cone or Ganglion cell (fetal)		
+SALL3	Cone or Horizontal cells		
+ELAVL3	Early GCs and ACs		
+HUC	Early GCs and ACs		
+HUD	Early GCs and ACs		
+RBFOX1	Early GCs and ACs		
+ELAVL4	Early GCs and ACs		
+AP2A	"Early GCs, HCs and ACs"		
+CALB1	Early HCs and Acs		
+CALB2	Early HCs and Acs		
+CNTNAP2	Ganglion cell	ENSSSCG00000034739	Associated with CNTN2
+BRN3	Ganglion cell		
+GRIN1	Ganglion cell		
+GRIN2A	Ganglion cell		
+HES6	Ganglion cell		
+ISLET1	Ganglion cell		
+ISLET2	Ganglion cell		
+POU4F1	Ganglion cell		
+POU4F2	Ganglion cell		
+POU4F3	Ganglion cell		
+RBFOX3	Ganglion cell		
+RBPMS	Ganglion cell		
+RIT2	Ganglion cell		
+SNCG	Ganglion cell		
+THY1	Ganglion cell		
+TUBB3	Ganglion cell		
+TUJ1	Ganglion cell		
+ATOH7	Ganglion cell		
+CNTN2	Ganglion cell		
+EBF1	Ganglion cell		
+EBF3	Ganglion cell		
+FXYD7	Ganglion cell		
+GAP43	Ganglion cell		
+INA	Ganglion cell		
+KLF7	Ganglion cell		
+L1CAM	Ganglion cell		
+MAPT	Ganglion cell		
+MEG3	Ganglion cell		
+NEFL	Ganglion cell		
+NEFM	Ganglion cell	ENSSSCG00000009648	
+NHLH2	Ganglion cell		
+NRN1	Ganglion cell		
+NTM	Ganglion cell		
+PFN1	Ganglion cell		
+POU6F2	Ganglion cell		
+PRPH	Ganglion cell		
+RTN1	Ganglion cell		
+SNCA	Ganglion cell		
+SYT4	Ganglion cell		
+TUBB2A	Ganglion cell		
+ISL1	Ganglion cell		
+NEUROD1	"Ganglion Cell, Amacrine Cell, Pan PRs (fetal) "		
+GRIK2	Glutamatergic synapse		
+NSG1	Glutamatergic synapse		
+NTNG1	Glutamatergic synapse		
+TNR	Glutamatergic synapse		
+GJA10	Horizontal Cell		
+LHX1	Horizontal Cell		
+NTRK1	Horizontal Cell		
+FOXN4	Horizontal Cell		
+ONECUT2	Horizontal Cell		
+ONECUT3	Horizontal Cell		
+PROX1	Horizontal Cell		
+RP11-714M23.2	Horizontal Cell		
+SULF2	Horizontal Cell		
+A2M	Interphotoreceptor Matrix		
+ASPN	Interphotoreceptor Matrix		
+LAMB4	Interphotoreceptor Matrix		
+VWF	Interphotoreceptor Matrix		
+RTBDN	Interphotoreceptor Matrix-Pan PRs		
+AIF1	Microglia (fetal)		
+C1QA	Microglia (fetal)		
+C1QB	Microglia (fetal)		
+C1QC	Microglia (fetal)		
+CSF1R	Microglia (fetal)		
+CSF2RA	Microglia (fetal)		
+CX3CR1	Microglia (fetal)		
+FCER1G	Microglia (fetal)		
+ITGB2	Microglia (fetal)		
+LAPTM5	Microglia (fetal)		
+RNASET2	Microglia (fetal)		
+S100A11	Microglia (fetal)		
+TYROBP	Microglia (fetal)		
+AQP4	Muller glia		
+CA2	Muller glia		
+CLU	Muller glia		
+CNTFR	Muller glia		
+CRALBP	Muller glia		
+DKK3	Muller glia		
+EGFR	Muller glia		
+KCNJ10	Muller glia		
+KCNJ2	Muller glia		
+LHX2	Muller glia		
+NOTCH1	Muller glia		
+S100A1	Muller glia		
+FABP7	Muller glia		
+HESR2	Muller glia		
+HEY2	Muller glia		
+LG14	Muller glia		
+PLP1	Muller glia		
+PMEPA1	Muller glia		
+SPON1	Muller glia		
+TF	Muller glia		
+TRLBP1	Muller glia		
+WIF1	Muller glia		
+LGALS1	Muller glia		
+MT2A	Muller glia	ENSSSCG00000030300	
+CERKL	Neuronal projection		
+CPLX3	Neuronal projection		
+EPHB2	Neuronal projection		
+FSCN2	Neuronal projection		
+GABRB2	Neuronal projection		
+HCN1	Neuronal projection		
+ITGA4	Neuronal projection		
+KCNAB1	Neuronal projection		
+KCNB2	Neuronal projection		
+KLC3	Neuronal projection		
+NCAM2	Neuronal projection		
+NGFR	Neuronal projection		
+NRTN	Neuronal projection		
+OLFM1	Neuronal projection		
+ROBO2	Neuronal projection		
+SEMA5B	Neuronal projection		
+SEPTIN4	Neuronal projection	ENSSSCG00000017643	
+SNCB	Neuronal projection		
+TACR3	Neuronal projection		
+TRAK1	Neuronal projection		
+ZNF385A	Neuronal projection		
+PDC	Neuronal projection-Pan PRs (fetal) 		
+ANKRD33	Pan PRs	ENSSSCG00000000231	Critical role in PR maturation 
+PCDH15	Pan PRs	ENSSSCG00000010426	
+PPEF2	Pan PRs		
+MAK	Pan PRs		
+RPGRIP1	Pan PRs		
+CROCC	Pan PRs		
+MYO3B	Pan PRs		
+OSBP2	Pan PRs		
+KCNQ3	Pan PRs		
+SLC6A6	Pan PRs		
+ASCL1	"Pan PR, Retinal Progenitor, Early HCs, AC, and BPCs"		
+ABCA4	Pan PRs		
+AIPL1	Pan PRs		
+C2ORF71	Pan PRs		
+CDHR1	Pan PRs		
+CTCF	Pan PRs		
+ELOVL4	Pan PRs		
+EP300	Pan PRs		
+GAS7	Pan PRs		
+GUCY2D	Pan PRs		
+IMPG1	Pan PRs		
+IMPG2	Pan PRs		
+LRIT1	Pan PRs		
+PRCD	Pan PRs		
+PRDM1	Pan PRs	BLIMP1	
+PROM1	Pan PRs		
+PRPH2	Pan PRs		
+RAX2	Pan PRs		
+RD3	Pan PRs		
+RGS9	Pan PRs		
+RORB	Pan PRs		
+RP1	Pan PRs		
+RP1L1	Pan PRs		
+RS1	Pan PRs		
+RXRA	Pan PRs		
+SAMD7	Pan PRs		
+SPTBN5	Pan PRs		
+TULP1	Pan PRs		
+UNC119	Pan PRs		
+USH2A	Pan PRs	ENSSSCG00000038066	
+GUCA1A	Pan PRs		
+RBP3	Pan PRs		
+RP11-184I16.4	Pan PRs		
+RCVRN	Pan PRs and BPCs		
+CRX	Pan PRs or RPE		
+GRK7	Phototransduction		
+GUCA1C	Phototransduction		
+GUCY2F	Phototransduction		
+SLC24A1	Phototransduction		
+GNB3	Phototransduction		
+GNB5	Phototransduction		
+GNG2	Phototransduction	ENSSSCG00000040110	ENSSSCG00000045794
+EYS	Phototransduction	ENSSSCG00000004269	
+GPR107	Phototransduction		
+GPR158	Phototransduction		
+GPR160	Phototransduction		
+RERE	Retinal development	ENSSSCG00000033497	
+SRGAP2	Retinal development	ENSSSCG00000015645	
+EOMES	Retinal Progenitor		
+FOX04	Retinal Progenitor		
+FOX06	Retinal Progenitor		
+IFITM3	Retinal Progenitor	ENSSSCG00000038912	
+NR2E1	Retinal Progenitor		
+TBX5	Retinal Progenitor		
+TFBS	Retinal Progenitor		
+ZIC1	Retinal Progenitor		
+CCND1	Retinal Progenitor		
+FGF19	Retinal Progenitor		
+GADD45A	Retinal Progenitor		
+GLI1	Retinal Progenitor		
+GLI2	Retinal Progenitor		
+LEF1	Retinal Progenitor		
+LIN28B	Retinal Progenitor		
+OLIG2	Retinal Progenitor		
+PAX6	Retinal Progenitor		
+PCNA	Retinal Progenitor	ENSSSCG00000056538	
+PH3	Retinal Progenitor		
+PRTG	Retinal Progenitor		
+SIX6	Retinal Progenitor		
+SUFU	Retinal Progenitor		
+COL2A1	Retinal Progenitor		
+CPAMD8	Retinal Progenitor		
+CRB1	Retinal Progenitor		
+FZD5	Retinal Progenitor		
+MIS18BP1	Retinal Progenitor		
+MKI67	Retinal Progenitor	ENSSSCG00000026302	
+PLPP3	Retinal Progenitor		
+SFRP2	Retinal Progenitor		
+SHISA2	Retinal Progenitor		
+GFAP	Retinal Progenitor or Muller glia		
+ONECUT1	Retinal Progenitor or Horizontal cell		
+SIX3	Retinal Progenitor or Horizontal cell		
+GLUL	Retinal Progenitor or Muller glia		
+RAX	Retinal Progenitor or Muller glia		
+SOX2	Retinal Progenitor or Muller glia		
+SOX9	Retinal Progenitor or Muller glia		
+VIM	Retinal Progenitor or Muller glia		
+HES1	Retinal Progenitor or Muller glia		
+HES5	Retinal Progenitor or Muller glia		
+SLC1A3	Retinal Progenitor or Muller glia		
+VSX2	"Retinal Progenitor, Bipolar cell, or Muller glia"		
+OTX2	"Retinal Progenitor, Early PRs"		
+MEIS1	Retinal Progenitor		
+CASZ1	Rod		
+CNGA1	Rod		
+CNGB1	Rod	ENSSSCG00000002811	
+ESRRB	Rod		
+GFK1	Rod		
+GNAT1	Rod		
+GNB1	Rod		
+GRK1	Rod		
+GUCA1B	Rod		
+NR2E3	Rod		
+NRL	Rod		
+NXNL2	Rod		
+PDE6A	Rod		
+PDE6B	Rod		
+PDE6G	Rod		
+RGS9BP	Rod		
+RHO	Rod		
+ROM1	Rod		
+SAG	Rod		
+GNGT1	Rod		
+PIAS3	Rod		
+REEP6	Rod	ENSSSCG00000026387	
+ALDH1A3	RPE		
+BEST1	RPE		
+DCT	RPE		
+EZR	RPE		
+OCA2	RPE		
+PMEL	RPE		
+RAB27A	RPE		
+RDH5	RPE		
+RPE65	RPE		
+TIMP3	RPE		
+TYRP1	RPE		
+DHRS3	RPE		
+ELN	RPE		
+GJA1	RPE		
+GPNMB	RPE		
+IGFBP5	RPE		
+MITF	RPE		
+SERPINF1	RPE		
+SLC7A8	RPE		
+TTR	RPE		
+TRPM1	RPE or Bipolar cell		
+APOE	RPE or Muller glia		
+RLBP1	RPE or Muller glia		
+UNC13C	Synaptic marker		
+ADCY1	Synaptic marker		
+APBA1	Synaptic marker		
+APBA3	Synaptic marker		
+CADPS	Synaptic marker	ENSSSCG00000011489	
+CDH10	Synaptic marker		
+DISC1	Synaptic marker		
+DMD	Synaptic marker	ENSSSCG00000052612	
+DSCAML1	Synaptic marker		
+EPS8	Synaptic marker		
+GABBR2	Synaptic marker		
+GABRR1	Synaptic marker		
+GRID1	Synaptic marker		
+GRM5	Synaptic marker		
+GUCY1A1	Synaptic marker		
+KCNB1	Synaptic marker		
+LIN7A	Synaptic marker		
+MCTP2	Synaptic marker		
+PLPPR4	Synaptic marker		
+TMEM108	Synaptic marker		
+CAMK4	Synaptic marker		
+CTBP2	Synaptic marker		
+DLGAP1	Synaptic marker		
+LRRTM2	Synaptic marker		
+NRXN1	Synaptic marker	ENSSSCG00000053662	
+PSD95	Synaptic marker		
+SEMA7A	Synaptic marker		
+SLC17A7	Synaptic marker		
+SYN1	Synaptic marker		
+SYP	Synaptic marker		
+UNC13A	Synaptic marker	ENSSSCG00000013880	
+UNC13D	Synaptic marker		

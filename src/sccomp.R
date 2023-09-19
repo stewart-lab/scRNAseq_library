@@ -22,7 +22,17 @@ human_D205.seurat<- subset(human_D205.seurat, subset = type != 'miG')
 # table(seurat_obj$sample)
 # table(seurat_obj$type)
 # table(seurat_obj$cell_group)
-
+# gamm s1 and s2
+gamms1 <- readRDS(file = "GAMM_S1/output_20230829_135606/seurat_obj_labeled.rds")
+gamms2 <- readRDS(file = "GAMM_S2/output_20230830_155530/seurat_obj_labeled.rds")
+# put labeled clusters in metadata
+gamms1@active.ident
+Idents(gamms1)
+gamms1 <- AddMetaData(gamms1, metadata = gamms1@active.ident, col.name= "CellType")
+table(gamms1$CellType)
+gamms2@active.ident
+gamms2 <- AddMetaData(gamms2, metadata = gamms2@active.ident, col.name= "CellType")
+table(gamms2$CellType)
 # check location of annotation
 # seurat mapping
 gamms2$predicted.id
@@ -32,12 +42,21 @@ gamms2$scpred_prediction
 human_D205.seurat$type
 
 # merge data sets
+# pig and human
 seurat.combined <- merge(gamms2, y = human_D205.seurat, add.cell.ids = c("pig", "human"), project = "combined")
 head(colnames(seurat.combined))
 table(seurat.combined$orig.ident)
 unique(seurat.combined$orig.ident)
 unique(sapply(X = strsplit(colnames(seurat.combined), split = "_"), FUN = "[", 1))
 table(Idents(object = seurat.combined))
+# gamm s1 and s2
+seurat.combined <- merge(gamms1, y = gamms2, add.cell.ids = c("s1", "s2"), project = "combined")
+head(colnames(seurat.combined))
+table(seurat.combined$orig.ident)
+unique(seurat.combined$orig.ident)
+unique(sapply(X = strsplit(colnames(seurat.combined), split = "_"), FUN = "[", 1))
+table(Idents(object = seurat.combined))
+table(seurat.combined$CellType)
 # set identity if needed
 #Idents(object = seurat.combined) <- "orig.ident"
 # table(Idents(object = seurat.combined))
@@ -49,6 +68,17 @@ table(Idents(object = seurat.combined))
 # stash identities
 seurat.combined[["idents"]] <- Idents(object = seurat.combined)
 unique(seurat.combined$idents)
+# gamm s1 and s2
+Idents(object = seurat.combined) <- "orig.ident"
+table(Idents(object = seurat.combined))
+seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_GeneFull` = "s1",
+                                `output_S1-2_mm_mt_GeneFull` = "s1", `output_S2-1_mm_mt_GeneFull` = "s2",
+                                `output_S2-2_mm_mt_GeneFull` = "s2")
+table(Idents(object = seurat.combined))
+# stash identities
+seurat.combined[["idents"]] <- Idents(object = seurat.combined)
+unique(seurat.combined$idents)
+
 # check cell type annotations
 # seurat mapping
 unique(seurat.combined$predicted.id)
@@ -71,7 +101,7 @@ unique(seurat.human$type)
 
 # plot cell type proportions for human and pig
 library(devtools)
-# devtools::install_github("Oshlack/speckle")
+devtools::install_github("Oshlack/speckle")
 library(speckle)
 library(ggplot2)
 library(limma)
@@ -86,6 +116,12 @@ print(pig.plot + hum.plot)
 pdf(paste0(output, "celltype_proportions.pdf"), width = 8, height = 6)
 print(pig.plot + hum.plot)
 dev.off()
+# gamm s1 and s2
+prop.plot <- plotCellTypeProps(x = seurat.combined, clusters = seurat.combined$CellType, sample = seurat.combined$idents)
+prop.plot
+pdf(paste0(output, "celltype_proportions.pdf"), width = 8, height = 6)
+print(prop.plot)
+dev.off()
 # put predicted id and type in new category together
 colnames(seurat.combined@meta.data)
 # seurat mapping
@@ -97,6 +133,7 @@ seurat.combined@meta.data$"Newidents" <- as.factor(New_idents)
 seurat.combined <- subset(x= seurat.combined, orig.ident != "NA")
 # save seurat object
 saveRDS(seurat.combined, file = paste0(output,"pig-human.combined.rds"))
+saveRDS(seurat.combined, file = paste0(output,"gamm_s1-s2.combined.rds"))
 
 # now we are ready to do sccomp
 # model composition
@@ -108,9 +145,18 @@ comp.tibble <- seurat.combined |>
     bimodal_mean_variability_association = TRUE,
     cores = 1 
   )
+# gamm s1 and s2
+comp.tibble <- seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 
+  )
 # write results
 comp.table <- as.data.frame(comp.tibble)
-comp.table.1 <- comp.table[,1:17]
+comp.table.1 <- comp.table[,1:8]
 write.table(comp.table.1, file= paste0(output, "composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # get counts from significant result:
 pr.table <- as.data.frame(comp.table["8","count_data"])
@@ -144,7 +190,18 @@ model_with_factor_association =
     cores = 1, 
     enable_loo = TRUE
   )
-
+# gamm s1 and s2
+model_with_factor_association = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    check_outliers = FALSE, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1, 
+    enable_loo = TRUE
+  )
 # Fit second model
 model_without_association = 
   seurat.combined |>
@@ -157,7 +214,18 @@ model_without_association =
     cores = 1 , 
     enable_loo = TRUE
   )
-
+# gamm s1 and s2
+model_without_association = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ 1, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    check_outliers = FALSE, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 , 
+    #enable_loo = TRUE
+  )
 # Compare models
 comparison <- loo_compare(
   model_with_factor_association |> attr("fit") |> loo(),
