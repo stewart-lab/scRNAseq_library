@@ -3,7 +3,7 @@ BiocManager::install("sccomp")
 library(sccomp)
 library(Seurat)
 library(tidyverse)
-setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/human_ref")
+setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/")
 output <- "cell_composition/"
 
 # read in data
@@ -26,11 +26,17 @@ human_D205.seurat<- subset(human_D205.seurat, subset = type != 'miG')
 gamms1 <- readRDS(file = "GAMM_S1/output_20230829_135606/seurat_obj_labeled.rds")
 gamms2 <- readRDS(file = "GAMM_S2/output_20230830_155530/seurat_obj_labeled.rds")
 # put labeled clusters in metadata
-gamms1@active.ident
+# check idents
+table(gamms1@active.ident)
 Idents(gamms1)
 gamms1 <- AddMetaData(gamms1, metadata = gamms1@active.ident, col.name= "CellType")
 table(gamms1$CellType)
-gamms2@active.ident
+# check idents
+table(gamms2@active.ident)
+# rename clusters if necessary
+gamms2 <- RenameIdents(object = gamms2, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
+                                `Cones - Pan PRs` = "Cones")
+# add metadata
 gamms2 <- AddMetaData(gamms2, metadata = gamms2@active.ident, col.name= "CellType")
 table(gamms2$CellType)
 # check location of annotation
@@ -77,7 +83,9 @@ seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_Gen
 table(Idents(object = seurat.combined))
 # stash identities
 seurat.combined[["idents"]] <- Idents(object = seurat.combined)
-unique(seurat.combined$idents)
+unique(seurat.combined$ident)
+unique(seurat.combined$orig.ident)
+unique(seurat.combined$CellType)
 
 # check cell type annotations
 # seurat mapping
@@ -99,7 +107,7 @@ unique(seurat.pig$scpred_prediction)
 seurat.human <- subset(x= seurat.combined, type != "NA")
 unique(seurat.human$type)
 
-# plot cell type proportions for human and pig
+# plot cell type proportions
 library(devtools)
 devtools::install_github("Oshlack/speckle")
 library(speckle)
@@ -130,7 +138,10 @@ New_idents <- c(seurat.pig$predicted.id,seurat.human$type)
 New_idents <- c(seurat.pig$scpred_prediction,seurat.human$type)
 table(New_idents)
 seurat.combined@meta.data$"Newidents" <- as.factor(New_idents)
+# gamm s1 and s2 remove NAs
 seurat.combined <- subset(x= seurat.combined, orig.ident != "NA")
+seurat.combined <- subset(x= seurat.combined, idents != "NA")
+seurat.combined <- subset(x= seurat.combined, CellType != "NA")
 # save seurat object
 saveRDS(seurat.combined, file = paste0(output,"pig-human.combined.rds"))
 saveRDS(seurat.combined, file = paste0(output,"gamm_s1-s2.combined.rds"))
@@ -156,11 +167,11 @@ comp.tibble <- seurat.combined |>
   )
 # write results
 comp.table <- as.data.frame(comp.tibble)
-comp.table.1 <- comp.table[,1:8]
+comp.table.1 <- comp.table[,1:17]
 write.table(comp.table.1, file= paste0(output, "composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # get counts from significant result:
-pr.table <- as.data.frame(comp.table["8","count_data"])
-write.table(pr.table, file= paste0(output, "PR_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+pr.table <- as.data.frame(comp.table["7","count_data"])
+write.table(pr.table, file= paste0(output, "ganglion_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # model contrast
 contrast.tibble <- seurat.combined |>
   sccomp_glm( 
@@ -194,7 +205,7 @@ model_with_factor_association =
 model_with_factor_association = 
   seurat.combined |>
   sccomp_glm( 
-    formula_composition = ~ idents, 
+    formula_composition = ~ idents,
     .sample =  orig.ident, 
     .cell_group = CellType, 
     check_outliers = FALSE, 
@@ -224,7 +235,7 @@ model_without_association =
     check_outliers = FALSE, 
     bimodal_mean_variability_association = TRUE,
     cores = 1 , 
-    #enable_loo = TRUE
+    enable_loo = TRUE
   )
 # Compare models
 comparison <- loo_compare(
@@ -254,6 +265,22 @@ res =
 res.table <- as.data.frame(res)
 res.table.1 <- res.table[,1:17]
 write.table(res.table.1, file= paste0(output, "celltypexspecies_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+
+# gamm s1 vs s2
+res = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    formula_variability = ~ idents,
+    .sample = orig.ident,
+    .cell_group = CellType,
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 
+  )
+res.table <- as.data.frame(res)
+res.table.1 <- res.table[,1:17]
+write.table(res.table.1, file= paste0(output, "celltype_x_develop_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+
 
 # plot results
 plots = plot_summary(res)
