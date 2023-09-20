@@ -3,7 +3,7 @@ BiocManager::install("sccomp")
 library(sccomp)
 library(Seurat)
 library(tidyverse)
-setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/")
+setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/human_ref")
 output <- "cell_composition/"
 
 # read in data
@@ -12,7 +12,7 @@ gamms2<- readRDS(file = "output_seurat_mapping_20230913_100651_cc/gamms2_cca_pre
 # from scPred
 gamms2 <- readRDS(file = "output_scPred_20230913_131047_filt/GAMM_S2_scpred_c0.5.rds")
 # human reference data
-human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
+human_D205.seurat<- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'AC2')
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'T2')
 human_D205.seurat<- subset(human_D205.seurat, subset = type != 'Midbrain')
@@ -41,11 +41,11 @@ gamms2 <- AddMetaData(gamms2, metadata = gamms2@active.ident, col.name= "CellTyp
 table(gamms2$CellType)
 # check location of annotation
 # seurat mapping
-gamms2$predicted.id
+table(gamms2$predicted.id)
 #scPred
-gamms2$scpred_prediction
+table(gamms2$scpred_prediction)
 #human
-human_D205.seurat$type
+table(human_D205.seurat$type)
 
 # merge data sets
 # pig and human
@@ -64,12 +64,12 @@ unique(sapply(X = strsplit(colnames(seurat.combined), split = "_"), FUN = "[", 1
 table(Idents(object = seurat.combined))
 table(seurat.combined$CellType)
 # set identity if needed
-#Idents(object = seurat.combined) <- "orig.ident"
-# table(Idents(object = seurat.combined))
+Idents(object = seurat.combined) <- "orig.ident"
+ table(Idents(object = seurat.combined))
 
 # Rename identity classes
-seurat.combined <- RenameIdents(object = seurat.combined, `human_D205` = "human",
-                                `gamm_S2` = "pig")
+seurat.combined <- RenameIdents(object = seurat.combined, `D205` = "human",
+                                `gamm_s1-2` = "pig")
 table(Idents(object = seurat.combined))
 # stash identities
 seurat.combined[["idents"]] <- Idents(object = seurat.combined)
@@ -170,8 +170,8 @@ comp.table <- as.data.frame(comp.tibble)
 comp.table.1 <- comp.table[,1:17]
 write.table(comp.table.1, file= paste0(output, "composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # get counts from significant result:
-pr.table <- as.data.frame(comp.table["7","count_data"])
-write.table(pr.table, file= paste0(output, "ganglion_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+pr.table <- as.data.frame(comp.table["8","count_data"])
+write.table(pr.table, file= paste0(output, "pr_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # model contrast
 contrast.tibble <- seurat.combined |>
   sccomp_glm( 
