@@ -124,6 +124,46 @@ Here is the explanation for each key in the configuration file:
 
 Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat and SoupX documentation.
 
+# Automated annotation
+
+## Clustifyr
+
+Clustifyr can take either a marker list or a reference seurat object/ dataset to annotate clusters in query data.
+
+The introduction vignette can be found here: https://rnabioco.github.io/clustifyr/articles/clustifyR.html
+
+To run, modify script with your data and marker list
+
+```
+src/clustifyr.R
+```
+
+## scPred
+
+scPred uses a reference object/ dataset to predict annotations of clusters in query data based on similarity of cell expression to the reference. The default algorithm is SVM-radial, however many different models/algorithms can be applied from the caret package: https://topepo.github.io/caret/available-models.html. 
+
+The introduction vignette for scPred can be found here: https://powellgenomicslab.github.io/scPred/articles/introduction.html
+
+To run, your query and reference data must first be processed the same way. Cross-species predictions need an ortholog file:
+
+```
+src/preprocess_crossspecies.Rmd
+```
+
+Next run the scPred script with your preprocessed query and reference objects. scPred will divide the reference into training and testing objects, where the model is trained on the training set, and then applied to the testing set. Watch for cell types that don't predict well in the test set- this may mean the model for that cell type isn't good, and you can try a different one. After a final model is built (you can have different algorithms for each cell type if you want), then you can apply to the query data. To run, update with your reference and query objects, you can also specify different algorithms/models after first running your training data with the SVM-radial algorithm.
+
+```
+src/scPred_GAMM.Rmd
+```
+
+## Seurat mapping
+
+
+
+# Cell type composition analysis
+
+## sccomp
+
 # References: 
 
 Star solo paper: doi: https://doi.org/10.1101/2021.05.05.442755
