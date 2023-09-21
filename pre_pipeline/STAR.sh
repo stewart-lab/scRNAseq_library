@@ -5,9 +5,7 @@ CONFIG_FILE="/config.json"
 
 NUM_LANES=$(jq -r '.fastq_alignment.NUM_LANES' $CONFIG_FILE)
 GENOME_DIR="/usr/local/bin/star_solo_index/"
-OUTPUT_PREFIX=$(jq -r '.fastq_alignment.OUTPUT_PREFIX' $CONFIG_FILE)
-READ_FILE1_PREFIX=$(jq -r '.fastq_alignment.READ_FILE1_PREFIX' $CONFIG_FILE)
-READ_FILE2_PREFIX=$(jq -r '.fastq_alignment.READ_FILE2_PREFIX' $CONFIG_FILE)
+SAMPLE_NAME=$(jq -r '.fastq_alignment.SAMPLE_NAME' $CONFIG_FILE)
 CHEMISTRY_VERSION=$(jq -r '.fastq_alignment.CHEMISTRY_VERSION' $CONFIG_FILE)
 SOLO_TYPE=$(jq -r '.fastq_alignment.SOLO_TYPE' $CONFIG_FILE)
 SOLO_FEATURES=$(jq -r '.fastq_alignment.SOLO_FEATURES' $CONFIG_FILE)
@@ -31,14 +29,18 @@ fi
 
 # Loop through the number of lanes to run STAR command
 for i in $(seq 1 $NUM_LANES); do
+  cDNA_LANE=$(jq -r ".fastq_alignment.cDNA_LANE${i}" $CONFIG_FILE)
+  BARCODE_LANE=$(jq -r ".fastq_alignment.BARCODE_LANE${i}" $CONFIG_FILE)
+  
   nohup STAR --genomeDir $GENOME_DIR \
-  --readFilesIn "$READ_FILE1_PREFIX" "$READ_FILE2_PREFIX" \
+  --readFilesIn "$cDNA_LANE" "$BARCODE_LANE" \
   --soloUMIlen $SOLO_UMI_LEN --soloType $SOLO_TYPE \
   --soloCBwhitelist $SOLO_CB_WHITELIST \
   --soloFeatures $SOLO_FEATURES \
   --soloCellFilter $SOLO_CELL_FILTER --soloMultiMappers $SOLO_MULTI_MAPPERS \
   --readFilesCommand $READ_FILES_COMMAND --soloUMIdedup $SOLO_UMI_DEDUP \
-  --outFileNamePrefix "/shared_volume/${OUTPUT_PREFIX}_lane${i}/" \
+  --outFileNamePrefix "/shared_volume/${SAMPLE_NAME}_lane${i}/" \
   --runThreadN $RUN_THREAD_N > "/shared_volume/nohup_lane${i}.out" &
 done
+
 
