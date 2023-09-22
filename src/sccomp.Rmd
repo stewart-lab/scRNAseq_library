@@ -1,0 +1,78 @@
+---
+title: "sc-comp"
+author: "Beth Moore"
+date: "2023-09-22"
+output: html_document
+---
+
+# sccomp analysis for cell type composition comparisons
+# To run sccomp you need processed and labeled data sets that are annotated the same way
+
+# Load libraries, set wd, and source functions
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!requireNamespace("BiocManager")) install.packages("BiocManager")
+BiocManager::install("sccomp")
+library(sccomp)
+library(Seurat)
+library(tidyverse)
+install.packages("loo")
+library(loo)
+BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
+CROSS_SPECIES <- "yes" # are you comparing across species (human to pig- then yes) or within species (no)
+COMP_TYPE <- "scpred" # based on the annotation- did you use scpred, seuratmapping, or manual 
+use_condaenv("scRNAseq_best")
+setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("output_cell_composition_", timestamp)
+# dir.create(output, showWarnings = FALSE)
+# file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
+# config <- fromJSON(file.path(output, "config.json"))
+# output <- paste0(output, "/")
+# source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+```
+# Read in processed and labeled data
+```{r read_in}
+seurat.obj.1 <- readRDS(file = "output_scPred_20230913_131047_filt/GAMM_S2_scpred_c0.5.rds")
+seurat.obj.2 <- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
+```
+# subset cell types if needed
+```{r subset}
+seurat.obj.2<- subset(seurat.obj.2, subset = type != 'AC2')
+seurat.obj.2<- subset(seurat.obj.2, subset = type != 'T2')
+seurat.obj.2<- subset(seurat.obj.2, subset = type != 'Midbrain')
+seurat.obj.2<- subset(seurat.obj.2, subset = type != 'miG')
+```
+# check location of annotation
+```{r check}
+if (CROSS_SPECIES=="yes"){
+    #human
+    table(seurat.obj.2$type)
+    if (COMP_TYPE=="scpred"){
+        table(seurat.obj.1$scpred_prediction)
+    } else if (COMP_TYPE=="seuratmapping") {
+       table(seurat.obj.1$predicted.id)
+    } else {
+        print("COMP_TYPE should be scpred or seurat mapping for cross-species")
+    }
+} else {
+    if (COMP_TYPE=="scpred"){
+        table(seurat.obj.1$scpred_prediction)
+        table(seurat.obj.2$scpred_prediction)
+    } else if (COMP_TYPE=="seuratmapping") {
+       table(seurat.obj.1$predicted.id)
+       table(seurat.obj.2$predicted.id)
+    } else if (COMP_TYPE=="manual"){
+        table(seurat.obj.1@active.ident)
+        table(seurat.obj.2@active.ident)
+    } else {
+        print("COMP_TYPE should be scpred or seurat mapping or manual")
+    }
+}
+```
+# rename identities if necessary
+```{r rename_idents}
+# rename clusters if necessary
+seurat.obj.1 <- RenameIdents(object = seurat.obj.1, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
+                                `Cones - Pan PRs` = "Cones")
+```
