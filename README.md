@@ -137,7 +137,14 @@ To run, modify script with your data and marker list
 ```
 src/clustifyr.R
 ```
-
+- R requirements
+```
+BiocManager::install("clustifyr")
+library(clustifyr)
+library(ggplot2)
+library(cowplot)
+library(Seurat)
+```
 ## scPred
 
 scPred uses a reference object/ dataset to predict annotations of clusters in query data based on similarity of cell expression to the reference. The default algorithm is SVM-radial, however many different models/algorithms can be applied from the caret package: https://topepo.github.io/caret/available-models.html. 
@@ -149,6 +156,24 @@ To run, your query and reference data must first be processed the same way. Cros
 ```
 src/preprocess_crossspecies.Rmd
 ```
+- R requirements
+
+```
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(SoupX)
+library(scDblFinder)
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+```
 
 Next run the scPred script with your preprocessed query and reference objects. scPred will divide the reference into training and testing objects, where the model is trained on the training set, and then applied to the testing set. Watch for cell types that don't predict well in the test set- this may mean the model for that cell type isn't good, and you can try a different one. After a final model is built (you can have different algorithms for each cell type if you want), then you can apply to the query data. To run, update with your reference and query objects, you can also specify different algorithms/models after first running your training data with the SVM-radial algorithm.
 
@@ -156,14 +181,92 @@ Next run the scPred script with your preprocessed query and reference objects. s
 src/scPred_GAMM.Rmd
 ```
 
+- R requirements
+```
+library(devtools)
+devtools::install_github("powellgenomicslab/scPred")
+library(scPred)
+library(Seurat)
+library(magrittr)
+library(harmony)
+library(rmarkdown)
+library(jsonlite)
+library(purrr)
+library(scran)
+library(patchwork)
+library(dplyr)
+library(reticulate)
+```
+
 ## Seurat mapping
 
+Seurat mapping also uses a reference object/ dataset to predict annotations of clusters based on similairty of cell expression to the reference. It does this by doing a canonical correlation analysis to find "anchor" cells between the reference and query, then annotated clusters based on these anchor cells. 
 
+The Seurat mapping vignette can be found here: https://satijalab.org/seurat/articles/integration_mapping
+
+Again, query and reference data need to be preprocessed the same way. First run preprocess_crossspecies.Rmd, and cross-species predictions need an ortholog file. 
+
+```
+src/preprocess_crossspecies.Rmd
+```
+
+Next run the seurat mapping script on your preprocessed data. Seurat will integrate the two datasets together to find anchors, then transfer the anontation data from reference to query. Seurat lets you view the query in either query space or reference space.
+
+```
+src/seurat_mapping_GAMM.Rmd
+```
+
+- R requirements
+```
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+library(ggplot2)
+library(scPred)
+```
 
 # Cell type composition analysis
 
 ## sccomp
 
+sccomp measures cell type composition across datasets to see if the numbers of certain cell type have changed due to developmetn stage, condition, species, etc. It uses a beta-binomial distribution for each cell type that then sums to one.
+
+The tutorial for sccomp is here: https://github.com/stemangiola/sccomp
+
+To run sccomp you need processed and labeled data sets. Since you are comparing cell type compositionality, you need to have annotated data with the same cell type marker list or same reference set. 
+
+```
+src/sccomp.R
+```
+
+- R requirements
+```
+if (!requireNamespace("BiocManager")) install.packages("BiocManager")
+BiocManager::install("sccomp")
+library(sccomp)
+library(Seurat)
+library(tidyverse)
+library(loo)
+```
+
 # References: 
 
-Star solo paper: doi: https://doi.org/10.1101/2021.05.05.442755
+Star solo paper: https://doi.org/10.1101/2021.05.05.442755
+
+clustifyr paper: https://doi.org/10.12688/f1000research.22969.2
+
+scPred paper: https://doi.org/10.1186/s13059-019-1862-5
+
+Seurat paper: https://doi.org/10.1016/j.cell.2019.05.031
+
+sccomp paper: https://doi.org/10.1073/pnas.2203828120
+
