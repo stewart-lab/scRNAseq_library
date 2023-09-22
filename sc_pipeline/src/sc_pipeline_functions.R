@@ -1,6 +1,22 @@
-read_aligned_data <- function(base_directory, project_name) {
+read_aligned_data <- function(base_directory, project_name, output) {
+  # Existing directories
   filtered_data_directory <- paste0(base_directory, "/filtered/")
   raw_data_directory <- paste0(base_directory, "/raw/")
+
+  # Try to copy Summary.csv to output directory
+  summary_file_path <- paste0(base_directory, "/Summary.csv")
+  output_file_path <- paste0(output, "/Alignment_Summary.csv")
+
+  tryCatch({
+    file.copy(summary_file_path, output_file_path, overwrite = TRUE)
+    message("Summary.csv has been copied successfully.")
+  }, warning = function(w) {
+    message("Warning: ", conditionMessage(w))
+  }, error = function(e) {
+    message("Summary.csv could not be copied: ", conditionMessage(e))
+  }, finally = {
+    message("Continuing with the rest of the function.")
+  })
 
   list(
     filtered = Read10X(filtered_data_directory),
@@ -8,6 +24,7 @@ read_aligned_data <- function(base_directory, project_name) {
     project = project_name
   )
 }
+
 
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   dims_umap <- 1:config$prep_seurat_and_soupX$dims
@@ -56,7 +73,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
 }
 
 process_lane <- function(lane) {
-  aligned_data <- read_aligned_data(lane$base_directory, lane$name)
+  aligned_data <- read_aligned_data(lane$base_directory, lane$name, output)
   soupX_obj <- prep_seurat_and_soupX(data.raw = aligned_data$raw, data = aligned_data$filtered, project = aligned_data$project)
 
   # Now we no longer need 'aligned_data', we can remove it.
@@ -122,7 +139,10 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
   lower.nFeature <- config$filter_cells$lower.nFeature
   upper.nFeature <- config$filter_cells$upper.nFeature
   max.percent.mt <- config$filter_cells$max.percent.mt
-  species <- config$filter_cells$species
+  species <- config$species
+  if (is.null(species)) {
+    stop("Species is NULL. Please check your config file.")
+  }
 
   # Define mt features based on species
   if (species == "pig") {
@@ -134,16 +154,15 @@ filter_cells <- function(seurat_obj, path = output, save_plots = TRUE) {
       if (!all(mt.list %in% rownames(seurat_obj))) {
         for (mt in mt.list) {
           print(paste(mt, " in rownames: ", all(mt %in% rownames(seurat_obj))))
-        if (all(mt %in% rownames(seurat_obj))==FALSE) {
-          print(paste(mt, " is not in rownames"))
-          # remove mt from mt.list
-          mt.list <- mt.list[!mt.list %in% mt]
-          View(mt.list)
+          if (all(mt %in% rownames(seurat_obj)) == FALSE) {
+            print(paste(mt, " is not in rownames"))
+            # remove mt from mt.list
+            mt.list <- mt.list[!mt.list %in% mt]
+          }
         }
       }
     }
     percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
-  }
   } else if (species == "human") {
     percent_mt <- PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
   } else {
@@ -229,20 +248,45 @@ feature_selection <- function(seurat_obj) {
 }
 
 scale_data <- function(seurat_obj, path = output) {
-  vars.2.regress = config$scale_data$vars.2.regress
+  vars.2.regress <- config$scale_data$vars.2.regress
+  species <- config$species # Get species information
+
   # Get all gene names
   all.genes <- rownames(seurat_obj)
+
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
-    cell.cycle.markers.s <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt", 
-    sep = "\t", header = TRUE, row.names = 1)
-    cell.cycle.markers.g2m <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt", 
-    sep = "\t", header = TRUE, row.names = 1)
+    # Read cell cycle markers
+    cell.cycle.markers.s <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+      sep = "\t", header = TRUE, row.names = 1
+    )
+    cell.cycle.markers.g2m <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt",
+      sep = "\t", header = TRUE, row.names = 1
+    )
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
-    s.genes <- varslist[4]$pig.gene.name
-    g2m.genes <- varslist[8]$pig.gene.name
-    seurat_obj<- CellCycleScoring(seurat_obj, s.features = s.genes, 
-      g2m.features = g2m.genes, set.ident = TRUE)
+
+    # Select species-specific cell cycle markers
+    if (species == "human") {
+      s.genes <- varslist[1]$human.gene.name
+      g2m.genes <- varslist[1]$human.gene.name
+    } else if (species == "pig") {
+      s.genes <- varslist[4]$pig.gene.name
+      g2m.genes <- varslist[8]$pig.gene.name
+    } else {
+      stop("Unsupported species")
+    }
+    # Check if the genes in the list are present in the dataset
+    missing_genes <- setdiff(g2m.genes, rownames(seurat_obj))
+    if (length(missing_genes) > 0) {
+      print(paste("Missing genes: ", paste(missing_genes, collapse = ", ")))
+    }
+
+    # Perform cell cycle scoring
+    seurat_obj <- CellCycleScoring(seurat_obj,
+      s.features = s.genes,
+      g2m.features = g2m.genes, set.ident = TRUE
+    )
+
     # visualize before regressing out cell cycle
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
@@ -250,19 +294,19 @@ scale_data <- function(seurat_obj, path = output) {
     print(DimPlot(seurat_obj))
     dev.off()
     # scale data and regress out cell cycle
-    seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c("S.Score", "G2M.Score"), 
-      features = all.genes)
+    seurat_obj <- ScaleData(seurat_obj,
+      vars.to.regress = c("S.Score", "G2M.Score"),
+      features = all.genes
+    )
     # visualize after regressing out cell cycle
     # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
     print(DimPlot(seurat_obj))
     dev.off()
-
   } else {
-  
-  seurat_obj <- ScaleData(seurat_obj, features = all.genes)}
-
+    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+  }
   return(seurat_obj)
 }
 
@@ -344,8 +388,10 @@ run_umap <- function(seurat_obj, path = output) {
   umap.method <- config$run_umap$umap.method
   umap.red <- config$run_umap$umap.red
   # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, 
-    reduction = umap.red, group.by = "orig.ident")
+  seurat_obj <- RunUMAP(seurat_obj,
+    dims = dims_umap, umap.method = umap.method,
+    reduction = umap.red, group.by = "orig.ident"
+  )
   # Generate UMAP plot
   pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
   print(DimPlot(seurat_obj, reduction = "umap"))
@@ -361,7 +407,16 @@ perform_clustering <- function(seurat_obj, path = output) {
   reduction <- config$perform_clustering$reduction
   dims_snn <- 1:config$perform_clustering$dims_snn
 
-  # Perform K-nearest neighbor (KNN) graph using harmony embeddings
+  # Check if Harmony embeddings exist in the Seurat object
+  batch_corrected <- "harmony" %in% names(Embeddings(seurat_obj))
+
+  # If batch correction was not performed and reduction is set to "harmony", update it to "pca"
+  if (!batch_corrected && reduction == "harmony") {
+    message("Batch correction was skipped. Updating reduction to 'pca'.")
+    reduction <- "pca"
+  }
+
+  # Perform K-nearest neighbor (KNN) graph
   seurat_obj <- FindNeighbors(seurat_obj, dims = dims_snn, reduction = reduction)
 
   # Save UMAP lanes plot
@@ -378,9 +433,11 @@ perform_clustering <- function(seurat_obj, path = output) {
   umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .1)
   print(umap_clusters)
   dev.off()
+
   # Return the updated Seurat object
   return(seurat_obj)
 }
+
 
 find_differentially_expressed_features <- function(seurat_obj, path = output) {
   # Get parameters from the config file
@@ -490,7 +547,7 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   # Read in known GAMM retinoid markers
   known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
   known.markers.df <- as.data.frame(known.markers)
-  annot_df <- data.frame(Cluster= integer(), Cell.type = character())
+  annot_df <- data.frame(Cluster = integer(), Cell.type = character())
   for (i in 1:length(clusters)) {
     # Get cluster marker info
     clust <- marker.info[[clusters[i]]]
@@ -535,13 +592,13 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
         dev.off()
         allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
         print(allcelltypes)
-        result_string = ""
-        for (j in 1:length(allcelltypes)){
+        result_string <- ""
+        for (j in 1:length(allcelltypes)) {
           new_element <- allcelltypes[j]
           if (result_string == "") {
             result_string <- new_element
           } else {
-            result_string <- paste(result_string,"-", new_element) 
+            result_string <- paste(result_string, "-", new_element)
           }
         }
         new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)

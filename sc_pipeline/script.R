@@ -4,7 +4,7 @@ dir.create(output, showWarnings = FALSE)
 
 # copy the config file into the output directory
 config_path <- file.path(getwd(), output, "config.json")
-file.copy(file.path(getwd(), "config.json"), config_path)
+file.copy(file.path(getwd(), "/src/config.json"), config_path)
 
 rmarkdown::render(
     input = file.path(getwd(), "src", "sc_pipeline.rmd"),

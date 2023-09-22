@@ -2,16 +2,13 @@
   "title": "scRNA-seq analysis",
   "annotation_reference": "FALSE",
   "DE_method": "Scran",
-  "species": "human",
-  "lanes": [ ],
-  "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/",
+  "lanes": [],
+  "DATA_DIR": "./data/",
   "fastq_alignment": {
     "NUM_LANES": 1,
-    "SAMPLE_NAME": "TEST",
-    "cDNA_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
-    "BARCODE_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
-    "cDNA_LANE2": "",
-    "BARCODE_LANE2": "",
+    "OUTPUT_PREFIX": "TEST",
+    "READ_FILE1_PREFIX": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
+    "READ_FILE2_PREFIX": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
     "CHEMISTRY_VERSION": "V3",
     "SOLO_TYPE": "CB_UMI_Simple",
     "SOLO_FEATURES": "Gene GeneFull SJ Velocyto",
@@ -28,7 +25,8 @@
   "filter_cells": {
     "lower.nFeature": 200,
     "upper.nFeature": 10000,
-    "max.percent.mt": 20
+    "max.percent.mt": 20,
+    "species": "human"
   },
   "normalize_data": {
     "min_size": 100,

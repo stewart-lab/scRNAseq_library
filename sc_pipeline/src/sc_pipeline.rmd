@@ -88,14 +88,33 @@ gc(full = TRUE)
 
 # Batch correction
 ```{r Batch Correction}
-batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
+# Check the number of unique levels in orig.ident
+if (length(unique(dim_reduced_seurat_obj$orig.ident)) > 1) {
+  # Perform batch correction if orig.ident has more than one level
+  batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
+} else {
+  # Skip batch correction and use the original object
+  batch_corrected_obj <- dim_reduced_seurat_obj
+  message("Skipping batch correction as orig.ident has only one level.")
+}
+
+# Remove the original object to free up memory
 rm(dim_reduced_seurat_obj)
 gc(full = TRUE)
 ```
 
 # UMAP
 ```{r UMAP}
-umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj)
+# Check if batch_corrected_obj is a list (i.e., batch correction was performed)
+if (is.list(batch_corrected_obj)) {
+  # Run UMAP on the Seurat object returned by perform_batch_correction
+  umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj)
+} else {
+  # Run UMAP on the original Seurat object (i.e., batch correction was skipped)
+  umap_seurat_obj <- run_umap(batch_corrected_obj)
+}
+
+# Remove the batch_corrected_obj to free up memory
 rm(batch_corrected_obj)
 gc(full = TRUE)
 ```
@@ -113,12 +132,12 @@ if (config$DE_method == "Seurat") {
   de_results <- find_differentially_expressed_features(clustered_seurat_obj)
   analyze_known_markers(clustered_seurat_obj, de_results, output)
 } else if (config$DE_method == "Scran") {
-  annot_df<- score_and_plot_markers(clustered_seurat_obj, output)
+  annot_df <- score_and_plot_markers(clustered_seurat_obj, output)
 }
 ```
 # save the clustered object
 ```{r Save Final Object}
-saveRDS(clustered_seurat_obj, file = paste0(output,"clustered_seurat_obj.rds"))
+saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
 ```
 # manual annotation
 ```{r manual_annot}
