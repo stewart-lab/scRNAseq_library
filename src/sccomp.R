@@ -3,7 +3,7 @@ BiocManager::install("sccomp")
 library(sccomp)
 library(Seurat)
 library(tidyverse)
-setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/human_ref")
+setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/")
 output <- "cell_composition/"
 
 # read in data
@@ -23,12 +23,14 @@ human_D205.seurat<- subset(human_D205.seurat, subset = type != 'miG')
 # table(seurat_obj$type)
 # table(seurat_obj$cell_group)
 # gamm s1 and s2
-gamms1 <- readRDS(file = "GAMM_S1/output_20230829_135606/seurat_obj_labeled.rds")
+gamms1 <- readRDS(file = "GAMM_S1/output_20230921_142919/seurat_obj_labeled.rds")
 gamms2 <- readRDS(file = "GAMM_S2/output_20230830_155530/seurat_obj_labeled.rds")
 # put labeled clusters in metadata
 # check idents
 table(gamms1@active.ident)
 Idents(gamms1)
+levels(gamms1)
+# add idents to metadata
 gamms1 <- AddMetaData(gamms1, metadata = gamms1@active.ident, col.name= "CellType")
 table(gamms1$CellType)
 # check idents
@@ -83,7 +85,7 @@ seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_Gen
 table(Idents(object = seurat.combined))
 # stash identities
 seurat.combined[["idents"]] <- Idents(object = seurat.combined)
-unique(seurat.combined$ident)
+unique(seurat.combined$idents)
 unique(seurat.combined$orig.ident)
 unique(seurat.combined$CellType)
 
@@ -170,8 +172,8 @@ comp.table <- as.data.frame(comp.tibble)
 comp.table.1 <- comp.table[,1:17]
 write.table(comp.table.1, file= paste0(output, "composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # get counts from significant result:
-pr.table <- as.data.frame(comp.table["8","count_data"])
-write.table(pr.table, file= paste0(output, "pr_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+pr.table <- as.data.frame(comp.table["6","count_data"])
+write.table(pr.table, file= paste0(output, "ganglion_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
 # model contrast
 contrast.tibble <- seurat.combined |>
   sccomp_glm( 

@@ -6,7 +6,7 @@ library(ggplot2)
 library(cowplot)
 library(Seurat)
 # setwd
-setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/GAMM_S2/output_20230830_155530")
+setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/GAMM_S1/output_20230921_142919")
 # load data set
 gamms2 <- readRDS(file = "seurat_obj_labeled.rds")
 table(gamms2$orig.ident)
@@ -54,19 +54,19 @@ gamms2.1 <- call_to_metadata(
   res = list_res2,                 # data.frame of called cell type for each cluster
   metadata = gamms2@meta.data, 
   cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
-  rename_prefix = "clustifyr_call"          # set a prefix for the new column
+  rename_prefix = "clustifyr_call_full"          # set a prefix for the new column
 )
 # add to seurat object metadata
 gamms2 <- AddMetaData(gamms2, metadata = gamms2.1)
 # plot
-pc <- DimPlot(gamms2, reduction = "umap", group.by = "clustifyr_call_type", label = TRUE,
-              label.size = 3, repel = TRUE) + ggtitle("GammS2 clustifyr annotated labels") +
+pc <- DimPlot(gamms2, reduction = "umap", group.by = "clustifyr_call_full_type", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("GammS1 clustifyr annotated full labels") +
               guides(fill = guide_legend(label.theme = element_text(size = 8)))
-pdf("clustifyr_annotation_umap.pdf", width = 11, height = 6)
+pdf("clustifyr_full_annotation_umap.pdf", width = 11, height = 6)
 print(pc)
 dev.off()
 
-saveRDS(gamms2, file= "gamms2_clustifyr.rds")
+saveRDS(gamms2, file= "gamms1_clustifyr.rds")
 
 ## clustifyr annotation from reference
 
