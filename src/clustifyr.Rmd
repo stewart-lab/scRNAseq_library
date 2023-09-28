@@ -1,0 +1,83 @@
+---
+title: "clustifyr"
+author: "Beth Moore"
+date: "2023-09-22"
+output: html_document
+---
+
+# clustifyr analysis for automatic cell type annotation with marker list or reference
+# To run clustifyr, you need clustered seurat object
+
+# load libraries and environment
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+### load libraries ###
+library(reticulate)
+use_condaenv("scRNAseq_best")
+library(clustifyr)
+library(ggplot2)
+library(cowplot)
+library(Seurat)
+### set variables ###
+BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
+### set working directory and output ###
+setwd(paste0(BETHS_GAMM_DATA_DIR, "GAMM_S2/"))
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("output_clustifyr_", timestamp)
+dir.create(output, showWarnings = FALSE)
+output <- paste0(output, "/")
+```
+# load data set and marker list
+```{r load_data}
+# load data set
+seurat.obj <- readRDS(file = "output_20230830_155530/seurat_obj_labeled.rds")
+# load marker list
+markers <- read.csv2("../../../scRNAseq_library/known_marker_lists/Gamm_lab_Consolidated_markerList.txt", sep="\t", header = TRUE)
+```
+# rename identities if necessary
+```{r rename_idents}
+# rename clusters if necessary
+table(seurat.obj$orig.ident)
+table(seurat.obj$seurat_clusters)
+table(seurat.obj@active.ident)
+seurat.obj <- RenameIdents(object = seurat.obj, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
+                                `Cones - Pan PRs` = "Cones")
+table(seurat.obj@active.ident)
+seurat.obj <- AddMetaData(seurat.obj, metadata = seurat.obj@active.ident, col.name= "CellType")
+table(seurat.obj$CellType)
+```
+# make marker dataframe and rename columns
+```{r marker_df}
+# subset
+markers_df <- data.frame(markers$gene,markers$Cell.type)
+# rename columns 
+colnames(markers_df) <- c("gene","cluster")
+```
+# run clustifyr from marker list
+```{r clustifyr}
+# run clustify lists
+# Available metrics for clustify_lists include: "pct", "jaccard"
+list_res <- clustify_lists(
+  input = seurat.obj,              # seurat object
+  cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
+  marker = markers_df,             # list of known marker genes
+  metric = "pct",                  # test to use for assigning cell types
+  marker_inmatrix = FALSE,
+  obj_out = FALSE
+)
+# View as heatmap, or plot_best_call
+p1 <- plot_cor_heatmap(
+        cor_mat = list_res,      # matrix of correlation coefficients from clustify_lists()
+        cluster_rows = TRUE,     # cluster by row?
+        cluster_columns = TRUE,  # cluster by column?
+        legend_title = "pct"     # title of heatmap legend
+)
+pdf(paste0(output, "correlation_heatmap.pdf"), width = 8, height = 6)
+print(p1)
+dev.off()
+# Call cell types
+list_res2 <- cor_to_call(
+  cor_mat = list_res,              # matrix correlation coefficients
+  cluster_col = "seurat_clusters"  # name of column in meta.data containing cell clusters
+)
+```
