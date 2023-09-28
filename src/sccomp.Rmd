@@ -11,25 +11,44 @@ output: html_document
 # Load libraries, set wd, and source functions
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-if (!requireNamespace("BiocManager")) install.packages("BiocManager")
-BiocManager::install("sccomp")
+#### installations ####
+# if (!requireNamespace("BiocManager")) install.packages("BiocManager")
+# BiocManager::install("sccomp")
+## for sccomp I had to install cxx-compiler, sctransform, and Matrix separately, then sccomp
+# conda install -c conda-forge cxx-compiler
+# conda install -c conda-forge r-sctransform
+# conda install -c conda-forge r-matrix (need Matrix 1.6.1) or install.packages('Matrix')
+# conda install -c bioconda bioconductor-sccomp
+## to install speckle, had to install Rcppannoy
+# conda install -c conda-forge r-rcppannoy
+# 
+## loo should install with sccomp, but if not:
+# install.packages("loo")
+
+### load libraries ###
+library(reticulate)
+use_condaenv("sccomp")
+# devtools::install_github("Oshlack/speckle")
 library(sccomp)
 library(Seurat)
 library(tidyverse)
-install.packages("loo")
 library(loo)
+library(reticulate)
+library(devtools)
+library(speckle)
+library(ggplot2)
+library(limma)
+### set variables ###
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 CROSS_SPECIES <- "yes" # are you comparing across species (human to pig- then yes) or within species (no)
 COMP_TYPE <- "scpred" # based on the annotation- did you use scpred, seuratmapping, or manual 
-use_condaenv("scRNAseq_best")
+### set working directory and output ###
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_cell_composition_", timestamp)
-# dir.create(output, showWarnings = FALSE)
-# file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
-# config <- fromJSON(file.path(output, "config.json"))
-# output <- paste0(output, "/")
-# source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+dir.create(output, showWarnings = FALSE)
+output <- paste0(output, "/")
+packageVersion("sccomp")
 ```
 # Read in processed and labeled data
 ```{r read_in}
@@ -75,4 +94,194 @@ if (CROSS_SPECIES=="yes"){
 # rename clusters if necessary
 seurat.obj.1 <- RenameIdents(object = seurat.obj.1, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
                                 `Cones - Pan PRs` = "Cones")
+```
+# add identities to metadata
+```{r add_meta}
+if (COMP_TYPE=="manual"){
+    seurat.obj.1 <- AddMetaData(seurat.obj.1, metadata = seurat.obj.1@active.ident, col.name= "CellType")
+    table(seurat.obj.1$CellType)
+    seurat.obj.2 <- AddMetaData(seurat.obj.2, metadata = seurat.obj.2@active.ident, col.name= "CellType")
+    table(seurat.obj.2$CellType)
+}
+```
+# merge datasets
+```{r merge}
+seurat.combined <- merge(seurat.obj.1, y = seurat.obj.2, add.cell.ids = c("sample1", "sample2"), project = "combined")
+head(colnames(seurat.combined))
+table(seurat.combined$orig.ident)
+unique(seurat.combined$orig.ident)
+unique(sapply(X = strsplit(colnames(seurat.combined), split = "_"), FUN = "[", 1))
+table(Idents(object = seurat.combined))
+```
+# set and rename identities in combined dataset
+```{r set_idents}
+# set identity
+Idents(object = seurat.combined) <- "orig.ident"
+ table(Idents(object = seurat.combined))
+if (CROSS_SPECIES=="yes"){
+    seurat.combined <- RenameIdents(object = seurat.combined, `D205` = "human",
+                                `gamm_s1-1` = "pig")
+} else {
+    seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_GeneFull` = "s1",
+                                `output_S1-2_mm_mt_GeneFull` = "s1", `output_S2-1_mm_mt_GeneFull` = "s2",
+                                `output_S2-2_mm_mt_GeneFull` = "s2")
+}
+# stash idents
+seurat.combined[["idents"]] <- Idents(object = seurat.combined)
+unique(seurat.combined$idents)
+```
+# remove NAs
+```{r remove_NA}
+# subset to remove NAs
+seurat.combined <- subset(x= seurat.combined, idents != "NA")
+
+if (CROSS_SPECIES=="yes") {
+    if (COMP_TYPE=="scpred") {
+    # scpred
+    seurat.pig <- subset(x= seurat.combined, scpred_prediction != "NA")
+    unique(seurat.pig$scpred_prediction)
+    } else if (COMP_TYPE=="seuratmapping") {
+      # seurat mapping
+    seurat.pig <- subset(x= seurat.combined, predicted.id != "NA")
+    unique(seurat.pig$predicted.id)
+    } else {
+        print("COMP_TYPE should be scpred or seurat mapping for cross-species")
+    }
+    # human
+    seurat.human <- subset(x= seurat.combined, type != "NA")
+    unique(seurat.human$type)
+}
+```
+# plot cell type proportions
+```{r plot_proportions}
+if (CROSS_SPECIES == "yes") {
+    if (COMP_TYPE=="scpred") {
+    # scpred
+    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$scpred_prediction, sample = seurat.pig$ident)
+    } else if (COMP_TYPE=="seuratmapping") {
+    # seurat mapping
+    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$predicted.id, sample = seurat.pig$ident)
+    } else {
+        print("COMP_TYPE should be scpred or seurat mapping for cross-species")
+    }
+    # human
+    hum.plot <- plotCellTypeProps(x = seurat.human, clusters = seurat.human$type, sample = seurat.human$orig.ident)
+    # save plot
+    pdf(paste0(output, "celltype_proportions.pdf"), width = 8, height = 6)
+    print(pig.plot + hum.plot)
+    dev.off()
+} else {
+    prop.plot <- plotCellTypeProps(x = seurat.combined, clusters = seurat.combined$CellType, sample = seurat.combined$idents)
+    pdf(paste0(output, "celltype_proportions.pdf"), width = 8, height = 6)
+    print(prop.plot)
+    dev.off()
+}
+```
+# combine cell types
+```{r combine_meta}
+if (CROSS_SPECIES == "yes") {
+    if (COMP_TYPE=="scpred") {
+        New_idents <- c(seurat.pig$scpred_prediction,seurat.human$type)
+    } else if (COMP_TYPE=="seuratmapping") {
+    New_idents <- c(seurat.pig$predicted.id,seurat.human$type)
+    } else {
+        print("COMP_TYPE should be scpred or seurat mapping for cross-species")
+    }
+    seurat.combined@meta.data$"CellType" <- as.factor(New_idents)
+}
+table(seurat.combined$CellType)
+```
+# save combined object
+```{r save}
+saveRDS(seurat.combined, file = paste0(output,"seurat.combined.rds"))
+```
+# sccomp model composition
+```{r model_comp}
+# model composition
+comp.tibble <- seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 
+  )
+# write table
+comp.table <- as.data.frame(comp.tibble)
+comp.table.1 <- comp.table[,1:7]
+write.table(comp.table.1, file= paste0(output, "composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+# get counts from a specific result:
+pr.table <- as.data.frame(comp.table["8","count_data"])
+write.table(pr.table, file= paste0(output, "pr_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+```
+# compare models (Bayesian Anova)
+```{r bayes_anova}
+# need sccomp version 1.4 for this!
+# Fit first model
+model_with_factor_association = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    check_outliers = FALSE, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1, 
+    enable_loo = TRUE
+  )
+# Fit second model
+model_without_association = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ 1, 
+    .sample =  orig.ident, 
+    .cell_group = CellType, 
+    check_outliers = FALSE, 
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 , 
+    enable_loo = TRUE
+  )
+# Compare models
+comparison <- loo_compare(
+  model_with_factor_association |> attr("fit") |> loo(),
+  model_without_association |> attr("fit") |> loo()
+)
+comp_df <- as.data.frame(comparison)
+write.table(comp_df, file= paste0(output, "model_comparison_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+# is elpd_diff/se_diff > abs(5)?
+c.res <- comp_df$elpd_diff[2]/comp_df$se_diff[2]
+print(paste0("if ",c.res," is greater than abs(5), significant"))
+```
+# diffrential variability model
+```{r diff_var_model}
+res = 
+  seurat.combined |>
+  sccomp_glm( 
+    formula_composition = ~ idents, 
+    formula_variability = ~ idents,
+    .sample = orig.ident,
+    .cell_group = CellType,
+    bimodal_mean_variability_association = TRUE,
+    cores = 1 
+  )
+res.table <- as.data.frame(res)
+res.table.1 <- res.table[,1:17]
+write.table(res.table.1, file= paste0(output, "celltype_x_develop_composition_result_table.txt"), quote = F, col.names = TRUE, row.names= F, sep= "\t")
+# plot results
+plots = plot_summary(res)
+# group proportion boxplot 
+# blue box is posterior predictive check and colors are 
+# associated with significant associations for composition and/or variability
+pdf(paste0(output, "signif_associations_boxplot.pdf"), width = 8, height = 6)
+print(plots$boxplot)
+dev.off()
+# credible interval plot 1
+# error bars represent 95% credible interval
+pdf(paste0(output, "credible_intervals_1d.pdf"), width = 8, height = 6)
+print(plots$credible_intervals_1D)
+dev.off()
+# credible interval plot 2
+pdf(paste0(output, "credible_intervals_2d.pdf"), width = 8, height = 6)
+print(plots$credible_intervals_2D)
+dev.off()
 ```
