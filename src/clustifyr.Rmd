@@ -8,9 +8,13 @@ output: html_document
 # clustifyr analysis for automatic cell type annotation with marker list or reference
 # To run clustifyr, you need clustered seurat object
 
-# load libraries and environment
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#### installations ####
+# see scRNAseq_library/src/clustifyr_setup.sh or
+# use create conda environment with environment_scRNAseq-clustifyr.yml
+# 
+
 ### load libraries ###
 library(reticulate)
 use_condaenv("scRNAseq_best")
@@ -18,6 +22,7 @@ library(clustifyr)
 library(ggplot2)
 library(cowplot)
 library(Seurat)
+library(ComplexHeatmap)
 ### set variables ###
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 ### set working directory and output ###
@@ -80,4 +85,69 @@ list_res2 <- cor_to_call(
   cor_mat = list_res,              # matrix correlation coefficients
   cluster_col = "seurat_clusters"  # name of column in meta.data containing cell clusters
 )
+```
+# add clustifyr calls as metadata and visualize
+```{r add_meta}
+# Insert into metadata dataframe as "clustifyr_call" column
+clust_call <- call_to_metadata(
+  res = list_res2,                 # data.frame of called cell type for each cluster
+  metadata = seurat.obj@meta.data, 
+  cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
+  rename_prefix = "clustifyr_call"          # set a prefix for the new column
+)
+# add to seurat object metadata
+seurat.obj <- AddMetaData(seurat.obj, metadata = clust_call)
+# plot
+pc <- DimPlot(seurat.obj, reduction = "umap", group.by = "clustifyr_call_type", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("Clustifyr annotated labels") +
+              guides(fill = guide_legend(label.theme = element_text(size = 8)))
+pdf(paste0(output,"clustifyr_marker_annotation_umap.pdf"), width = 11, height = 6)
+print(pc)
+dev.off()
+```
+# save bject with clustifyr annotation
+```{r save}
+saveRDS(seurat.obj, file= paste0(output, "seurat.obj_clustifyr.rds"))
+```
+# using reference (expression matrix with annotation or seurat object) with clustifyr
+```{r load_ref}
+# load annotated ref data
+ref.seurat<- readRDS(file = paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/output_preprocess20230912_144047_cc/human_D205_umap.rds"))
+table(ref.seurat$type)
+# subset
+ref.seurat<- subset(ref.seurat, subset = type != c('AC2'))
+ref.seurat<- subset(ref.seurat, subset = type != c('miG'))
+ref.seurat<- subset(ref.seurat, subset = type != c('T2'))
+# get ref matrix
+new_ref_matrix <- seurat_ref(
+  seurat_object = ref.seurat,        # SeuratV3 object
+  cluster_col = "type"    # name of column in meta.data containing cell identities
+)
+```
+# run clustify
+```{r run_clustify}
+# run clustify (spearman corr is default)
+res <- clustify(
+  input = seurat.obj,       # a Seurat object
+  ref_mat = new_ref_matrix,    # matrix of RNA-seq expression data for each cell type
+  cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
+  obj_out = TRUE,      # output Seurat object with cell type inserted as "type" column
+  rename_prefix= "clustify_pred",
+  n_genes= 2000
+)
+table(res$clustify_pred_type)
+```
+# visualize
+```{r visualize}
+pc <- DimPlot(res, reduction = "umap", group.by = "clustify_pred_type", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("Clustifyr predicted labels- spearmans") +
+  guides(fill = guide_legend(label.theme = element_text(size = 8)))
+pdf(paste0(output, "clustifyr_predicted_labels_umap.pdf"), width = 10, height = 6)
+print(pc)
+dev.off()
+table(res$clustify_pred_r)
+```
+# save object
+```{r save}
+saveRDS(res, file= paste0(output, "seurat.obj_clustifyr.rds"))
 ```

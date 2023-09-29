@@ -12,18 +12,8 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 #### installations ####
-# if (!requireNamespace("BiocManager")) install.packages("BiocManager")
-# BiocManager::install("sccomp")
-## for sccomp I had to install cxx-compiler, sctransform, and Matrix separately, then sccomp
-# conda install -c conda-forge cxx-compiler
-# conda install -c conda-forge r-sctransform
-# conda install -c conda-forge r-matrix (need Matrix 1.6.1) or install.packages('Matrix')
-# conda install -c bioconda bioconductor-sccomp
-## to install speckle, had to install Rcppannoy
-# conda install -c conda-forge r-rcppannoy
-# 
-## loo should install with sccomp, but if not:
-# install.packages("loo")
+# see scRNAseq_library/src/sccomp_env_setup.sh or
+# use scRNAseq_library/environment_sccomp.yml to create an sccomp environment
 
 ### load libraries ###
 library(reticulate)
