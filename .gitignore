@@ -2,3 +2,4 @@ install/environment.yml
 .DS_Store
 sc_pipeline/src/config.json
 output/output_*
+*.h5ad
