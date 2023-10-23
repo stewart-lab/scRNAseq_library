@@ -342,6 +342,9 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
   dev.off()
 
   # Perform JackStraw
+  if(num_replicate == "NA"){
+    print("jackstraw not run")
+  } else {
   seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
   seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
 
@@ -350,6 +353,7 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
   jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
   print(jack_straw)
   dev.off()
+  }
 
   # Return the updated Seurat object
   return(seurat_obj)
@@ -421,7 +425,7 @@ perform_clustering <- function(seurat_obj, path = output) {
 
   # Save UMAP lanes plot
   pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
-  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .1)
+  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5)
   print(umap_lanes)
   dev.off()
 
@@ -430,7 +434,7 @@ perform_clustering <- function(seurat_obj, path = output) {
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .1)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
   print(umap_clusters)
   dev.off()
 
