@@ -28,9 +28,9 @@ BETHS_FLUIDIGM_DIR <- "/w5home/bmoore/scRNAseq/LiFangChu/fluidigm_gup_expr_resul
 use_condaenv("scRNAseq_best")
 setwd(BETHS_FLUIDIGM_DIR)
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-output <- paste0(BETHS_FLUIDIGM_DIR, "output_", timestamp)
-dir.create(output, showWarnings = FALSE)
-file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
+output <- paste0(BETHS_FLUIDIGM_DIR, "output_20231023_151746")#, timestamp)
+#dir.create(output, showWarnings = FALSE)
+#file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
 config <- fromJSON(file.path(output, "config.json"))
 output <- paste0(output, "/")
 source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
@@ -117,4 +117,13 @@ clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
 # save
 ```{r Save Final Object}
 saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
+```
+# read back in
+```{r readin}
+clustered_seurat_obj<- readRDS(file = paste0(output, "clustered_seurat_obj.rds"))
+```
+# get DE genes
+```{r DEgenes}
+de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+annot_df <- score_and_plot_markers(clustered_seurat_obj, output)
 ```
