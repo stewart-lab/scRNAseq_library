@@ -42,6 +42,9 @@
   "scale_data": {
     "vars.2.regress": "cell.cycle"
   },
+  "sc_transform": {
+    "vars.2.regress": "cell.cycle"
+  },
   "run_and_visualize_pca": {
     "top_n_dims": 2,
     "heatmap_dims": 15,
