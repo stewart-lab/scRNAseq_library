@@ -602,23 +602,38 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   known_markers <- config$score_and_plot_markers$known_markers
   top_n_markers <- config$score_and_plot_markers$top_n_markers
   cluster_type <- config$score_and_plot_markers$cluster_type
+  pairwise <- config$score_and_plot_markers$pairwise
+  logFC_thresh <- config$score_and_plot_markers$logFC_thresh
+  auc_thresh <- config$score_and_plot_markers$auc_thresh
 
 
   # Convert Seurat object to SingleCellExperiment
   sce_obj <- as.SingleCellExperiment(seurat_obj)
 
   # Score markers
-  marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE) # orig.ident
+  if (cluster_type == "seurat_clusters") {
+    marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE)
+  } else if (cluster_type == "orig.ident") {
+    marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$orig.ident, full.stats = TRUE)
+  } else {
+    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
+  }
 
   # For each cluster, perform operations
-  clusters <- unique(seurat_obj@meta.data$seurat_clusters) # orig.ident
+  if (cluster_type == "seurat_clusters") {
+    clusters <- unique(seurat_obj@meta.data$seurat_clusters)
+  } else if (cluster_type == "orig.ident") {
+    clusters <- unique(seurat_obj@meta.data$orig.ident)
+  } else {
+    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
+  }
   clusters <- as.vector(clusters)
 
   # Read in known markers
   if (known_markers==TRUE) {
     known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names=1)
     known.markers.df <- as.data.frame(known.markers)
-    #print(known.markers.df)
+
   } else {
     known.markers.df <- NULL
   }
@@ -626,10 +641,50 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   for (i in 1:length(clusters)) {
     # Get cluster marker info
     clust <- marker.info[[clusters[i]]]
-
+    clust <- as.data.frame(clust)
+    # get DE for each pariwise comparison
+    if (pairwise==TRUE) {
+      clust_tbl <- rownames_to_column(clust, var = "gene") %>% as_tibble()
+      # get dataframe with each logFC of each pairwise comparison
+      df_clust0 <- clust_tbl %>% dplyr::select(starts_with('full.logFC.cohen'))
+      # get dataframe that also includes gene and AUC
+      df_clust <- clust_tbl %>% dplyr::select(c('gene',starts_with('full.logFC.cohen'),
+        starts_with('full.AUC')))
+      # loop thorugh first dataframe to get pairwise comparison names
+      for (j in colnames(df_clust0)){
+        print(j)
+        # get name of corresponding AUC value
+        k <- str_split_1(j, "cohen.")
+        l <- paste0('full.AUC.',k[2])
+        # subset based on logFC threshold and AUC threshold
+        df_clust1 <- subset(df_clust, df_clust[j] > logFC_thresh & df_clust[l] > auc_thresh) #, select=c('gene', colname))
+        df_clust1 <- df_clust1[order(df_clust1[j], decreasing = TRUE), ]
+        # write table of all DE genes for the comparison
+        write.table(df_clust1, file = paste0(output_path, "DEgenes_clust_", clusters[i],".vs_",j, ".txt", 
+        collapse = ""), quote = F, sep = "\t", row.names = T)
+        # merge with known markers
+        df_clust2 <- merge(df_clust1, known.markers.df, by.x='gene', by.y = "row.names")
+        # check if empty
+        if (nrow(df_clust2) == 0) {
+        print(paste0("This data frame is empty: ", clusters[i],".vs_",j))
+        } else {
+        # write table
+        write.table(df_clust2, file = paste0(output_path, "KnownDEgenes_clust_", clusters[i],".vs_",j, ".txt", 
+        collapse = ""), quote = F, sep = "\t", row.names = T)
+        new_vec0 <- unique(as.vector(df_clust2$gene))
+        # make feature plot of genes
+        pdf(paste0(output_path, clusters[i], ".vs_", j,"_featureplot.pdf"), bg = "white")
+        print(FeaturePlot(seurat_obj, features = new_vec0), label = TRUE)
+        dev.off()
+        }
+      }
+    } else {
+      print("no pairwise comparison")
+    }
     # Order by median Cohen's d
     ordered <- clust[order(clust$median.logFC.cohen, decreasing = TRUE), ]
-
+    # subset by median logFC and AUC threshold
+    ordered <- subset(ordered, median.logFC.cohen > logFC_thresh & median.AUC > auc_thresh)
     # Get top 100
     top100 <- ordered[1:100, ]
     top100 <- as.data.frame(top100)
@@ -638,7 +693,6 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
     # Match with any DE markers from data by merging dataframes
     if (known_markers==TRUE) {
       marker_df <- merge(top100, known.markers.df, by = "row.names")
-      print(marker_df)
       if (nrow(marker_df) == 0) {
         print(paste0("This data frame is empty: ", clusters[i]))
         new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
@@ -655,10 +709,9 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
         rank <- top_n_markers+1
         new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
         new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
-
         new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
-        print(new_vec2)
-        print(clusters[i])
+
+        # check if empty
         if (identical(new_vec2, character(0))) {
           print(paste0("This vector does not have any ranks in top ", top_n_markers, ": ", clusters[i]))
           new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
@@ -669,7 +722,6 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
           print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
           dev.off()
           allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
-          print(allcelltypes)
           result_string <- ""
           for (j in 1:length(allcelltypes)) {
             new_element <- allcelltypes[j]

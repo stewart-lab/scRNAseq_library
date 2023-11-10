@@ -24,6 +24,7 @@ library(jsonlite)
 library(rmarkdown)
 library(ggplot2)
 library(sctransform)
+library(tidyverse)
 BETHS_FLUIDIGM_DIR <- "/w5home/bmoore/scRNAseq/LiFangChu/fluidigm_gup_expr_results/"
 use_condaenv("scRNAseq_best")
 setwd(BETHS_FLUIDIGM_DIR)
