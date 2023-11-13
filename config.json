@@ -80,5 +80,8 @@
     "pairwise": "TRUE",
     "logFC_thresh": 0.5,
     "auc_thresh": 0.5
+  },
+  "transfer_anchors": {
+    "reduc.type": "cca"
   }
 }

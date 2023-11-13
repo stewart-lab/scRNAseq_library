@@ -164,3 +164,7 @@ clustered_seurat_obj<- readRDS(file = paste0(output, "clustered_seurat_obj.rds")
 de_results <- find_differentially_expressed_features(clustered_seurat_obj)
 annot_df <- score_and_plot_markers(clustered_seurat_obj, output)
 ```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
+```

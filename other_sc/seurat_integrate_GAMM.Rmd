@@ -249,3 +249,7 @@ pdf(paste0(output, "rprog.mg.diff_top5_vlnplot.pdf"), width = 8, height = 14)
 print(wrap_plots(plots = plots, ncol = 1))
 dev.off()
 ```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
+```
