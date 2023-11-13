@@ -9,7 +9,7 @@ read_aligned_data <- function(base_directory, project_name, output) {
 
   tryCatch({
     file.copy(summary_file_path, output_file_path, overwrite = TRUE)
-    message("Summary.csv has been copied successfully.")
+    message("Alignment_Summary.csv has been copied successfully.")
   }, warning = function(w) {
     message("Warning: ", conditionMessage(w))
   }, error = function(e) {

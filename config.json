@@ -2,7 +2,7 @@
   "title": "scRNA-seq analysis",
   "annotation_reference": "FALSE",
   "DE_method": "Scran",
-  "species": "human",
+  "species": "pig",
   "lanes": [ ],
   "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/",
   "fastq_alignment": {
@@ -67,7 +67,7 @@
   "find_differentially_expressed_features": {
     "min_pct": 0.25,
     "logfc_threshold": 0.25,
-    "top_n": 11
+    "top_n": 12
   },
   "score_and_plot_markers": {
     "top_n_markers": 10,
