@@ -31,7 +31,7 @@ cell.cycle.markers.g2m <- read.csv2("/w5home/bmoore/scRNAseq_library/cell_cycle_
 varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
 output <- paste0(output, "/")
 config <- fromJSON(file.path(output, "config.json"))
-source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
 ```
 # if needed, install python packages
 ```{r}
