@@ -41,13 +41,13 @@
   },
   "scale_data": {
     "vars.2.regress": "cell.cycle",
-    "marker.path.s": "/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
-    "marker.path.g2m": "/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
+    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
   },
   "sc_transform": {
     "vars.2.regress": "cell.cycle",
-    "marker.path.s": "/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
-    "marker.path.g2m": "/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
+    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
   },
   "run_and_visualize_pca": {
     "top_n_dims": 2,
