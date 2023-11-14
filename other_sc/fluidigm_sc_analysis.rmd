@@ -1,0 +1,177 @@
+---
+title: "fluidigm sc analysis"
+author: "Beth Moore"
+date: "2023-10-23"
+output: html_document
+---
+# Analyze Fluidigm data where one fastq/sample is one cell. With 96 wells on a plate, 
+# this method captures 96 cells per sample/time-point.
+
+# load libraries, set wd, source functions
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+library(ggplot2)
+library(sctransform)
+library(tidyverse)
+BETHS_FLUIDIGM_DIR <- "/w5home/bmoore/scRNAseq/LiFangChu/fluidigm_gup_expr_results/"
+use_condaenv("scRNAseq_best")
+setwd(BETHS_FLUIDIGM_DIR)
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0(BETHS_FLUIDIGM_DIR, "output_", timestamp)
+dir.create(output, showWarnings = FALSE)
+file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
+config <- fromJSON(file.path(output, "config.json"))
+output <- paste0(output, "/")
+source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
+```
+# read in counts
+```{r read}
+# loop
+dirs <- list.dirs(path = ".", full.names = TRUE)
+print(dirs)
+ct=0
+m <- c()
+for (d in dirs){
+    print(d)
+    files= list.files(path= d)
+    print(files)
+    for (f in files){
+        if (f == "genes.no_mt.ec.tab"){
+            ct=ct+1
+            nam <- paste0("counts",ct)
+            # read in data
+            assign(nam, read.csv(paste0(d,"/genes.no_mt.ec.tab"),header = TRUE, sep = "\t",row.names=1))
+            # add to vector
+            m <- c(m, nam)
+        }
+    }
+}
+print(m)
+# read in data
+#counts <- read.csv("genes.no_mt.ec.tab",header = TRUE, sep = "\t",row.names=1)
+# remove last column (description)
+#counts= counts[,1:(length(counts)-1)]
+```
+
+# create seurat object from expression matrix
+```{r create_obj}
+ct=0
+seurat_list=c()
+for (c in m){
+    # convert from string to the variable
+    counts= eval(parse(text = c))
+    # remove last column (description)
+    counts= counts[,1:(length(counts)-1)]
+    nam <- paste0("seurat_obj",ct)
+    # make new seurate object
+    assign(nam, seurat_obj <- CreateSeuratObject(
+                                counts,
+                                project = paste0("Sub_8",ct),
+                                assay = "RNA"))
+
+    seurat_list <- c(seurat_list, nam)
+    ct=ct+1
+}
+print(seurat_list)
+
+```
+# merge into one seurat object
+```{r merge}
+seurat.big <- merge(seurat_obj0, y = c(seurat_obj1, seurat_obj2, seurat_obj3, seurat_obj4, seurat_obj5), 
+                add.cell.ids = c("Sub_805","Sub_806", "Sub_807", "Sub_808","Sub_809","Sub_810"), 
+                project = "timepoints")
+seurat.big
+```
+
+# here we don't do ambient mRNA removal, doublet removal or mt filtering because
+# it is not droplet-based, it is from a plate. So start with normalization
+
+# Normalization, variable features, scale data
+```{r sctransform}
+# sctransform does normalization, vairable features, and scaledata all in one
+# Assay: SCT
+# normalize together
+normalized_seurat_obj <- sc_transform(seurat.big)
+
+# and separately
+# seurat_obj0 <- Seurat::SCTransform(seurat_obj0)
+# seurat_obj1 <- Seurat::SCTransform(seurat_obj1)
+# seurat_obj2 <- Seurat::SCTransform(seurat_obj2)
+# seurat_obj3 <- Seurat::SCTransform(seurat_obj3)
+# seurat_obj4 <- Seurat::SCTransform(seurat_obj4)
+# seurat_obj5 <- Seurat::SCTransform(seurat_obj5)
+```
+```{r normalize}
+normalized_seurat_obj<- NormalizeData(seurat.big)
+feat_select_seurat_obj <- feature_selection(normalized_seurat_obj)
+scaled_seurat_obj <-  scale_data(feat_select_seurat_obj)
+```
+# PCA
+```{r pca}
+dim_reduced_seurat_obj <- run_and_visualize_pca(scaled_seurat_obj)
+#
+# seurat_obj0 <- run_and_visualize_pca(seurat_obj0)
+# seurat_obj1 <- run_and_visualize_pca(seurat_obj1)
+# seurat_obj2 <- run_and_visualize_pca(seurat_obj2)
+# seurat_obj3 <- run_and_visualize_pca(seurat_obj3)
+# seurat_obj4 <- run_and_visualize_pca(seurat_obj4)
+# seurat_obj5 <- run_and_visualize_pca(seurat_obj5)
+```
+# UMAP
+```{r UMAP}
+umap_seurat_obj <- run_umap(dim_reduced_seurat_obj)
+#
+# seurat_obj0 <- run_umap(seurat_obj0)
+# seurat_obj1 <- run_umap(seurat_obj1)
+# seurat_obj2 <- run_umap(seurat_obj2)
+# seurat_obj3 <- run_umap(seurat_obj3)
+# seurat_obj4 <- run_umap(seurat_obj4)
+# seurat_obj5 <- run_umap(seurat_obj5)
+```
+# Cluster
+```{r Clustering}
+clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
+#
+# seurat_obj0 <- perform_clustering(seurat_obj0)
+# seurat_obj1 <- perform_clustering(seurat_obj1)
+# seurat_obj2 <- perform_clustering(seurat_obj2)
+# seurat_obj3 <- perform_clustering(seurat_obj3)
+# seurat_obj4 <- perform_clustering(seurat_obj4)
+# seurat_obj5 <- perform_clustering(seurat_obj5)
+```
+# save
+```{r Save Final Object}
+saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
+# saveRDS(seurat_obj0, file = paste0(output, "clustered_seurat_obj0.rds"))
+# saveRDS(seurat_obj1, file = paste0(output, "clustered_seurat_obj1.rds"))
+# saveRDS(seurat_obj2, file = paste0(output, "clustered_seurat_obj2.rds"))
+# saveRDS(seurat_obj3, file = paste0(output, "clustered_seurat_obj3.rds"))
+# saveRDS(seurat_obj4, file = paste0(output, "clustered_seurat_obj4.rds"))
+# saveRDS(seurat_obj5, file = paste0(output, "clustered_seurat_obj5.rds"))
+```
+# read back in
+```{r readin}
+#clustered_seurat_obj<- readRDS(file = paste0(output, "clustered_seurat_obj.rds"))
+clustered_seurat_obj<- readRDS(file ="output_20231106_154636/clustered_seurat_obj.rds")
+```
+# get DE genes
+```{r DEgenes}
+de_results <- find_differentially_expressed_features(clustered_seurat_obj)
+annot_df <- score_and_plot_markers(clustered_seurat_obj, output)
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
+```
