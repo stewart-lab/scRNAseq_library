@@ -249,6 +249,8 @@ feature_selection <- function(seurat_obj) {
 
 scale_data <- function(seurat_obj, path = output) {
   vars.2.regress <- config$scale_data$vars.2.regress
+  marker.path.s <- config$scale_data$marker.path.s
+  marker.path.g2m <- config$scale_data$marker.path.g2m
   species <- config$species # Get species information
 
   # Get all gene names
@@ -257,10 +259,10 @@ scale_data <- function(seurat_obj, path = output) {
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
     # Read cell cycle markers
-    cell.cycle.markers.s <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    cell.cycle.markers.s <- read.csv2(marker.path.s,
       sep = "\t", header = TRUE, row.names = 1
     )
-    cell.cycle.markers.g2m <- read.csv2("../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt",
+    cell.cycle.markers.g2m <- read.csv2(marker.path.g2m,
       sep = "\t", header = TRUE, row.names = 1
     )
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
@@ -313,6 +315,8 @@ scale_data <- function(seurat_obj, path = output) {
 sc_transform <- function(seurat_obj, path = output) {
   vars.2.regress <- config$sc_transform$vars.2.regress
   species <- config$species # Get species information
+  marker.path.s <- config$sc_transform$marker.path.s
+  marker.path.g2m <- config$sc_transform$marker.path.g2m
 
   # Get all gene names
   all.genes <- rownames(seurat_obj)
@@ -320,10 +324,10 @@ sc_transform <- function(seurat_obj, path = output) {
   # Scale the data
   if (vars.2.regress == "cell.cycle") {
     # Read cell cycle markers
-    cell.cycle.markers.s <- read.csv2("/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    cell.cycle.markers.s <- read.csv2(marker.path.s,
       sep = "\t", header = TRUE, row.names = 1
     )
-    cell.cycle.markers.g2m <- read.csv2("/w5home/bmoore/scRNAseq_library/sc_pipeline/cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt",
+    cell.cycle.markers.g2m <- read.csv2(marker.path.g2m,
       sep = "\t", header = TRUE, row.names = 1
     )
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)

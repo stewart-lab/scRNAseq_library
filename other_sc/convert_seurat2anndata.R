@@ -19,7 +19,7 @@ use_condaenv(condaenv = 'scRNAseq_best', required = TRUE)
 
 library(SeuratDisk)
 
-setwd("/w5home/bmoore/scRNAseq/LiFangChu/fluidigm_gup_expr_results/output_20231106_154636/")
+setwd("/w5home/bmoore/scRNAseq/LiFangChu/fluidigm_gup_expr_results/output_20231114_102348/")
 
 
 # read in Seurat object

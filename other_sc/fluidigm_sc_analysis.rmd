@@ -104,6 +104,7 @@ seurat.big
 # Assay: SCT
 # normalize together
 normalized_seurat_obj <- sc_transform(seurat.big)
+
 # and separately
 # seurat_obj0 <- Seurat::SCTransform(seurat_obj0)
 # seurat_obj1 <- Seurat::SCTransform(seurat_obj1)
@@ -112,9 +113,14 @@ normalized_seurat_obj <- sc_transform(seurat.big)
 # seurat_obj4 <- Seurat::SCTransform(seurat_obj4)
 # seurat_obj5 <- Seurat::SCTransform(seurat_obj5)
 ```
+```{r normalize}
+normalized_seurat_obj<- NormalizeData(seurat.big)
+feat_select_seurat_obj <- feature_selection(normalized_seurat_obj)
+scaled_seurat_obj <-  scale_data(feat_select_seurat_obj)
+```
 # PCA
 ```{r pca}
-dim_reduced_seurat_obj <- run_and_visualize_pca(normalized_seurat_obj)
+dim_reduced_seurat_obj <- run_and_visualize_pca(scaled_seurat_obj)
 #
 # seurat_obj0 <- run_and_visualize_pca(seurat_obj0)
 # seurat_obj1 <- run_and_visualize_pca(seurat_obj1)
@@ -157,7 +163,8 @@ saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
 ```
 # read back in
 ```{r readin}
-clustered_seurat_obj<- readRDS(file = paste0(output, "clustered_seurat_obj.rds"))
+#clustered_seurat_obj<- readRDS(file = paste0(output, "clustered_seurat_obj.rds"))
+clustered_seurat_obj<- readRDS(file ="output_20231106_154636/clustered_seurat_obj.rds")
 ```
 # get DE genes
 ```{r DEgenes}
