@@ -1,183 +1,103 @@
-install.packages("BiocManager")
-
+# install packages
 BiocManager::install("clustifyr")
-
+# load libraries
 library(clustifyr)
 library(ggplot2)
 library(cowplot)
+library(Seurat)
+# setwd
+setwd("/Users/bmoore/Desktop/scRNAseq/GAMM/GAMM_S1/output_20230921_142919")
+# load data set
+gamms2 <- readRDS(file = "seurat_obj_labeled.rds")
+table(gamms2$orig.ident)
+table(gamms2$seurat_clusters)
+table(gamms2@active.ident)
+gamms2 <- AddMetaData(gamms2, metadata = gamms2@active.ident, col.name= "CellType")
+table(gamms2$CellType)
+# load marker list
+markers <- read.csv2("../../known_markers/GammLab_Retinal-specific_genelist_mod.txt", sep="\t", header = TRUE)
+# consolidated markers
+markers <- read.csv2("../../known_markers/Gamm_lab_Consolidated_markerList.txt", sep="\t", header = TRUE)
+# subset
+markers_df <- data.frame(markers$gene,markers$Cell.type)
+# rename columns and matrixize markers
+colnames(markers_df) <- c("gene","cluster")
+#marker_mtx <- matrixize_markers(markers_df)
 
-# Matrix of normalized single-cell RNA-seq counts
-pbmc_matrix <- clustifyr::pbmc_matrix_small
-
-# meta.data table containing cluster assignments for each cell
-# The table that we are using also contains the known cell identities in the "classified" column
-pbmc_meta <- clustifyr::pbmc_meta
-
-# input: an SingleCellExperiment or Seurat object or a matrix of normalized single-cell RNA-seq counts
-# metadata: a meta.data table containing the cluster assignments for each cell (not required if a Seurat object is given)
-# ref_mat: a reference matrix containing RNA-seq expression data for each cell type of interest
-# query_genes: a list of genes to use for comparison (optional but recommended)
-
-# Calculate correlation coefficients for each cluster (spearman by default)
-vargenes <- pbmc_vargenes[1:500]
-
-res <- clustify(
-  input = pbmc_matrix, # matrix of normalized scRNA-seq counts (or SCE/Seurat object)
-  metadata = pbmc_meta, # meta.data table containing cell clusters
-  cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
-  ref_mat = cbmc_ref, # matrix of RNA-seq expression data for each cell type
-  query_genes = vargenes # list of highly varible genes identified with Seurat
-)
-
-# Peek at correlation matrix
-res[1:5, 1:5]
-
-# Call cell types
-res2 <- cor_to_call(
-  cor_mat = res,                  # matrix correlation coefficients
-  cluster_col = "seurat_clusters" # name of column in meta.data containing cell clusters
-)
-res2[1:5, ]
-
-# Insert into original metadata as "type" column
-pbmc_meta2 <- call_to_metadata(
-  res = res2,                     # data.frame of called cell type for each cluster
-  metadata = pbmc_meta,           # original meta.data table containing cell clusters
-  cluster_col = "seurat_clusters" # name of column in meta.data containing cell clusters
-)
-
-# plot_cor_heatmap() function to plot the correlation coefficients for each cluster and each cell type.
-BiocManager::install("ComplexHeatmap")
-library(ComplexHeatmap)
-# Create heatmap of correlation coefficients using clustifyr() output
-library(circlize)
-library("viridis")
-viridis(6)
-col_fun = colorRamp2(seq(0, 1, length = 6), rev(viridis(6)))
-plot_cor_heatmap(cor_mat = res, col=col_fun)
-
-# plot cluster identities and corelation coefficients
-# Overlay correlation coefficients on UMAPs for the first two cell types
-corr_umaps <- plot_cor(
-  cor_mat = res,                     # matrix of correlation coefficients from clustifyr()
-  metadata = pbmc_meta,              # meta.data table containing UMAP or tSNE data
-  data_to_plot = colnames(res)[1:2], # name of cell type(s) to plot correlation coefficients
-  cluster_col = "seurat_clusters"    # name of column in meta.data containing cell clusters
-)
-
-plot_grid(
-  plotlist = corr_umaps,
-  rel_widths = c(0.47, 0.53)
-)
-# The plot_best_call() function can be used to label each cluster with the cell 
-# type that gives the highest corelation coefficient. 
-# Label clusters with clustifyr cell identities
-clustifyr_types <- plot_best_call(
-  cor_mat = res,          # matrix of correlation coefficients from clustifyr()
-  metadata = pbmc_meta,   # meta.data table containing UMAP or tSNE data
-  do_label = TRUE,        # should the feature label be shown on each cluster?
-  do_legend = TRUE,      # should the legend be shown?
-  cluster_col = "seurat_clusters"
-) +
-  ggtitle("clustifyr cell types")
-
-# Compare clustifyr results with known cell identities
-known_types <- plot_dims(
-  data = pbmc_meta,       # meta.data table containing UMAP or tSNE data
-  feature = "classified", # name of column in meta.data to color clusters by
-  do_label = TRUE,        # should the feature label be shown on each cluster?
-  do_legend = TRUE       # should the legend be shown?
-) +
-  ggtitle("Known cell types")
-
-plot_grid(known_types, clustifyr_types)
-
-# Classify cells using known marker genes
-# The clustify_lists() function allows cell types to be assigned based on known marker genes.
-# Cell types can be assigned using several statistical tests including, hypergeometric, Jaccard, Spearman, and GSEA.
-
-# Take a peek at marker gene table
-cbmc_m
-
-# Available metrics include: "hyper", "jaccard", "spearman", "gsea"
+# clustifyr annotation from marker list
+# Available metrics include: "pct", "hyper", "jaccard", "spearman", "gsea"
 list_res <- clustify_lists(
-  input = pbmc_matrix,             # matrix of normalized single-cell RNA-seq counts
-  metadata = pbmc_meta,            # meta.data table containing cell clusters
+  input = gamms2,             # matrix of normalized single-cell RNA-seq counts
   cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
-  marker = cbmc_m,                 # list of known marker genes
-  metric = "pct"                   # test to use for assigning cell types
+  marker = markers_df,                 # list of known marker genes
+  metric = "pct", # test to use for assigning cell types
+  marker_inmatrix = FALSE,
+  obj_out = FALSE
 )
 
 # View as heatmap, or plot_best_call
 plot_cor_heatmap(
   cor_mat = list_res,              # matrix of correlation coefficients from clustify_lists()
-  cluster_rows = FALSE,            # cluster by row?
-  cluster_columns = FALSE,         # cluster by column?
-  legend_title = "% expressed",     # title of heatmap legend
-  col=col_fun
-  )
+  cluster_rows = TRUE,            # cluster by row?
+  cluster_columns = TRUE,         # cluster by column?
+  legend_title = "pct"     # title of heatmap legend
+)
 
-
-# Downstream functions same as clustify()
 # Call cell types
 list_res2 <- cor_to_call(
   cor_mat = list_res,              # matrix correlation coefficients
   cluster_col = "seurat_clusters"  # name of column in meta.data containing cell clusters
 )
 
-# Insert into original metadata as "list_type" column
-pbmc_meta3 <- call_to_metadata(
+# Insert into metadata dataframe as "clustifyr_call" column
+gamms2.1 <- call_to_metadata(
   res = list_res2,                 # data.frame of called cell type for each cluster
-  metadata = pbmc_meta,            # original meta.data table containing cell clusters
+  metadata = gamms2@meta.data, 
   cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
-  rename_prefix = "list_"          # set a prefix for the new column
+  rename_prefix = "clustifyr_call_full"          # set a prefix for the new column
 )
+# add to seurat object metadata
+gamms2 <- AddMetaData(gamms2, metadata = gamms2.1)
+# plot
+pc <- DimPlot(gamms2, reduction = "umap", group.by = "clustifyr_call_full_type", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("GammS1 clustifyr annotated full labels") +
+              guides(fill = guide_legend(label.theme = element_text(size = 8)))
+pdf("clustifyr_full_annotation_umap.pdf", width = 11, height = 6)
+print(pc)
+dev.off()
 
-# Direct handling of SingleCellExperiment objects
+saveRDS(gamms2, file= "gamms1_clustifyr.rds")
+
+## clustifyr annotation from reference
+
+# load annotated human data
+human_D205.seurat<- readRDS(file = "../../human_ref/output_preprocess20230912_144047_cc/human_D205_umap.rds")
+table(human_D205.seurat$type)
+# subset
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2'))
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('miG'))
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('T2'))
+# get ref matrix
+new_ref_matrix <- seurat_ref(
+  seurat_object = human_D205.seurat,        # SeuratV3 object
+  cluster_col = "type"    # name of column in meta.data containing cell identities
+)
+# run clustify (spearman corr is default)
 res <- clustify(
-  input = sce_small,          # an SCE object
-  ref_mat = cbmc_ref,         # matrix of RNA-seq expression data for each cell type
-  cluster_col = "cell_type1", # name of column in meta.data containing cell clusters
-  obj_out = TRUE              # output SCE object with cell type inserted as "type" column
+  input = gamms2,       # a Seurat object
+  ref_mat = new_ref_matrix,    # matrix of RNA-seq expression data for each cell type
+  cluster_col = "seurat_clusters", # name of column in meta.data containing cell clusters
+  obj_out = TRUE,      # output Seurat object with cell type inserted as "type" column
+  rename_prefix= "clustify_pred",
+  n_genes= 2000
 )
+table(res$clustify_pred_type)
 
-SingleCellExperiment::colData(res)[1:10,c("type", "r")]
-
-# Direct handling of seurat v2 and v3 objects
-
-res <- clustify(
-  input = s_small3,       # a Seurat object
-  ref_mat = cbmc_ref,    # matrix of RNA-seq expression data for each cell type
-  cluster_col = "RNA_snn_res.1", # name of column in meta.data containing cell clusters
-  obj_out = TRUE      # output Seurat object with cell type inserted as "type" column
-)
-
-res@meta.data[1:10, ]
-
-# Building reference matrix from single cell expression matrix
-# n its simplest form, a reference matrix is built by averaging expression (also
-# includes an option to take the median) of a single cell RNA-seq expression matrix by cluster.
-
-# from matrix
-new_ref_matrix <- average_clusters(
-  mat = pbmc_matrix,
-  metadata = pbmc_meta$classified, # or use metadata = pbmc_meta, cluster_col = "classified"
-  if_log = TRUE                    # whether the expression matrix is already log transformed
-)
-
-head(new_ref_matrix)
-
-# generate reference matrix from `SingleCellExperiment` or `seurat` object
-new_ref_matrix_sce <- object_ref(
-  input = sce_small,               # SCE object
-  cluster_col = "cell_type1"       # name of column in colData containing cell identities
-)
-
-new_ref_matrix_v3 <- seurat_ref(
-  seurat_object = s_small3,        # SeuratV3 object
-  cluster_col = "RNA_snn_res.1"    # name of column in meta.data containing cell identities
-)
-
-tail(new_ref_matrix_v3)
-
-sessionInfo()
+pc <- DimPlot(res, reduction = "umap", group.by = "clustify_pred_type", label = TRUE,
+              label.size = 3, repel = TRUE) + ggtitle("GammS2 clustifyr predicted labels- spearmans") +
+  guides(fill = guide_legend(label.theme = element_text(size = 8)))
+pdf("clustifyr_predicted_labels_umap.pdf", width = 10, height = 6)
+print(pc)
+dev.off()
+table(res$clustify_pred_r)
+saveRDS(res, file= "gamms2_clustifyr.rds")
