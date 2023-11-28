@@ -21,6 +21,7 @@ library(patchwork)
 library(dplyr)
 library(reticulate)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
+METADATA <- "gamm_manual_annot_metadata_c0.5.txt" # add to working directory
 use_condaenv(condaenv = 'scRNAseq_best', required = TRUE)
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
@@ -29,13 +30,15 @@ dir.create(output, showWarnings = FALSE)
 file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
 config <- fromJSON(file.path(output, "config.json"))
 output <- paste0(output, "/")
-source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
 ```
 # run preprocess_crossspecies.Rmd first to get the data preprocessed the same way
 # get reference and query data
 ```{r get_data}
-human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_norm.rds")
-gamm <- readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
+#human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_norm.rds")
+human_D205.seurat <- readRDS(file = "output_seurat_mapping_20231110_135152/human_D205_clustered.rds")
+#gamm <- readRDS(file = "output_20230711_155556/GAMM_S2_norm.rds")
+gamm <- readRDS(file = "output_seurat_mapping_20231110_135152/gamm.S2_clustered.rds")
 ```
 # subset metadata if needed
 ```{r subset_metadata}
@@ -82,7 +85,7 @@ human_D205.seurat.test$Idents <- human_D205.seurat.test$type
 # Perform further analysis as needed on the seurat_test_object
 ```{r normalize_test_set}
 human_D205.seurat.test_norm <- normalize_data(human_D205.seurat.test)
-saveRDS(human_D205.seurat.test_norm, file= paste0(output,"human_D205_test_norm.rds"))
+#saveRDS(human_D205.seurat.test_norm, file= paste0(output,"human_D205_test_norm.rds"))
 ```
 
 # do analysis on training set
@@ -97,7 +100,7 @@ human_D205.seurat.train <- run_and_visualize_pca(human_D205.seurat.train)
 # run umap
 human_D205.seurat.train <- run_umap(human_D205.seurat.train)
 #save
-saveRDS(human_D205.seurat.train, file= paste0(output,"human_D205_train.rds"))
+#saveRDS(human_D205.seurat.train, file= paste0(output,"human_D205_train.rds"))
 ```
 # show umap of ref data
 ```{r show_umap_ref}
@@ -239,16 +242,17 @@ labels<- as.vector(unique(colnames(gamm@meta.data)))
 labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA', 
         'scpred_max', 'scpred_prediction', 'scpred_no_rejection','sizeFactors',
         "scDblFinder.score","percent.mt","CellType","ident","scDblFinder.weighted",
-        "RNA_snn_res.0.5","scDblFinder.class","scDblFinder.cxds_score","seurat_clusters")]
+        "RNA_snn_res.0.5","scDblFinder.class","scDblFinder.cxds_score","seurat_clusters",
+        'S.Score','G2M.Score','Phase','old.ident')]
 # visualize the probabilities over the UMAP plot:
 pdf(paste0(output, "celltype_prediction_featureplot_gamms2.pdf"), width = 11, height = 9)
 print(FeaturePlot(gamm, labels, keep.scale = "all"))
 dev.off()
 ```
 # verify performance with manual annotation
-```{r verify_performance}
+```{r read in metadata}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("gamm_manual_annot_metadata_S2_mod.txt", row.names = 1, 
+metadata.gamm <- read.csv(METADATA, row.names = 1, 
             header = TRUE, sep = "\t")
 # check metadata with query data
 colnames(gamm@assays$RNA@data)[1:10]
@@ -258,7 +262,10 @@ rownames(metadata.gamm) <- sub("_1", "", rownames(metadata.gamm))
 rownames(metadata.gamm)[1:10]
 # add metadata to query data
 gamm <- AddMetaData(gamm, metadata.gamm)
+```
+
 # verify model performance in query data
+```{r verify_performance}
 query.ref.data.table<- as.data.frame(crossTab(gamm, "CellType", "scpred_prediction"))
 # check out proportion of cells
 query.ref.data.table2<- as.data.frame(crossTab(gamm, "CellType", "scpred_prediction", output = "prop"))
@@ -271,22 +278,15 @@ dev.off()
 ```
 # save query seurat object
 ```{r save_query}
-saveRDS(gamm, file = "GAMM_S2_scpred_c0.5.rds")
+saveRDS(gamm, file = paste0(output, "GAMM_S2_scpred_c0.5.rds"))
 ```
 ```{r access_classifiers}
 # access the classifiers
 classifiers<- get_classifiers(human_D205.seurat.train)
 
 saveRDS(classifiers, file = paste0(output, "classifiers.rds"))
-
-# for (i in 1:length(classifiers)) {
-#         print(classifiers[i])
-#         write(names(classifiers[i]), file= paste0(output, "classifiers.txt"),
-#         sep="\n", append=TRUE)
-#         write(classifiers[[i]], file= paste0(output, "classifiers.txt"),
-#         sep="\n", append=TRUE)
-
-# }
-# Each model can be normally treated using the caret enviroment.
-# caret::plot.train(get_classifiers(human_D205.seurat)[["AC"]])
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
 ```

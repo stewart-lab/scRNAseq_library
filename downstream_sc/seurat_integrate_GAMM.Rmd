@@ -31,7 +31,7 @@ cell.cycle.markers.g2m <- read.csv2("/w5home/bmoore/scRNAseq_library/cell_cycle_
 varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
 output <- paste0(output, "/")
 config <- fromJSON(file.path(output, "config.json"))
-source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
 ```
 # if needed, install python packages
 ```{r}
@@ -248,4 +248,8 @@ plots <- VlnPlot(gamm.combined, features = rownames(top5), split.by = "orig.iden
 pdf(paste0(output, "rprog.mg.diff_top5_vlnplot.pdf"), width = 8, height = 14)
 print(wrap_plots(plots = plots, ncol = 1))
 dev.off()
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
 ```

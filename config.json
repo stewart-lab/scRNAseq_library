@@ -40,7 +40,14 @@
     "analysis_type": "Scry"
   },
   "scale_data": {
-    "vars.2.regress": "cell.cycle"
+    "vars.2.regress": "cell.cycle",
+    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
+  },
+  "sc_transform": {
+    "vars.2.regress": "cell.cycle",
+    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
   },
   "run_and_visualize_pca": {
     "top_n_dims": 2,
@@ -72,6 +79,13 @@
   "score_and_plot_markers": {
     "top_n_markers": 10,
     "known_markers": "TRUE",
-    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt"
+    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt",
+    "cluster_type": "seurat_clusters",
+    "pairwise": "TRUE",
+    "logFC_thresh": 0.5,
+    "auc_thresh": 0.5
+  },
+  "transfer_anchors": {
+    "reduc.type": "cca"
   }
 }

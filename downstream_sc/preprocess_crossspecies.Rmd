@@ -228,8 +228,8 @@ dim(gamm.S2.seurat_mt_filtered_subset)
 ```{r}
 human_D205.seurat_norm <- normalize_data(human_D205.seurat_mt_filtered_subset)
 gamm.S2.seurat_norm <- normalize_data(gamm.S2.seurat_mt_filtered_subset)
-saveRDS(human_D205.seurat_norm, file = "human_D205_norm.rds")
-saveRDS(gamm.S2.seurat_norm, file = "GAMM_S2_norm.rds")
+saveRDS(human_D205.seurat_norm, file = paste0(output,"human_D205_norm.rds"))
+saveRDS(gamm.S2.seurat_norm, file = paste0(output,"GAMM_S2_norm.rds"))
 ```
 ## further steps: 
 # for scPRED: reference undergoes feature selection, scaling, and dimensional reduction, query does not
@@ -243,21 +243,37 @@ saveRDS(gamm.S2.seurat_norm, file = "GAMM_S2_norm.rds")
 #human_D205.seurat_norm<-readRDS(file = "output_20230711_155556/human_D205_norm.rds")
 gamm.S2.seurat_feat_select <- feature_selection(gamm.S2.seurat_norm)
 human_D205.seurat_feat_select <- feature_selection(human_D205.seurat_norm)
-saveRDS(gamm.S2.seurat_feat_select, file = "GAMM_S2_feat_select.rds")
-saveRDS(human_D205.seurat_feat_select, file = "human_D205_feat_select.rds")
+saveRDS(gamm.S2.seurat_feat_select, file = paste0(output,"GAMM_S2_feat_select.rds"))
+saveRDS(human_D205.seurat_feat_select, file = paste0(output,"human_D205_feat_select.rds"))
 ```
 
 # Scaling data
 ```{r}
+#gamm.S2.seurat_feat_select <- readRDS(file = "output_preprocess20230912_144047_cc/GAMM_S2_feat_select.rds")
+gamm.S2.seurat_scaled <- scale_data(gamm.S2.seurat_feat_select)
 human_D205.seurat_scaled <- scale_data(human_D205.seurat_feat_select)
 ```
 
 # Dimensional reduction
 ```{r}
+gamm.S2.seurat_dim_reduced <- run_and_visualize_pca(gamm.S2.seurat_scaled)
 human_D205.seurat_dim_reduced <- run_and_visualize_pca(human_D205.seurat_scaled)
 ```
 # Run umap
 ```{r}
+gamm.S2.seurat_umap <- run_umap(gamm.S2.seurat_dim_reduced)
+#human_D205.seurat_umap <- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
 human_D205.seurat_umap <- run_umap(human_D205.seurat_dim_reduced)
-saveRDS(human_D205.seurat_umap, file = "human_D205_umap.rds")
+#saveRDS(human_D205.seurat_umap, file = paste0(output, "human_D205_umap.rds"))
+```
+# clustering
+```{r}
+gamm.S2.seurat_clustered <- perform_clustering(gamm.S2.seurat_umap)
+human_D205.seurat_clustered <- perform_clustering(human_D205.seurat_umap)
+saveRDS(gamm.S2.seurat_clustered, file = paste0(output, "gamm.S2_clustered.rds"))
+saveRDS(human_D205.seurat_clustered, file = paste0(output, "human_D205_clustered.rds"))
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
 ```

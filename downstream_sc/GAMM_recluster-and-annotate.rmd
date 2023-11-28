@@ -100,3 +100,7 @@ new.cluster.ids2 <- c("Pan PRs-Rods","Muller Glia","Ganglion cell","Bipolar Cell
 # annotate
 gamms2_recluster<-annotate_clusters_and_save(gamms2_recluster, new.cluster.ids2, output)
 ```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
+```

@@ -1,6 +1,7 @@
 # scRNA-seq Analysis Guide
 
-This README provides instructions on how to set up a Docker environment for single-cell RNA sequencing (scRNA-seq) analysis.
+This README provides instructions on how to do a general single-cell RNA sequencing (scRNA-seq) analysis via Docker, as well as 
+some specialized analyses such as automated annotation, cell type composition, and pseudotime.
 
 ## Prerequisites
 
@@ -107,7 +108,7 @@ This README provides a brief description of the configuration file used in the s
   - `heatmap_dims`: The number of dimensions for the heatmap. (e.g., 15)
   - `num_cells`: The number of cells to use. (e.g., 500)
   - `dims`: The number of dimensions to use for jackstraw. (e.g., 20)
-  - `num.replicate`: The number of replicates for jackstraw plot. (e.g., 100)
+  - `num.replicate`: The number of replicates for jackstraw plot. (e.g., 100, or can be NA). If 'NA' jackstraw is not run.
 
 - `run_umap`: A dictionary for running UMAP.
   - `dims_umap`: The number of dimensions to use in UMAP reduction. (e.g., 20)
@@ -270,6 +271,63 @@ library(Seurat)
 library(tidyverse)
 library(loo)
 ```
+# Pseudotime/ trajectory analysis
+
+Cells are often in transition from one cell type to another, and pseudotime captures relationships between clusters, beginning with the least differentiated state to the most mature/terminal state(s).
+
+## Palantir and CellRank
+
+Palantir models trajectories of differentiated cells by treating cell fate as a probabilistic process and leverages entropy to measure cell plasticity along the trajectory. CellRank uses Palantir in
+it's pseudotime kernel, but can also use RNA velocity, similarity, cytotrace, time-series, or matebolic labeling to calculate trajectories. Here we use it with Palantir. Together they identify initial
+and terminal states, cell fate probabilities, and driver genes.
+
+Tutorials:
+- Palantir: https://github.com/dpeerlab/Palantir
+- CellRank: https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/general/100_getting_started.html
+
+To run Palantir and CellRank you first have to have a Seurat object that is clustered and annotated (see above). 
+
+Next convert your Seurat object to an anndata object:
+
+```
+# before running, change the working directory and the input and output filenames in the script.
+src/convert_seurat2anndata.R
+```
+
+- R requirements
+```
+library(reticulate)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+library(Seurat)
+library(SeuratDisk)
+```
+
+Once you have your anndata object, set up your python environment:
+
+```
+# set up with pseudotime_requirements.txt
+source src/install_pseudotime_env.sh
+# activate
+source pst_venv/bin/activate
+```
+
+Now you are ready to run Palantir and CellRank
+
+- open src/pseudotime_GAMM.ipynb is vscode and update the following variables:
+
+```
+# variables
+DATA_DIR = "your_directory" # directory where anndata object is
+ADATA_FILE = "gamms2_cca_pred.h5ad" # the name of your h5ad (anndata) file
+ANNOT_TYPE = "manual" # the type of annotation used, options are: "seurat_map", "clustifyr", "manual"
+CROSS_SPECIES = "TRUE" # is this a cross-species annotation? "TRUE" or "FALSE"
+NC = 8 # number of components that are used to find terminal cells. In general, lower for few terminal cell types, higher for many terminal cell types
+```
+
+- now run src/pseudotime_GAMM.ipynb
+- figures will be saved to the data directory
 
 # References: 
 
@@ -282,4 +340,8 @@ scPred paper: https://doi.org/10.1186/s13059-019-1862-5
 Seurat paper: https://doi.org/10.1016/j.cell.2019.05.031
 
 sccomp paper: https://doi.org/10.1073/pnas.2203828120
+
+Palantir paper: https://doi.org/10.1038/s41587-019-0068-4
+
+CellRank2 paper: https://doi.org/10.1101/2023.07.19.549685
 

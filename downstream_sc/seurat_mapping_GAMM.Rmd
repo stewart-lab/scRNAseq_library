@@ -35,13 +35,15 @@ dir.create(output, showWarnings = FALSE)
 file.copy("/w5home/bmoore/scRNAseq_library/config.json", file.path(output, "config.json"))
 config <- fromJSON(file.path(output, "config.json"))
 output <- paste0(output, "/")
-source("/w5home/bmoore/scRNAseq_library/src/sc_pipeline_functions.R")
+source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R")
 ```
 
 # read in seurat objects that were preprocessed
 ```{r read_data}
-gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
-human_D205.seurat<- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
+#gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
+gamms2 <- readRDS(file = paste0(output, "gamm.S2_clustered.rds"))
+# human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
+human_D205.seurat <- readRDS(file = paste0(output, "human_D205_clustered.rds"))
 ```
 # prep for integration
 ```{r prep_for_integration}
@@ -60,7 +62,7 @@ dev.off()
 ## mapping and annotating query datasets
 # get query data and find anchors
 ```{r find_anchors_and_transfer}
-reduc.type = "cca"
+reduc.type = config$transfer_anchors$reduc.type
 if (reduc.type== "cca"){
 # for cca
 gamm.anchors <- FindTransferAnchors(reference = human_D205.seurat, query = gamms2,
@@ -78,7 +80,22 @@ predictions <- TransferData(anchorset = gamm.anchors, refdata = human_D205.seura
   }
 gamms2 <- AddMetaData(gamms2, metadata = predictions)
 ```
-# run umap on query data
+# evaluate how well our predicted cell type annotations match the full reference. 
+# need manual annotation data (skip if you already have this data in seurat object)
+```{r read_metadata}
+# add in metadata from previous analysis
+metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
+            header = TRUE, sep = "\t")
+# check metadata with query data
+colnames(gamms2@assays$RNA@data)[1:10]
+rownames(metadata.gamm)[1:10]
+# remove "_1" from metadata
+rownames(metadata.gamm) <- sub("_1", "", rownames(metadata.gamm))
+rownames(metadata.gamm)[1:10]
+# add metadata to query data
+gamms2 <- AddMetaData(gamms2, metadata.gamm)
+```
+# run umap on query data and visualize predicted annotation and manual annotation
 ```{r run_umap_on_query}
 gamms2 <- scale_data(gamms2)
 gamms2 <- RunPCA(gamms2, features = VariableFeatures(object = gamms2))
@@ -95,21 +112,7 @@ print(pc)
 dev.off()
 ```
 
-# evaluate how well our predicted cell type annotations match the full reference. 
-# need manual annotation data
-```{r read_metadata}
-# add in metadata from previous analysis
-metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
-            header = TRUE, sep = "\t")
-# check metadata with query data
-colnames(gamms2@assays$RNA@data)[1:10]
-rownames(metadata.gamm)[1:10]
-# remove "_1" from metadata
-rownames(metadata.gamm) <- sub("_1", "", rownames(metadata.gamm))
-rownames(metadata.gamm)[1:10]
-# add metadata to query data
-gamms2 <- AddMetaData(gamms2, metadata.gamm)
-```
+
 # compare predictions to manual annotations
 ```{r compare_predictions_to_manual_annotations}
 gamms2$prediction.match <- gamms2$predicted.id == gamms2$CellType
@@ -158,7 +161,8 @@ labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA',
         'predicted.id','sizeFactors','scDblFinder.score','percent.mt','CellType',
         'ident','scDblFinder.weighted', 'prediction.score.max','prediction.match', 
         'RNA_snn_res.0.14','RNA_snn_res.0.5',"predicted.celltype.score","predicted.celltype",
-        'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters')]
+        'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters','S.Score','G2M.Score',
+        'Phase','old.ident')]
 # visualize the probabilities over the UMAP plot:
 pdf(paste0(output, "celltype_prediction_featureplot.pdf"), width = 10, height = 10)
 print(FeaturePlot(gamms2, labels, keep.scale = "all"))
@@ -175,6 +179,10 @@ write.table(query.ref.data.table2, file = paste0(output, "query_ref_data_table_p
 ```
 ```{r save_query_data}
 saveRDS(gamms2, file= paste0(output,"gamms2_cca_pred.rds"))
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
 ```
 ```{r read_data}
 #gamms2 <- readRDS(file = "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/output_seurat_mapping_20230804_143108/gamms2_rpca_pred.rds")
