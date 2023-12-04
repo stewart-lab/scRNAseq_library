@@ -10,6 +10,8 @@ params:
 
 ```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+use_condaenv("/root/miniconda/envs/scrnaseq")
 library(dplyr)
 library(Seurat)
 library(patchwork)
@@ -20,11 +22,14 @@ library(cowplot)
 library(harmony)
 library(SoupX)
 library(scDblFinder)
-library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
-use_condaenv("/root/miniconda/envs/scrnaseq")
+library(tibble)
+library(stringr)
+library(clustifyr)
+library(ggplot2)
+library(ComplexHeatmap)
 output <- params$output
 config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
 output <- paste0("../", output, "/")
@@ -139,7 +144,7 @@ if (config$DE_method == "Seurat") {
 ```{r Save Final Object}
 saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
 ```
-# manual annotation
+# Both annotation methods
 ```{r manual_annot}
 # order clusters from annotation data frame
 new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
@@ -147,4 +152,6 @@ new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
 new.cluster.ids <- new_df.ordered$Cell.type
 # annotate
 labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
+
+clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, output)
 ```
