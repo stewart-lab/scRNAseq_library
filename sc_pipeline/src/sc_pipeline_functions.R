@@ -3,13 +3,23 @@ read_aligned_data <- function(base_directory, project_name, output) {
   filtered_data_directory <- paste0(base_directory, "/filtered/")
   raw_data_directory <- paste0(base_directory, "/raw/")
 
-  # Try to copy Summary.csv to output directory
+  # Alignment directory and subdirectories
+  alignment_directory <- paste0(output, "/alignment/")
+  alignment_raw_directory <- paste0(alignment_directory, "raw/")
+  alignment_filtered_directory <- paste0(alignment_directory, "filtered/")
+
+  # Create directories
+  dir.create(alignment_directory, recursive = TRUE, showWarnings = FALSE)
+  dir.create(alignment_raw_directory, recursive = TRUE, showWarnings = FALSE)
+  dir.create(alignment_filtered_directory, recursive = TRUE, showWarnings = FALSE)
+
+  # Try to copy Summary.csv to alignment directory
   summary_file_path <- paste0(base_directory, "/Summary.csv")
-  output_file_path <- paste0(output, "/Alignment_Summary.csv")
+  alignment_summary_file_path <- paste0(alignment_directory, "Alignment_Summary.csv")
 
   tryCatch({
-    file.copy(summary_file_path, output_file_path, overwrite = TRUE)
-    message("Summary.csv has been copied successfully.")
+    file.copy(summary_file_path, alignment_summary_file_path, overwrite = TRUE)
+    message("Summary.csv has been copied successfully to alignment directory.")
   }, warning = function(w) {
     message("Warning: ", conditionMessage(w))
   }, error = function(e) {
@@ -17,6 +27,18 @@ read_aligned_data <- function(base_directory, project_name, output) {
   }, finally = {
     message("Continuing with the rest of the function.")
   })
+
+  # Function to copy .gz files from a directory to a target directory
+  copy_gz_files_to_directory <- function(source_directory, target_directory) {
+    gz_files <- list.files(source_directory, pattern = "\\.gz$", full.names = TRUE)
+    sapply(gz_files, function(file) {
+      file.copy(file, file.path(target_directory, basename(file)), overwrite = TRUE)
+    })
+  }
+
+  # Copy .gz files from raw and filtered data directories
+  copy_gz_files_to_directory(raw_data_directory, alignment_raw_directory)
+  copy_gz_files_to_directory(filtered_data_directory, alignment_filtered_directory)
 
   list(
     filtered = Read10X(filtered_data_directory),
@@ -29,6 +51,7 @@ read_aligned_data <- function(base_directory, project_name, output) {
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   dims_umap <- 1:config$prep_seurat_and_soupX$dims
   umap.method <- config$prep_seurat_and_soupX$umap.method
+  tfidfMin <- config$prep_seurat_and_soupX$tfidfMin
   # Create SoupChannel object
   sc <- SoupChannel(data.raw, data)
 
@@ -65,8 +88,8 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   umap <- seurat_obj@reductions$umap@cell.embeddings
   sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
 
-  # Estimate contamination fraction
-  sc <- autoEstCont(sc)
+  # Estimate contamination fractitfidfMin
+  sc <- autoEstCont(sc, tfidfMin = tfidfMin)
   out <- adjustCounts(sc, roundToInt = TRUE)
 
   list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
@@ -407,17 +430,17 @@ run_and_visualize_pca <- function(seurat_obj, path = output) {
   dev.off()
 
   # Perform JackStraw
-  if(num_replicate == "NA"){
+  if (num_replicate == "NA") {
     print("jackstraw not run")
   } else {
-  seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
-  seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
+    seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
+    seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
 
-  # Save JackStraw plot
-  pdf(paste0(path, "jack_straw.pdf"), width = 8, height = 6)
-  jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
-  print(jack_straw)
-  dev.off()
+    # Save JackStraw plot
+    pdf(paste0(path, "jack_straw.pdf"), width = 8, height = 6)
+    jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
+    print(jack_straw)
+    dev.off()
   }
 
   # Return the updated Seurat object
@@ -634,10 +657,9 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   clusters <- as.vector(clusters)
 
   # Read in known markers
-  if (known_markers==TRUE) {
-    known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names=1)
+  if (known_markers == TRUE) {
+    known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
     known.markers.df <- as.data.frame(known.markers)
-
   } else {
     known.markers.df <- NULL
   }
@@ -647,39 +669,43 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
     clust <- marker.info[[clusters[i]]]
     clust <- as.data.frame(clust)
     # get DE for each pariwise comparison
-    if (pairwise==TRUE) {
+    if (pairwise == TRUE) {
       clust_tbl <- rownames_to_column(clust, var = "gene") %>% as_tibble()
       # get dataframe with each logFC of each pairwise comparison
-      df_clust0 <- clust_tbl %>% dplyr::select(starts_with('full.logFC.cohen'))
+      df_clust0 <- clust_tbl %>% dplyr::select(starts_with("full.logFC.cohen"))
       # get dataframe that also includes gene and AUC
-      df_clust <- clust_tbl %>% dplyr::select(c('gene',starts_with('full.logFC.cohen'),
-        starts_with('full.AUC')))
+      df_clust <- clust_tbl %>% dplyr::select(c(
+        "gene", starts_with("full.logFC.cohen"),
+        starts_with("full.AUC")
+      ))
       # loop thorugh first dataframe to get pairwise comparison names
-      for (j in colnames(df_clust0)){
+      for (j in colnames(df_clust0)) {
         print(j)
         # get name of corresponding AUC value
         k <- str_split_1(j, "cohen.")
-        l <- paste0('full.AUC.',k[2])
+        l <- paste0("full.AUC.", k[2])
         # subset based on logFC threshold and AUC threshold
-        df_clust1 <- subset(df_clust, df_clust[j] > logFC_thresh & df_clust[l] > auc_thresh) #, select=c('gene', colname))
+        df_clust1 <- subset(df_clust, df_clust[j] > logFC_thresh & df_clust[l] > auc_thresh) # , select=c('gene', colname))
         df_clust1 <- df_clust1[order(df_clust1[j], decreasing = TRUE), ]
         # write table of all DE genes for the comparison
-        write.table(df_clust1, file = paste0(output_path, "DEgenes_clust_", clusters[i],".vs_",j, ".txt", 
-        collapse = ""), quote = F, sep = "\t", row.names = T)
+        write.table(df_clust1, file = paste0(output_path, "DEgenes_clust_", clusters[i], ".vs_", j, ".txt",
+          collapse = ""
+        ), quote = F, sep = "\t", row.names = T)
         # merge with known markers
-        df_clust2 <- merge(df_clust1, known.markers.df, by.x='gene', by.y = "row.names")
+        df_clust2 <- merge(df_clust1, known.markers.df, by.x = "gene", by.y = "row.names")
         # check if empty
         if (nrow(df_clust2) == 0) {
-        print(paste0("This data frame is empty: ", clusters[i],".vs_",j))
+          print(paste0("This data frame is empty: ", clusters[i], ".vs_", j))
         } else {
-        # write table
-        write.table(df_clust2, file = paste0(output_path, "KnownDEgenes_clust_", clusters[i],".vs_",j, ".txt", 
-        collapse = ""), quote = F, sep = "\t", row.names = T)
-        new_vec0 <- unique(as.vector(df_clust2$gene))
-        # make feature plot of genes
-        pdf(paste0(output_path, clusters[i], ".vs_", j,"_featureplot.pdf"), bg = "white")
-        print(FeaturePlot(seurat_obj, features = new_vec0), label = TRUE)
-        dev.off()
+          # write table
+          write.table(df_clust2, file = paste0(output_path, "KnownDEgenes_clust_", clusters[i], ".vs_", j, ".txt",
+            collapse = ""
+          ), quote = F, sep = "\t", row.names = T)
+          new_vec0 <- unique(as.vector(df_clust2$gene))
+          # make feature plot of genes
+          pdf(paste0(output_path, clusters[i], ".vs_", j, "_featureplot.pdf"), bg = "white")
+          print(FeaturePlot(seurat_obj, features = new_vec0), label = TRUE)
+          dev.off()
         }
       }
     } else {
@@ -695,7 +721,7 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
     # write out top100 genes
     write.table(top100, file = paste0(output_path, "Top100DEgenes_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = T)
     # Match with any DE markers from data by merging dataframes
-    if (known_markers==TRUE) {
+    if (known_markers == TRUE) {
       marker_df <- merge(top100, known.markers.df, by = "row.names")
       if (nrow(marker_df) == 0) {
         print(paste0("This data frame is empty: ", clusters[i]))
@@ -710,7 +736,7 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
         new_vec <- unique(as.vector(new_df$Row.names))
 
         # Get top ranked
-        rank <- top_n_markers+1
+        rank <- top_n_markers + 1
         new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
         new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
         new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
@@ -807,4 +833,65 @@ combine_feature_plots <- function(seurat_objs_list, feature_set1, feature_set2 =
   }
 
   return(combined_plot)
+}
+
+annotate_with_clustifyR <- function(clustered_seurat_obj, output) {
+  # Access the markers path
+  markers_path <- config$score_and_plot_markers$known_markers_path
+  markers <- read.csv2(markers_path, sep = "\t", header = TRUE)
+  markers_df <- data.frame(markers$gene, markers$Cell.type)
+  colnames(markers_df) <- c("gene", "cluster")
+
+  # Clustify lists
+  list_res <- clustify_lists(
+    input = clustered_seurat_obj,
+    cluster_col = "seurat_clusters",
+    marker = markers_df,
+    metric = "pct",
+    marker_inmatrix = FALSE,
+    obj_out = FALSE
+  )
+
+  if (length(unique(list_res)) > 1) {
+    p1 <- plot_cor_heatmap(
+      cor_mat = list_res,
+      cluster_rows = TRUE,
+      cluster_columns = TRUE,
+      legend_title = "pct"
+    )
+    pdf(paste0(output, "correlation_heatmap.pdf"), width = 8, height = 6)
+    print(p1)
+    dev.off()
+  } else {
+    print(paste0("Insufficient distinct values in list_res for heatmap plotting: ", unique(list_res)))
+    message("Insufficient distinct values in list_res for heatmap plotting.")
+  }
+
+  # Call cell types
+  list_res2 <- cor_to_call(
+    cor_mat = list_res,
+    cluster_col = "seurat_clusters"
+  )
+
+  # Add clustifyr calls as metadata
+  clust_call <- call_to_metadata(
+    res = list_res2,
+    metadata = clustered_seurat_obj@meta.data,
+    cluster_col = "seurat_clusters",
+    rename_prefix = "clustifyr_call"
+  )
+  clustered_seurat_obj <- AddMetaData(clustered_seurat_obj, metadata = clust_call)
+
+  # Plot with clustifyr annotations
+  pc <- DimPlot(clustered_seurat_obj,
+    reduction = "umap", group.by = "clustifyr_call_type", label = TRUE,
+    label.size = 3, repel = TRUE
+  ) + ggtitle("Clustifyr annotated labels") +
+    guides(fill = guide_legend(label.theme = element_text(size = 8)))
+  pdf(paste0(output, "clustifyr_marker_annotation_umap.pdf"), width = 11, height = 6)
+  print(pc)
+  dev.off()
+
+  # Save object with clustifyr annotation
+  saveRDS(clustered_seurat_obj, file = paste0(output, "seurat_obj_clustifyr.rds"))
 }
