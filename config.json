@@ -4,14 +4,14 @@
   "DE_method": "Scran",
   "species": "human",
   "lanes": [ ],
-  "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/",
+  "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_PUBLIC_FASTQS/",
   "fastq_alignment": {
     "NUM_LANES": 1,
-    "SAMPLE_NAME": "TEST",
+    "SAMPLE_NAME": "PSM_DAY3",
     "cDNA_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
     "BARCODE_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
-    "cDNA_LANE2": "",
-    "BARCODE_LANE2": "",
+    "cDNA_LANE2": "/data/PSM_TIMECOURSE/SRR17712086_2.fastq.gz",
+    "BARCODE_LANE2": "/data/PSM_TIMECOURSE/SRR17712085_1.fastq.gz",
     "CHEMISTRY_VERSION": "V3",
     "SOLO_TYPE": "CB_UMI_Simple",
     "SOLO_FEATURES": "Gene GeneFull SJ Velocyto",
@@ -23,7 +23,8 @@
   },
   "prep_seurat_and_soupX": {
     "dims": 30,
-    "umap.method": "umap-learn"
+    "umap.method": "umap-learn",
+    "tfidfMin": 1
   },
   "filter_cells": {
     "lower.nFeature": 200,
