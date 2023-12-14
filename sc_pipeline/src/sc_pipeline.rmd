@@ -24,6 +24,7 @@ library(reticulate)
 library(purrr)
 library(jsonlite)
 library(rmarkdown)
+library(tidyverse)
 use_condaenv("/root/miniconda/envs/scrnaseq")
 output <- params$output
 config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)

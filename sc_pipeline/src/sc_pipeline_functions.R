@@ -66,7 +66,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
 
   # Estimate contamination fraction
-  sc <- autoEstCont(sc)
+  sc <- autoEstCont(sc, tfidfMin = 0.75)
   out <- adjustCounts(sc, roundToInt = TRUE)
 
   list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
