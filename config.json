@@ -6,12 +6,21 @@
   "lanes": [ ],
   "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_PUBLIC_FASTQS/",
   "fastq_alignment": {
+<<<<<<< Updated upstream
     "NUM_LANES": 1,
     "SAMPLE_NAME": "PSM_DAY3",
     "cDNA_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
     "BARCODE_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
     "cDNA_LANE2": "/data/PSM_TIMECOURSE/SRR17712086_2.fastq.gz",
     "BARCODE_LANE2": "/data/PSM_TIMECOURSE/SRR17712085_1.fastq.gz",
+=======
+    "NUM_LANES": 2,
+    "SAMPLE_NAME": "PSM_DAY3",
+    "cDNA_LANE1": "/data/PSM_TIMECOURSE/SRR17712085_2.fastq.gz",
+    "BARCODE_LANE1": "/data/PSM_TIMECOURSE/SRR17712085_1.fastq.gz",
+    "cDNA_LANE2": "/data/PSM_TIMECOURSE/SRR17712086_2.fastq.gz",
+    "BARCODE_LANE2": "/data/PSM_TIMECOURSE/SRR17712086_1.fastq.gz",
+>>>>>>> Stashed changes
     "CHEMISTRY_VERSION": "V3",
     "SOLO_TYPE": "CB_UMI_Simple",
     "SOLO_FEATURES": "Gene GeneFull SJ Velocyto",
