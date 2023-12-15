@@ -80,7 +80,7 @@
   "score_and_plot_markers": {
     "top_n_markers": 10,
     "known_markers": "False",
-    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt",
+    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt"
     "cluster_type": "seurat_clusters",
     "pairwise": "TRUE",
     "logFC_thresh": 0.5,
