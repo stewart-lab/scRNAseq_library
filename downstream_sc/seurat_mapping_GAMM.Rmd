@@ -26,9 +26,13 @@ library(jsonlite)
 library(rmarkdown)
 library(ggplot2)
 library(scPred)
+library(ComplexHeatmap)
+library(circlize)
+library(colorspace)
+library(GetoptLong)
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 use_condaenv("scRNAseq_best")
-setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/cowan_cell_2020/"))
+setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_seurat_mapping_", timestamp)
 dir.create(output, showWarnings = FALSE)
@@ -41,9 +45,20 @@ source("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/sc_pipeline_functions.R"
 # read in seurat objects that were preprocessed
 ```{r read_data}
 #gamms2<- readRDS(file = "output_seurat_mapping_20230718_115135/GAMM_S2_feat_select.rds")
-gamms2 <- readRDS(file = paste0(output, "gamm.S2_clustered.rds"))
+gamms2 <- readRDS(file = "output_seurat_mapping_20231110_135152/gamm.S2_clustered.rds")
 # human_D205.seurat <- readRDS(file = "output_20230711_155556/human_D205_umap.rds")
-human_D205.seurat <- readRDS(file = paste0(output, "human_D205_clustered.rds"))
+human_D205.seurat <- readRDS(file = "output_seurat_mapping_20231110_135152/human_D205_clustered.rds")
+```
+# subset metadata if needed
+```{r subset_metadata}
+# check metadata
+table(human_D205.seurat$type)
+# subset if needed
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c("Midbrain"))
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('T2'))
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('AC2'))
+human_D205.seurat<- subset(human_D205.seurat, subset = type != c('miG'))
+table(human_D205.seurat$type)
 ```
 # prep for integration
 ```{r prep_for_integration}
@@ -84,7 +99,7 @@ gamms2 <- AddMetaData(gamms2, metadata = predictions)
 # need manual annotation data (skip if you already have this data in seurat object)
 ```{r read_metadata}
 # add in metadata from previous analysis
-metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
+metadata.gamm <- read.csv("/w5home/bmoore/scRNAseq/GAMM/gamm_metadata/gamm_manual_annot_metadata_c0.5.txt", row.names = 1, 
             header = TRUE, sep = "\t")
 # check metadata with query data
 colnames(gamms2@assays$RNA@data)[1:10]
@@ -97,9 +112,9 @@ gamms2 <- AddMetaData(gamms2, metadata.gamm)
 ```
 # run umap on query data and visualize predicted annotation and manual annotation
 ```{r run_umap_on_query}
-gamms2 <- scale_data(gamms2)
-gamms2 <- RunPCA(gamms2, features = VariableFeatures(object = gamms2))
-gamms2 <- RunUMAP(gamms2, dims = 1:30, reduction = "pca", return.model = TRUE)
+#gamms2 <- scale_data(gamms2)
+#gamms2 <- RunPCA(gamms2, features = VariableFeatures(object = gamms2))
+#gamms2 <- RunUMAP(gamms2, dims = 1:30, reduction = "pca", return.model = TRUE)
 pg <- DimPlot(gamms2, reduction = "umap", group.by = "predicted.id", label = TRUE,
               label.size = 3, repel = TRUE) + ggtitle("Query transferred labels")
 pdf(paste0(output, "celltype_seurat_predictions-query_umap.pdf"), width = 8, height = 6)
@@ -162,7 +177,8 @@ labels<-labels[! labels %in% c('orig.ident', 'nCount_RNA', 'nFeature_RNA',
         'ident','scDblFinder.weighted', 'prediction.score.max','prediction.match', 
         'RNA_snn_res.0.14','RNA_snn_res.0.5',"predicted.celltype.score","predicted.celltype",
         'scDblFinder.class','scDblFinder.cxds_score','seurat_clusters','S.Score','G2M.Score',
-        'Phase','old.ident')]
+        'Phase','old.ident','prediction.score.Midbrain','prediction.score.miG','prediction.score.T2',
+        'prediction.score.AC2')]
 # visualize the probabilities over the UMAP plot:
 pdf(paste0(output, "celltype_prediction_featureplot.pdf"), width = 10, height = 10)
 print(FeaturePlot(gamms2, labels, keep.scale = "all"))
@@ -174,11 +190,47 @@ dev.off()
 query.ref.data.table<- as.data.frame(crossTab(gamms2, "CellType", "predicted.celltype"))
 # check out proportion of cells
 query.ref.data.table2<- as.data.frame(crossTab(gamms2, "CellType", "predicted.celltype", output = "prop"))
+# order by vector
+rowvec <- c("BC","PR","iMG","Prog/Glia","Prog","RGC","AC","HC")
+colvec <- c("Bipolar Cells - Ganglion Cells","Pan PRs","Pan PRs - Rods","Cones - Pan PRs","Muller Glia",
+"Retinal Prog - Muller Glia","Rods - Pan PRs - Muller Glia","Ganglion Cells","unknown")
+query.ref.data.table<- query.ref.data.table[order(match(rownames(query.ref.data.table), rowvec)), , drop = FALSE]
+query.ref.data.table<- query.ref.data.table[colvec]
+query.ref.data.table2<- query.ref.data.table2[order(match(rownames(query.ref.data.table2), rowvec)), , drop = FALSE]
+query.ref.data.table2<- query.ref.data.table2[colvec]
+# write out
 write.table(query.ref.data.table, file = paste0(output, "query_ref_data_table_s2.txt"), sep = "\t")
 write.table(query.ref.data.table2, file = paste0(output, "query_ref_data_table_proportion_s2.txt"), sep = "\t")
 ```
+# make heatmap
+```{r heatmap}
+heatmap_func <- function(df){
+  # turn df into matrix
+  mat <- as.matrix(sapply(df, as.numeric, rownames=TRUE))  
+  y <- rownames(df)
+  rownames(mat) <- y
+  print(df[1,1])
+  print(mat[1,1])
+
+  # make heatmap
+  hm<- Heatmap(mat, name= "Proportion of cells", column_title = "Cell types - manual", 
+             row_title = "Cell types - predicted", column_title_side = "top",row_title_side = "left", 
+             col = colorRamp2(c(0, 0.5, 1), c("blue","white","darkred")),
+             cluster_columns = F, cluster_rows= F, show_row_dend = F, 
+             column_names_gp = gpar(fontsize = 10), show_column_names = T, 
+             show_row_names = T, row_names_gp = gpar(fontsize = 10), 
+             cell_fun = function(j, i, x, y, width, height, fill) {
+               grid.text(sprintf("%.2f", mat[i, j]), x, y, gp = gpar(fontsize = 8))})
+  return(hm)
+}
+hm <- heatmap_func(query.ref.data.table2)
+pdf(file = paste0(output,"celltype_manualvs.predicted_heatmap.pdf"), width = 7, height = 5)
+print(hm)
+dev.off()
+```
 ```{r save_query_data}
 saveRDS(gamms2, file= paste0(output,"gamms2_cca_pred.rds"))
+saveRDS(human_D205.seurat, file= paste0(output,"human_D205_subset_annot.rds"))
 ```
 # save session info
 ```{r sessioninfo}

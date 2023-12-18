@@ -14,10 +14,11 @@ knitr::opts_chunk$set(echo = TRUE)
 #### installations ####
 # see scRNAseq_library/src/sccomp_env_setup.sh or
 # use scRNAseq_library/environment_sccomp.yml to create an sccomp environment
+## remember to set your Rterm in settings for remote to the conda path for sccomp!!!
 
 ### load libraries ###
 library(reticulate)
-use_condaenv("sccomp")
+use_condaenv("sccomp", required=TRUE)
 # devtools::install_github("Oshlack/speckle")
 library(sccomp)
 library(Seurat)
@@ -31,7 +32,7 @@ library(limma)
 ### set variables ###
 BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 CROSS_SPECIES <- "yes" # are you comparing across species (human to pig- then yes) or within species (no)
-COMP_TYPE <- "scpred" # based on the annotation- did you use scpred, seuratmapping, or manual 
+COMP_TYPE <- "seuratmapping" # based on the annotation- did you use scpred, seuratmapping, or manual 
 ### set working directory and output ###
 setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
@@ -42,7 +43,7 @@ packageVersion("sccomp")
 ```
 # Read in processed and labeled data
 ```{r read_in}
-seurat.obj.1 <- readRDS(file = "output_scPred_20230913_131047_filt/GAMM_S2_scpred_c0.5.rds")
+seurat.obj.1 <- readRDS(file = "output_seurat_mapping_20231215_092132/gamms2_cca_pred.rds")
 seurat.obj.2 <- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
 ```
 # subset cell types if needed
@@ -82,8 +83,8 @@ if (CROSS_SPECIES=="yes"){
 # rename identities if necessary
 ```{r rename_idents}
 # rename clusters if necessary
-seurat.obj.1 <- RenameIdents(object = seurat.obj.1, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
-                                `Cones - Pan PRs` = "Cones")
+#seurat.obj.1 <- RenameIdents(object = seurat.obj.1, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
+ #                               `Cones - Pan PRs` = "Cones")
 ```
 # add identities to metadata
 ```{r add_meta}
@@ -110,7 +111,7 @@ Idents(object = seurat.combined) <- "orig.ident"
  table(Idents(object = seurat.combined))
 if (CROSS_SPECIES=="yes"){
     seurat.combined <- RenameIdents(object = seurat.combined, `D205` = "human",
-                                `gamm_s1-1` = "pig")
+                                `output_S2-1_mm_mt_GeneFull` = "pig")
 } else {
     seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_GeneFull` = "s1",
                                 `output_S1-2_mm_mt_GeneFull` = "s1", `output_S2-1_mm_mt_GeneFull` = "s2",
