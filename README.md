@@ -137,6 +137,42 @@ This README provides a brief description of the configuration file used in the s
 
 Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat and SoupX documentation.
 
+### Output files
+
+- SoupX
+   - `post_soupx_qc_combined.pdf`: nCount by nFeature after SoupX
+- scDblFinder
+   - `merged_doublet_table.txt`: Number of doublets and singlets called
+   - `after_dbl_removal_and_merge.pdf`: nCount by nFeature after doublet removal
+- Mitochondrial filtering
+   - `percent_mt_unfiltered.pdf`: percent.mt by nCount before mitochondrial filtering
+   - `percent_mt_filtered.pdf`: percent.mt by nCount after mitochondrial filtering
+- Normalization
+   - `violin_pre_norm.pdf`: Expression levels of a gene before normalization
+   - `violin_post_norm.pdf`: Expression levels of a gene after normalization
+- Scaling
+   - `pca_before_cc_regression.pdf`: PCA before cell cycle regression
+   - `pca_after_cc_regression.pdf`: PCA after cell cycle regression
+- PCA
+   - `pca_heat_map.pdf`: Heatmap of the top n PCs to look for gene variability
+   - `jack_straw.pdf`: Top n PCs variability plot with p-values
+   - `top_n_dims_with_genes.pdf`: PC1 and PC2 gene variablity
+   - `elbow_pca.pdf`: standard deviation by PC plot
+- Batch correction
+   - `batch_uncorrected_pca.pdf`: PCA before batch correction.
+   - `batch_corrected_pca.pdf`: PCA after batch correction.
+- Umap plots
+   - `umap_plot.pdf`: Umap with cell cycle genes
+   - `umap_lanes.pdf`: Umap colored by sample
+   - `umap_clusters.pdf`: Umap of clusters
+   - `labeled-clusters.pdf`: Umap of labeled clusters (if marker list is used)
+- DE gene/ Marker files:
+   - See Scran's `scoreMarkers` for details on columns in output files: https://rdrr.io/github/MarioniLab/scran/man/scoreMarkers.html
+   - `Top100genes_clust` files: contain the top 100 genes for a particular cluster against all other clusters, sorted by median.logFC.cohen and subsetted by the median Cohen's D logFC threshold and median AUC threshold (both default at 0.5).
+   - If a known markers list is given, this list is merged with the `Top100genes_clust` file. These are the `KnownDE.markers_clust_` files.
+   - The top ranked markers from the merged list are used to make feature umap plots highlighting the gene expression of that marker. Default is the ranked in the top 10.
+   - Pairwise comparisons are also made if `pairwise=TRUE`. Each pairwise comparison between every cluster is made, and DE genes kept with the genes are higher than the median Cohen's D logFC threshold and median AUC threshold. These files start with `DEgenes_clust_X.vs_Y`.
+- `sc_pipeline.pdf`: Code and output from the sc_pipeline
 
 # Automated annotation
 
