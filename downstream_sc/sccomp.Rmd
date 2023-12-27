@@ -34,7 +34,7 @@ BETHS_GAMM_DATA_DIR <- "/w5home/bmoore/scRNAseq/GAMM/"
 CROSS_SPECIES <- "yes" # are you comparing across species (human to pig- then yes) or within species (no)
 COMP_TYPE <- "seuratmapping" # based on the annotation- did you use scpred, seuratmapping, or manual 
 ### set working directory and output ###
-setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/reh_cellrep_2020/"))
+setwd(paste0(BETHS_GAMM_DATA_DIR, "human_data/cowan_cell_2020/"))
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output_cell_composition_", timestamp)
 dir.create(output, showWarnings = FALSE)
@@ -43,25 +43,44 @@ packageVersion("sccomp")
 ```
 # Read in processed and labeled data
 ```{r read_in}
-seurat.obj.1 <- readRDS(file = "output_seurat_mapping_20231215_092132/gamms2_cca_pred.rds")
-seurat.obj.2 <- readRDS(file = "output_preprocess20230912_144047_cc/human_D205_umap.rds")
+seurat.obj.1 <- readRDS(file = "output_seurat_mapping_20231218_161017/human_IMR90_cca_pred.rds") # reference
+# annotation level for reference
+annot_ref<- seurat.obj.1$cell_type3
+seurat.obj.2 <- readRDS(file = "output_seurat_mapping_20231218_161017/gamms2.2_cca_pred.rds") # query
+```
+# check orig.ident and rename if necessary
+```{r idents}
+colnames(seurat.obj.2@meta.data)
+table(seurat.obj.2$orig.ident)
+Idents(object = seurat.obj.2) <- "orig.ident"
+seurat.obj.2 <- RenameIdents(object = seurat.obj.2, `output_S2-2_mm_mt_GeneFull` = "pig", `gamm_S2` = "pig")
+seurat.obj.2[["orig.ident"]] <- Idents(object = seurat.obj.2)
+table(seurat.obj.2$orig.ident)
+# for manual, may need tor rename celltype
+#seurat.obj.2 <- RenameIdents(object = seurat.obj.2, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia")
+#table(seurat.obj.2@active.ident)
+saveRDS(seurat.obj.2, file =  "output_seurat_mapping_20231218_161017/gamms2.2_cca_pred.rds")
+# rename celltype column for reference
+seurat.obj.1$ref_type <- annot_ref
+table(seurat.obj.1$ref_type)
 ```
 # subset cell types if needed
 ```{r subset}
-seurat.obj.2<- subset(seurat.obj.2, subset = type != 'AC2')
-seurat.obj.2<- subset(seurat.obj.2, subset = type != 'T2')
-seurat.obj.2<- subset(seurat.obj.2, subset = type != 'Midbrain')
-seurat.obj.2<- subset(seurat.obj.2, subset = type != 'miG')
+table(seurat.obj.2$predicted.id)
+seurat.obj.2<- subset(seurat.obj.2, subset = orig.ident != 'gamm_S2')
+table(seurat.obj.2@meta.data$orig.ident)
+table(seurat.obj.2$predicted.id)
 ```
 # check location of annotation
 ```{r check}
 if (CROSS_SPECIES=="yes"){
     #human
-    table(seurat.obj.2$type)
+    table(annot_ref)
+    #pig
     if (COMP_TYPE=="scpred"){
-        table(seurat.obj.1$scpred_prediction)
+        table(seurat.obj.2$scpred_prediction)
     } else if (COMP_TYPE=="seuratmapping") {
-       table(seurat.obj.1$predicted.id)
+       table(seurat.obj.2$predicted.id)
     } else {
         print("COMP_TYPE should be scpred or seurat mapping for cross-species")
     }
@@ -79,12 +98,6 @@ if (CROSS_SPECIES=="yes"){
         print("COMP_TYPE should be scpred or seurat mapping or manual")
     }
 }
-```
-# rename identities if necessary
-```{r rename_idents}
-# rename clusters if necessary
-#seurat.obj.1 <- RenameIdents(object = seurat.obj.1, `Muller Glia - Retinal Prog` = "Retinal Prog - Muller Glia",
- #                               `Cones - Pan PRs` = "Cones")
 ```
 # add identities to metadata
 ```{r add_meta}
@@ -110,8 +123,7 @@ table(Idents(object = seurat.combined))
 Idents(object = seurat.combined) <- "orig.ident"
  table(Idents(object = seurat.combined))
 if (CROSS_SPECIES=="yes"){
-    seurat.combined <- RenameIdents(object = seurat.combined, `D205` = "human",
-                                `output_S2-1_mm_mt_GeneFull` = "pig")
+    seurat.combined <- RenameIdents(object = seurat.combined, `human_F49B7` = "human")
 } else {
     seurat.combined <- RenameIdents(object = seurat.combined, `output_S1-1_mm_mt_GeneFull` = "s1",
                                 `output_S1-2_mm_mt_GeneFull` = "s1", `output_S2-1_mm_mt_GeneFull` = "s2",
@@ -139,8 +151,8 @@ if (CROSS_SPECIES=="yes") {
         print("COMP_TYPE should be scpred or seurat mapping for cross-species")
     }
     # human
-    seurat.human <- subset(x= seurat.combined, type != "NA")
-    unique(seurat.human$type)
+    seurat.human <- subset(x= seurat.combined, ref_type != "NA")
+    unique(seurat.human$ref_type)
 }
 ```
 # plot cell type proportions
@@ -148,15 +160,15 @@ if (CROSS_SPECIES=="yes") {
 if (CROSS_SPECIES == "yes") {
     if (COMP_TYPE=="scpred") {
     # scpred
-    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$scpred_prediction, sample = seurat.pig$ident)
+    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$scpred_prediction, sample = seurat.pig$orig.ident)
     } else if (COMP_TYPE=="seuratmapping") {
     # seurat mapping
-    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$predicted.id, sample = seurat.pig$ident)
+    pig.plot <- plotCellTypeProps(x = seurat.pig, clusters = seurat.pig$predicted.id, sample = seurat.pig$orig.ident)
     } else {
         print("COMP_TYPE should be scpred or seurat mapping for cross-species")
     }
     # human
-    hum.plot <- plotCellTypeProps(x = seurat.human, clusters = seurat.human$type, sample = seurat.human$orig.ident)
+    hum.plot <- plotCellTypeProps(x = seurat.human, clusters = seurat.human$ref_type, sample = seurat.human$orig.ident)
     # save plot
     pdf(paste0(output, "celltype_proportions.pdf"), width = 8, height = 6)
     print(pig.plot + hum.plot)
@@ -172,9 +184,9 @@ if (CROSS_SPECIES == "yes") {
 ```{r combine_meta}
 if (CROSS_SPECIES == "yes") {
     if (COMP_TYPE=="scpred") {
-        New_idents <- c(seurat.pig$scpred_prediction,seurat.human$type)
+        New_idents <- c(seurat.human$ref_type,seurat.pig$scpred_prediction)
     } else if (COMP_TYPE=="seuratmapping") {
-    New_idents <- c(seurat.pig$predicted.id,seurat.human$type)
+    New_idents <- c(seurat.human$ref_type,seurat.pig$predicted.id)
     } else {
         print("COMP_TYPE should be scpred or seurat mapping for cross-species")
     }
@@ -275,4 +287,8 @@ dev.off()
 pdf(paste0(output, "credible_intervals_2d.pdf"), width = 8, height = 6)
 print(plots$credible_intervals_2D)
 dev.off()
+```
+# save session info
+```{r sessioninfo}
+writeLines(capture.output(sessionInfo()), paste0(output,"sessionInfo.txt"))
 ```
