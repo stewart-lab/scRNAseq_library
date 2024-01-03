@@ -634,143 +634,194 @@ score_and_plot_markers <- function(seurat_obj, output_path = output) {
   auc_thresh <- config$score_and_plot_markers$auc_thresh
 
 
-  # Convert Seurat object to SingleCellExperiment
   sce_obj <- as.SingleCellExperiment(seurat_obj)
 
   # Score markers
-  if (cluster_type == "seurat_clusters") {
-    marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$seurat_clusters, full.stats = TRUE)
-  } else if (cluster_type == "orig.ident") {
-    marker.info <- scoreMarkers(sce_obj, sce_obj@colData@listData$orig.ident, full.stats = TRUE)
-  } else {
-    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
-  }
-
-  # For each cluster, perform operations
-  if (cluster_type == "seurat_clusters") {
-    clusters <- unique(seurat_obj@meta.data$seurat_clusters)
-  } else if (cluster_type == "orig.ident") {
-    clusters <- unique(seurat_obj@meta.data$orig.ident)
-  } else {
-    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
-  }
-  clusters <- as.vector(clusters)
+  marker_info <- score_markers(sce_obj, cluster_type)
 
   # Read in known markers
-  if (known_markers == TRUE) {
-    known.markers <- read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
-    known.markers.df <- as.data.frame(known.markers)
+  known.markers.df <- if (known_markers) {
+    read.csv2(known_markers_path, sep = "\t", header = TRUE, row.names = 1)
   } else {
-    known.markers.df <- NULL
+    NULL
   }
+
   annot_df <- data.frame(Cluster = integer(), Cell.type = character())
+
+  # Determine clusters based on cluster_type
+  clusters <- get_clusters(seurat_obj, cluster_type)
+
+  # Process each cluster
   for (i in 1:length(clusters)) {
-    # Get cluster marker info
-    clust <- marker.info[[clusters[i]]]
-    clust <- as.data.frame(clust)
-    # get DE for each pariwise comparison
-    if (pairwise == TRUE) {
-      clust_tbl <- rownames_to_column(clust, var = "gene") %>% as_tibble()
-      # get dataframe with each logFC of each pairwise comparison
-      df_clust0 <- clust_tbl %>% dplyr::select(starts_with("full.logFC.cohen"))
-      # get dataframe that also includes gene and AUC
-      df_clust <- clust_tbl %>% dplyr::select(c(
-        "gene", starts_with("full.logFC.cohen"),
-        starts_with("full.AUC")
-      ))
-      # loop thorugh first dataframe to get pairwise comparison names
-      for (j in colnames(df_clust0)) {
-        print(j)
-        # get name of corresponding AUC value
-        k <- str_split_1(j, "cohen.")
-        l <- paste0("full.AUC.", k[2])
-        # subset based on logFC threshold and AUC threshold
-        df_clust1 <- subset(df_clust, df_clust[j] > logFC_thresh & df_clust[l] > auc_thresh) # , select=c('gene', colname))
-        df_clust1 <- df_clust1[order(df_clust1[j], decreasing = TRUE), ]
-        # write table of all DE genes for the comparison
-        write.table(df_clust1, file = paste0(output_path, "DEgenes_clust_", clusters[i], ".vs_", j, ".txt",
-          collapse = ""
-        ), quote = F, sep = "\t", row.names = T)
-        # merge with known markers
-        df_clust2 <- merge(df_clust1, known.markers.df, by.x = "gene", by.y = "row.names")
-        # check if empty
-        if (nrow(df_clust2) == 0) {
-          print(paste0("This data frame is empty: ", clusters[i], ".vs_", j))
-        } else {
-          # write table
-          write.table(df_clust2, file = paste0(output_path, "KnownDEgenes_clust_", clusters[i], ".vs_", j, ".txt",
-            collapse = ""
-          ), quote = F, sep = "\t", row.names = T)
-          new_vec0 <- unique(as.vector(df_clust2$gene))
-          # make feature plot of genes
-          pdf(paste0(output_path, clusters[i], ".vs_", j, "_featureplot.pdf"), bg = "white")
-          print(FeaturePlot(seurat_obj, features = new_vec0), label = TRUE)
-          dev.off()
-        }
-      }
+    # Process pairwise comparisons
+    if (pairwise) {
+      process_pairwise_comparisons(clusters, i, marker_info, output_path, logFC_thresh, auc_thresh, known.markers.df, seurat_obj)
     } else {
-      print("no pairwise comparison")
+      print("No pairwise comparison")
     }
-    # Order by median Cohen's d
-    ordered <- clust[order(clust$median.logFC.cohen, decreasing = TRUE), ]
-    # subset by median logFC and AUC threshold
-    ordered <- subset(ordered, median.logFC.cohen > logFC_thresh & median.AUC > auc_thresh)
-    # Get top 100
-    top100 <- ordered[1:100, ]
-    top100 <- as.data.frame(top100)
-    # write out top100 genes
-    write.table(top100, file = paste0(output_path, "Top100DEgenes_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = T)
-    # Match with any DE markers from data by merging dataframes
-    if (known_markers == TRUE) {
-      marker_df <- merge(top100, known.markers.df, by = "row.names")
-      if (nrow(marker_df) == 0) {
-        print(paste0("This data frame is empty: ", clusters[i]))
+
+    # Process top genes for each cluster
+    clust <- as.data.frame(marker_info[[clusters[i]]])
+    annot_df <- process_top_genes(clust, clusters, i, known.markers.df, output_path, seurat_obj, annot_df)
+  }
+
+  return(annot_df)
+}
+
+score_markers <- function(sce_obj, cluster_type) {
+  # Score markers based on cluster type
+  if (cluster_type %in% c("seurat_clusters", "orig.ident")) {
+    marker_field <- cluster_type
+    marker_info <- scoreMarkers(sce_obj, sce_obj@colData@listData[[marker_field]], full.stats = TRUE)
+  } else {
+    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
+  }
+  return(marker_info)
+}
+
+get_clusters <- function(seurat_obj, cluster_type) {
+  if (cluster_type %in% c("seurat_clusters", "orig.ident")) {
+    return(unique(seurat_obj@meta.data[[cluster_type]]))
+  } else {
+    stop("Invalid cluster_type. Please choose 'seurat_clusters' or 'orig.ident'.")
+  }
+}
+
+process_top_genes <- function(clust, clusters, i, known.markers.df, output_path, seurat_obj, annot_df) {
+  # Extract relevant configuration settings
+  top_n_markers <- config$score_and_plot_markers$top_n_markers
+  logFC_thresh <- config$score_and_plot_markers$logFC_thresh
+  auc_thresh <- config$score_and_plot_markers$auc_thresh
+  known_markers <- config$score_and_plot_markers$known_markers
+
+  # Order by median Cohen's d and subset
+  ordered <- subset(clust[order(clust$median.logFC.cohen, decreasing = TRUE), ], median.logFC.cohen > logFC_thresh & median.AUC > auc_thresh)
+  top100 <- head(ordered, n = top_n_markers)
+
+  # Create a subdirectory for Top100 DE genes
+  top100_dir <- file.path(output_path, "Top100_DE_Genes")
+  if (!dir.exists(top100_dir)) {
+    dir.create(top100_dir, recursive = TRUE)
+  }
+
+  # Write out top100 genes
+  write.table(top100,
+    file = file.path(top100_dir, paste0("Top100DEgenes_clust_", clusters[i], ".txt")),
+    quote = FALSE, sep = "\t", row.names = TRUE
+  )
+
+  # Process known markers
+  return(process_known_markers(top100, known_markers, known.markers.df, clusters, i, output_path, top_n_markers, seurat_obj, annot_df))
+}
+
+
+process_pairwise_comparisons <- function(clusters, i, marker.info, output_path, logFC_thresh, auc_thresh, known_markers_df, seurat_obj) {
+  # Extract cluster marker information
+  clust <- as.data.frame(marker.info[[clusters[i]]])
+
+  # Prepare the data for pairwise comparison
+  clust_tbl <- rownames_to_column(clust, var = "gene") %>% as_tibble()
+  df_clust0 <- clust_tbl %>% dplyr::select(starts_with("full.logFC.cohen"))
+  df_clust <- clust_tbl %>% dplyr::select(c(
+    "gene", starts_with("full.logFC.cohen"),
+    starts_with("full.AUC")
+  ))
+
+  # Create a subdirectory for pairwise DE genes
+  pairwise_de_path <- file.path(output_path, paste0("Pairwise_DE_Cluster_", clusters[i]))
+  if (!dir.exists(pairwise_de_path)) {
+    dir.create(pairwise_de_path, recursive = TRUE)
+  }
+
+  # Iterate through each pairwise comparison
+  for (j in colnames(df_clust0)) {
+    print(j)
+    k <- str_split_1(j, "cohen.")
+    l <- paste0("full.AUC.", k[2])
+
+    # Subset based on logFC threshold and AUC threshold
+    df_clust1 <- subset(df_clust, df_clust[j] > logFC_thresh & df_clust[l] > auc_thresh)
+    df_clust1 <- df_clust1[order(df_clust1[j], decreasing = TRUE), ]
+
+    # Write table of all DE genes for the comparison
+    write.table(df_clust1,
+      file = file.path(pairwise_de_path, paste0("DEgenes_", clusters[i], "_vs_", j, ".txt")),
+      quote = FALSE, sep = "\t", row.names = TRUE
+    )
+
+    # Merge with known markers and check if empty
+    df_clust2 <- merge(df_clust1, known_markers_df, by.x = "gene", by.y = "row.names")
+    if (nrow(df_clust2) == 0) {
+      print(paste0("This data frame is empty: ", clusters[i], ".vs_", j))
+    } else {
+      # Write table with known DE markers
+      write.table(df_clust2,
+        file = file.path(pairwise_de_path, paste0("KnownDEgenes_", clusters[i], "_vs_", j, ".txt")),
+        quote = FALSE, sep = "\t", row.names = TRUE
+      )
+
+      # Make feature plot of genes
+      new_vec0 <- unique(as.vector(df_clust2$gene))
+      pdf(file.path(pairwise_de_path, paste0(clusters[i], "_vs_", j, "_featureplot.pdf")), bg = "white")
+      print(FeaturePlot(seurat_obj, features = new_vec0), label = TRUE)
+      dev.off()
+    }
+  }
+}
+
+
+
+process_known_markers <- function(top100, known_markers_flag, known_markers_df, clusters, i, output_path, top_n_markers, seurat_obj, annot_df) {
+  if (known_markers_flag) {
+    marker_df <- merge(top100, known_markers_df, by = "row.names")
+
+    if (nrow(marker_df) == 0) {
+      print(paste0("This data frame is empty: ", clusters[i]))
+      new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
+      annot_df <- rbind(annot_df, new_row)
+    } else {
+      subdirectory_path <- file.path(output_path, "Known_DE_Markers")
+      if (!dir.exists(subdirectory_path)) {
+        dir.create(subdirectory_path, recursive = TRUE)
+      }
+      # Write out marker dataframe with known DE markers
+      write.table(marker_df,
+        file = paste0(output_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
+        quote = FALSE, sep = "\t", row.names = FALSE
+      )
+
+      # Subset data
+      new_df <- marker_df[, c("Row.names", "rank.logFC.cohen", "Cell.type")]
+      new_vec <- unique(as.vector(new_df$Row.names))
+
+      # Get top ranked
+      rank <- top_n_markers + 1
+      new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
+      new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
+      new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
+
+      if (identical(new_vec2, character(0))) {
+        print(paste0("This vector does not have any ranks in top ", top_n_markers, ": ", clusters[i]))
         new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
         annot_df <- rbind(annot_df, new_row)
       } else {
-        # write out marker df with known DE markers
-        write.table(marker_df, file = paste0(output_path, "KnownDE.markers_clust_", clusters[i], ".txt", collapse = ""), quote = F, sep = "\t", row.names = F)
-
-        # Subset data
-        new_df <- marker_df[, c("Row.names", "rank.logFC.cohen", "Cell.type")]
-        new_vec <- unique(as.vector(new_df$Row.names))
-
-        # Get top ranked
-        rank <- top_n_markers + 1
-        new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
-        new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
-        new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
-
-        # check if empty
-        if (identical(new_vec2, character(0))) {
-          print(paste0("This vector does not have any ranks in top ", top_n_markers, ": ", clusters[i]))
-          new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
-          annot_df <- rbind(annot_df, new_row)
-        } else {
-          # UMAP plot highlighting gene expression
-          pdf(paste0(output_path, clusters[i], "_featureplot_top", top_n_markers, "ranks.pdf"), bg = "white")
-          print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
-          dev.off()
-          allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
-          result_string <- ""
-          for (j in 1:length(allcelltypes)) {
-            new_element <- allcelltypes[j]
-            if (result_string == "") {
-              result_string <- new_element
-            } else {
-              result_string <- paste(result_string, "-", new_element)
-            }
-          }
-          new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)
-          annot_df <- rbind(annot_df, new_row)
-        }
+        # UMAP plot highlighting gene expression
+        pdf(paste0(output_path, clusters[i], "_featureplot_top", top_n_markers, "ranks.pdf"), bg = "white")
+        print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
+        dev.off()
+        allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
+        result_string <- paste(allcelltypes, collapse = "-")
+        new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)
+        annot_df <- rbind(annot_df, new_row)
       }
-    } else {
-      print("no known marker set")
     }
+  } else {
+    print("No known marker set")
   }
   return(annot_df)
 }
+
+
 
 annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_path = output) {
   # Rename the clusters based on the new IDs
