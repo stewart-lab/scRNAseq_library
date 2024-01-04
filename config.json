@@ -7,7 +7,7 @@
   "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_PUBLIC_FASTQS/",
   "fastq_alignment": {
     "NUM_LANES": 1,
-    "SAMPLE_NAME": "Thy_7.2_2",
+    "SAMPLE_NAME": "TEST",
     "cDNA_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
     "BARCODE_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
     "cDNA_LANE2": "",
@@ -80,7 +80,7 @@
   "score_and_plot_markers": {
     "top_n_markers": 10,
     "known_markers": "False",
-    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt"
+    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt",
     "cluster_type": "seurat_clusters",
     "pairwise": "TRUE",
     "logFC_thresh": 0.5,

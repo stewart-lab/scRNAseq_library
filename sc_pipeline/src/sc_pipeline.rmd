@@ -147,13 +147,15 @@ if (config$DE_method == "Seurat") {
 saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
 ```
 # Both annotation methods
-```{r manual_annot}
-# order clusters from annotation data frame
-new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
-# get new cluster names ordered by cluster number
-new.cluster.ids <- new_df.ordered$Cell.type
-# annotate
-labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
+```{r Cluster Annotation}
+if (config$score_and_plot_markers$known_markers) {
+  # order clusters from annotation data frame
+  new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
+  # get new cluster names ordered by cluster number
+  new.cluster.ids <- new_df.ordered$Cell.type
+  # annotate
+  labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
 
-clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, output)
+  clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, output)
+}
 ```
