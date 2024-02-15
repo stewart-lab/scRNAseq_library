@@ -4,3 +4,4 @@ sc_pipeline/src/config.json
 output/output_*
 *.h5ad
 sc_pipeline/src/pst_env/
+shared_volume/
