@@ -1,35 +1,60 @@
 {
-  "title": "Initial processing of the Ramos 2022 dataset",
-  "annotation_reference": "FALSE",
+  "title": "GAMM Timepoints",
+  "annotation_reference": true,
   "DE_method": "Scran",
-  "species": "human",
+  "Number_of_samples": 2,
   "lanes": [ ],
-  "DATA_DIR": "/isiseqruns/jfreeman_tmp_home/scRNA_PUBLIC_FASTQS/",
+  "DATA_DIR": "/w5home/jfreeman/scRNA_PUBLIC_FASTQS/GAMM/GAMM_SSUS_RETINOID_DATA/",
   "fastq_alignment": {
-    "NUM_LANES": 1,
-    "SAMPLE_NAME": "TEST",
-    "cDNA_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz",
-    "BARCODE_LANE1": "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz",
-    "cDNA_LANE2": "",
-    "BARCODE_LANE2": "",
-    "CHEMISTRY_VERSION": "V3",
-    "SOLO_TYPE": "CB_UMI_Simple",
-    "SOLO_MULTI_MAPPERS": "EM",
-    "READ_FILES_COMMAND": "zcat",
-    "SOLO_UMI_DEDUP": "1MM_CR",
-    "RUN_THREAD_N": 8,
-    "isBarcodeFollowedbyReads": false,
-    "clip5pNbases": "0 151"
+    "SAMPLE_1": {
+      "NAME": "GAMM_120",
+      "species": "pig",
+      "NUM_LANES": 2,
+      "cDNA_LANE1": "/data/2_S2_L001_R2_001.fastq.gz",
+      "BARCODE_LANE1": "/data/2_S2_L001_R1_001.fastq.gz",
+      "cDNA_LANE2": "/data/2_S2_L002_R2_001.fastq.gz",
+      "BARCODE_LANE2": "/data/2_S2_L002_R1_001.fastq.gz",
+      "CHEMISTRY_VERSION": "V3",
+      "SOLO_TYPE": "CB_UMI_Simple",
+      "SOLO_MULTI_MAPPERS": "EM",
+      "READ_FILES_COMMAND": "zcat",
+      "SOLO_UMI_DEDUP": "1MM_CR",
+      "RUN_THREAD_N": 8,
+      "isBarcodeFollowedbyReads": false,
+      "clip5pNbases": "0 151"
+    },
+    "SAMPLE_2": {
+      "NAME": "GAMM_40",
+      "species": "pig",
+      "NUM_LANES": 2,
+      "cDNA_LANE1": "/data/1_S1_L001_R2_001.fastq.gz",
+      "BARCODE_LANE1": "/data/1_S1_L001_R1_001.fastq.gz",
+      "cDNA_LANE2": "/data/1_S1_L002_R2_001.fastq.gz",
+      "BARCODE_LANE2": "/data/1_S1_L002_R1_001.fastq.gz",
+      "CHEMISTRY_VERSION": "V3",
+      "SOLO_TYPE": "CB_UMI_Simple",
+      "SOLO_MULTI_MAPPERS": "EM",
+      "READ_FILES_COMMAND": "zcat",
+      "SOLO_UMI_DEDUP": "1MM_CR",
+      "RUN_THREAD_N": 8,
+      "isBarcodeFollowedbyReads": false,
+      "clip5pNbases": "0 151"
+    }
   },
   "prep_seurat_and_soupX": {
     "dims": 30,
     "umap.method": "umap-learn",
-    "tfidfMin": 0.75
+    "tfidfMin": 0.75,
+    "min.cells": 3
   },
   "filter_cells": {
     "lower.nFeature": 200,
     "upper.nFeature": 10000,
     "max.percent.mt": 20
+  },
+  "ortholog_subset": {
+    "ortholog_file": "../cell_cycle_vignette/Human_Pig_Biomart_Filtered_mod.txt",
+    "ref_species": "human"
   },
   "normalize_data": {
     "min_size": 100,
@@ -41,11 +66,6 @@
     "analysis_type": "Scry"
   },
   "scale_data": {
-    "vars.2.regress": "cell.cycle",
-    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
-    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
-  },
-  "sc_transform": {
     "vars.2.regress": "cell.cycle",
     "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
     "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
@@ -76,6 +96,12 @@
     "min_pct": 0.25,
     "logfc_threshold": 0.25,
     "top_n": 11
+  },
+  "get_metadata": {
+    "metadata_file1": "/w5home/bmoore/scRNAseq/GAMM/human_data/cowan_cell_2020/metadata/meta_30weeks_mod.txt",
+    "metadata_file2": "/w5home/bmoore/scRNAseq/GAMM/gamm_metadata/gammS2_manual_annot_metadata_c0.5.txt",
+    "metadata_subset1": "f49b7",
+    "metadata_subset2": "NA"
   },
   "score_and_plot_markers": {
     "top_n_markers": 10,

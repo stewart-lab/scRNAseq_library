@@ -10,6 +10,9 @@ WORKDIR /src
 # Copy the current directory contents into the container at /src
 COPY . /src/
 
+# change permissions of everything in the /data directory
+RUN chmod -R 777 /data/
+
 RUN chmod +x /src/STAR.sh
 
 
