@@ -144,7 +144,6 @@ if (!species_are_all_same(config)) {
     objs.list <- ortholog_subset(ref_obj, query_obj, project_names)
     saveRDS(objs.list, file = paste0(output, "ortholog_objs_list.rds"))
   }
-}
 ```
 
 
