@@ -27,11 +27,12 @@ if [ "$confirm" == "y" ] || [ "$confirm" == "Y" ]; then
 
   echo "Step 2.2: Building Docker image for alignment"
   # Build the Docker image from the pre_pipeline directory
-  docker build -t align_fastqs ./pre_pipeline
+  docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t align_fastqs ./pre_pipeline
 
   echo "Step 2.3: Running Docker container for alignment"
   # Run the Docker container and execute the STAR.sh script
-  docker run -it\
+docker run -it \
+    --user=$(id -u):$(id -g) \
     --mount type=bind,source="$DATA_DIR",target=/data \
     --mount type=bind,source="$SHARED_VOLUME",target=/shared_volume \
     --mount type=bind,source="$CONFIG_FILE",target=/config.json \
@@ -74,16 +75,19 @@ cd ..
 shared_volume_dir=$(pwd)/shared_volume
 echo "Step 5: Building Docker image for the next container"
 # Build the Docker image for the next container
-docker build -t my-scrna-seq:bioinfo_latest ./sc_pipeline
+docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t my-scrna-seq:bioinfo_latest ./sc_pipeline
 
 echo "Step 6: Running the main Docker container"
 
 # Run the Docker container with the correct volume mapping
 docker run -it\
+  --user=$(id -u):$(id -g)\
   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
   --mount type=bind,source="$shared_volume_dir",target=/scRNA-seq/shared_volume \
   --mount type=bind,source="./sc_pipeline/src/config.json",target=/scRNA-seq/src/config.json \
   my-scrna-seq:bioinfo_latest /bin/bash -c "python /scRNA-seq/get_data.py $DATA_FLAG && /root/miniconda/bin/conda run -n scrnaseq Rscript /scRNA-seq/script.R"
+
+
 
 echo "Pipeline completed successfully."
 
