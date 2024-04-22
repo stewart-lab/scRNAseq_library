@@ -11,7 +11,7 @@ params:
 ```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
-use_condaenv("/root/miniconda/envs/scrnaseq", required = TRUE)
+use_condaenv("/w5home/bmoore/miniconda3/envs/scRNAseq_best", required = TRUE)#"/root/miniconda/envs/scrnaseq"
 library(dplyr)
 library(Seurat)
 library(patchwork)
@@ -31,10 +31,11 @@ library(stringr)
 library(clustifyr)
 library(ggplot2)
 library(ComplexHeatmap)
-output <- params$output
+setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20240417_150543/"
 # Load configuration and set output directory
-config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
-output_base_dir <- paste0("../", output, "/")
+config <- jsonlite::fromJSON(paste0(output,"config.json"), simplifyDataFrame = FALSE)
+output_base_dir <- output
 source("sc_pipeline_functions.R")
 ```
 ```{r}
@@ -60,13 +61,32 @@ for (sample_name in names(sample_specific_sce_list)) {
 saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
 ```
 ```{r}
+# read in processed samples list
+#processed_samples_list<- readRDS(file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+query.obj <- readRDS(file = paste0(output_base_dir, "GAMM_120/GAMM_120_batchcorr_seurat_obj.rds"))
+ref.obj <- readRDS(file = paste0(output_base_dir, "Reh_205/Reh_205_batchcorr_seurat_obj.rds"))
+```
+```{r}
+processed_samples_list <- list()
+processed_samples_list[["Reh_205"]] <- ref.obj[[1]]
+processed_samples_list[["GAMM_120"]] <- query.obj[[1]]
+print(processed_samples_list)
+```
+```{r}
 # Do cross species
 if (!species_are_all_same(config)) {
   objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
+}
+```
+```{r}
+query.seurat <- readRDS(file = paste0(output, "query_ortho-subset_seurat.rds"))
+colnames(query.seurat@meta.data)
+```
+```{r}
   for (obj in objs_list) {
      process_orthologous_objects(obj, output_base_dir)
   }
-}
+
 ```
 
 
