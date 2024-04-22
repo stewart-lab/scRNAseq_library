@@ -603,6 +603,33 @@ perform_clustering <- function(seurat_obj, path) {
   return(seurat_obj)
 }
 
+perform_clustering2 <- function(seurat_obj, path) {
+  resolution <- config$perform_clustering$resolution
+  algorithm <- config$perform_clustering$algorithm
+  reduction <- config$perform_clustering$reduction
+  dims_snn <- 1:config$perform_clustering$dims_snn
+
+  # Perform K-nearest neighbor (KNN) graph
+  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_snn, reduction = reduction)
+
+  # Save UMAP lanes plot
+  pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
+  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5)
+  print(umap_lanes)
+  dev.off()
+
+  # Cluster cells
+  seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = algorithm)
+
+  # Save UMAP clusters plot
+  pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
+  print(umap_clusters)
+  dev.off()
+
+  # Return the updated Seurat object
+  return(seurat_obj)
+}
 
 find_differentially_expressed_features <- function(seurat_obj, path) {
   # Get parameters from the config file
@@ -842,9 +869,9 @@ process_pairwise_comparisons <- function(clusters, i, marker.info, output_path, 
   }
 }
 
-
-
 process_known_markers <- function(top100, known_markers_flag, known_markers_df, clusters, i, output_path, top_n_markers, seurat_obj, annot_df) {
+  annot_type <- config$process_known_markers$annot_type
+  n_rank <- config$process_known_markers$n_rank
   if (known_markers_flag) {
     marker_df <- merge(top100, known_markers_df, by = "row.names")
 
@@ -868,26 +895,156 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
       new_vec <- unique(as.vector(new_df$Row.names))
 
       # Get top ranked
-      rank <- top_n_markers + 1
+      rank <- n_rank + 1
       new_df.ordered <- new_df[order(new_df$rank.logFC.cohen), ]
-      new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
-      new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
 
-      if (identical(new_vec2, character(0))) {
-        print(paste0("This vector does not have any ranks in top ", top_n_markers, ": ", clusters[i]))
-        new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
-        annot_df <- rbind(annot_df, new_row)
-      } else {
+      if (annot_type == "manual"){
+        new_df.ordered <- subset(new_df.ordered, rank.logFC.cohen < rank)
+        new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
+
+        if (identical(new_vec2, character(0))) {
+          print(paste0("This vector does not have any ranks in top ", top_n_markers, ": ", clusters[i]))
+          new_row <- data.frame(Cluster = clusters[i], Cell.type = "unknown")
+          annot_df <- rbind(annot_df, new_row)
+        } else {
         # UMAP plot highlighting gene expression
-        pdf(paste0(output_path, clusters[i], "_featureplot_top", top_n_markers, "ranks.pdf"), bg = "white")
-        print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
-        dev.off()
-        allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
-        result_string <- paste(allcelltypes, collapse = "-")
+          pdf(paste0(output_path, clusters[i], "_featureplot_top", top_n_markers, "ranks.pdf"), bg = "white")
+          print(FeaturePlot(seurat_obj, features = new_vec2), label = TRUE)
+         dev.off()
+          allcelltypes <- unique(as.vector(new_df.ordered$Cell.type))
+          result_string <- paste(allcelltypes, collapse = "-")
+          new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)
+          annot_df <- rbind(annot_df, new_row)
+        }
+      } else if (annot_type == "d120"| annot_type == "d40"){
+        new_vec2 <- unique(as.vector(new_df.ordered$Row.names))
+        cell_types <- unique(as.vector(known_markers_df[,"Cell.type"]))
+        # create empty list to store cell types
+        cell_type_list <- c()
+        cell_type_list1 <- c()
+        for (j in 1:length(cell_types)){
+          cell_type <- cell_types[j]
+          #print(cell_type)
+          genes_df <- subset(known_markers_df, Cell.type == cell_type)
+          #print(colnames(genes_df))
+          genes <- unique(rownames(genes_df))
+          #print(genes)
+          count = 0
+          for (k in 1:length(new_vec2)){
+            gene <- new_vec2[k]
+            if (gene %in% genes){
+              count <- count + 1
+            } else {
+                next
+            }
+          }
+          if (count >= 2){
+            new_cell_type <- cell_type
+            #print(new_cell_type)
+          } else if (count >= 1 && cell_type == "Cone") {
+            # check Pan PRs
+            count2 <- 0
+            genes_df <- subset(known_markers_df, Cell.type == "Pan PR")
+            genes <- unique(rownames(genes_df))
+            for (k in 1:length(new_vec2)){
+              gene <- new_vec2[k]
+              if (gene %in% genes){
+                count2 <- count2 + 1
+              } else {
+                next
+              }
+            }
+            if (count2 >= 2){
+              new_cell_type <- "Cone"
+            } else {
+              new_cell_type <- "NA"
+            }
+          } else if (count >= 1 && cell_type == "Ganglion Cell") {
+            # check Amacrine-Ganglion
+            count3 <- 0
+            genes_df <- subset(known_markers_df, Cell.type == "Amacrine-Ganglion") # nolint
+            genes <- unique(rownames(genes_df))
+            for (k in 1:length(new_vec2)){
+              gene <- new_vec2[k]
+              if (gene %in% genes){
+                count3 <- count3 + 1
+              } else {
+                next
+              }
+            }
+            if (count3 >= 2){
+              new_cell_type <- "Ganglion Cell"
+            } else if (annot_type == "d40" && count3 >= 1){
+              new_cell_type <- "Ganglion Cell"
+            } else {
+              new_cell_type <- "NA"
+            } 
+          } else if (count >= 1 && cell_type == "Amacrine Cell") {
+            # check Amacrine-Ganglion
+            count4 <- 0
+            genes_df <- subset(known_markers_df, Cell.type == "Amacrine-Ganglion") # nolint
+            genes <- unique(rownames(genes_df))
+            for (k in 1:length(new_vec2)){
+              gene <- new_vec2[k]
+              if (gene %in% genes){
+                count4 <- count4 + 1
+              } else {
+                next
+              }
+            }
+            if (count4 >= 2){
+              new_cell_type <- "Amacrine Cell"
+            } else {
+              new_cell_type <- "NA"
+            }
+          } else {
+            new_cell_type <- "NA"
+          }
+          if (count >= 1) {
+            new_cell_type1 <- cell_type
+            cell_type_list1 <- c(cell_type_list1, new_cell_type1)
+          }
+          cell_type_list <- c(cell_type_list, new_cell_type)
+        }
+        if ("Cone" %in% cell_type_list && "Pan PR" %in% cell_type_list) {
+          cell_type_list <- c("Cone")
+          print("Cone!")
+        } else if ("Rod" %in% cell_type_list && "Pan PR" %in% cell_type_list) {
+          print("Rod!")
+          cell_type_list <- c("Rod")
+        } else if ("Amacrine Cell" %in% cell_type_list && 
+                    "Amacrine-Ganglion" %in% cell_type_list) {
+          cell_type_list <- c("Amacrine Cell")
+          print("Amacrine Cell!")
+        } else if ("Ganglion Cell" %in% cell_type_list && 
+                    "Amacrine-Ganglion" %in% cell_type_list) {
+          cell_type_list <- c("Ganglion Cell")
+          print("Ganglion Cell!")
+        } else if (all(is.na(c("NA")) %in% names(cell_type_list))) {
+          cell_type_list <- c("unknown")
+        } else {
+          cell_type_list <- cell_type_list[cell_type_list != "NA"]
+        }
+        if ("unknown" %in% cell_type_list | length(cell_type_list) == 0 | 
+            length(cell_type_list) > 1) {
+          if (length(unique(cell_type_list1)) > 2 && annot_type == "d40") {
+            cell_type_list <- c("Retinal Prog")
+          } else if (length(unique(cell_type_list)) == 2 && annot_type == "d120") {
+            cell_type_list <- cell_type_list
+          } else {
+            cell_type_list <- c("unknown")
+          }
+        } else {
+          cell_type_list <- cell_type_list
+        }
+        result_string <- paste(cell_type_list, collapse = "-")
+        print(paste0("final cell type ", clusters[i], " ",result_string))
         new_row <- data.frame(Cluster = clusters[i], Cell.type = result_string)
         annot_df <- rbind(annot_df, new_row)
+        } else {
+          print("Need to set annotation type in config")
+        }
       }
-    }
   } else {
     print("No known marker set")
   }
@@ -1065,6 +1222,7 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   # Batch correction if needed
   if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
     env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
+    saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   } else {
     message("Skipping batch correction as 'orig.ident' has only one level.")
     env$batch_corrected_obj <- env$dim_reduced_seurat_obj
@@ -1079,6 +1237,7 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
     message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
     # For orthologous gene analysis, simply return the batch corrected object for now
     env$final_obj <- env$batch_corrected_obj
+    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_fin_seurat_obj.rds"))
   }
   
   # Clean up the environment and perform final garbage collection
@@ -1134,21 +1293,55 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
     if (length(categorized_samples$ref_objects) > 0 && length(categorized_samples$query_objects) > 0) { 
       ref_obj <- categorized_samples$ref_objects[[1]]
       query_obj <- categorized_samples$query_objects[[1]]
+      print(ref_obj)
+      print(query_obj)
+      # get feature lists for objects
+      feature_list_Q <- query_obj@assays$RNA@var.features
+      feature_list_Q <- as.vector(feature_list_Q)
+      feature_list_R <- ref_obj@assays$RNA@var.features
+      feature_list_R <- as.vector(feature_list_R)
+      # get scaled data
+      scaled_matrix_Q <- query_obj@assays$RNA@scale.data
+      scaled_matrix_R <- ref_obj@assays$RNA@scale.data
+      # get harmony embeddings
+      harmony_embeddings_Q <- Embeddings(query_obj, reduction = "harmony")
+      harmony_embeddings_R <- Embeddings(ref_obj, reduction = "harmony")
+      # get project names
       ref_project <- ref_obj$orig.ident[[1]]
       query_project <- query_obj$orig.ident[[1]]
       ref_project <- sub("_lane.*", "", ref_project)
       query_project <- sub("_lane.*", "", query_project)
       project_names <- c(ref_project, query_project)
-      objs_list <- ortholog_subset(ref_obj, query_obj, project_names)
+      # subset orthologs
+      print("subsetting orthologs")
+      objs.list <- ortholog_subset(ref_obj, query_obj, project_names)
+      print("ortholog subset complete")
       ref.seurat <- objs.list[[1]]
       query.seurat <- objs.list[[2]]
-      orthologs <- objs.list[[3]] 
+      orthologs <- objs.list[[3]]
+      print(ref.seurat)
+      print(query.seurat)
+      saveRDS(ref.seurat, file = paste0(output_dir, "ref_ortho-subset_seurat.rds"))
+      saveRDS(query.seurat, file = paste0(output_dir, "query_ortho-subset_seurat.rds"))
+      # get metadata 
       ref.seurat <- get_metadata(ref.seurat, "ref")
       query.seurat <- get_metadata(query.seurat, "query")
+      # add variable features back in
+      VariableFeatures(query.seurat) <- feature_list_Q
+      VariableFeatures(ref.seurat) <- feature_list_R
+      # add scaled data back in
+      query.seurat@assays$RNA@scale.data <- scaled_matrix_Q 
+      ref.seurat@assays$RNA@scale.data <- scaled_matrix_R
+      # add harmony embeddings back in
+      query.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
+        harmony_embeddings_Q, key = 'harmony_', assay = 'RNA')
+      ref.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
+        harmony_embeddings_R, key = 'harmony_', assay = 'RNA')
       # return the list of objects
-      return(objs_list)
+      obj.list2 <- list(ref.seurat, query.seurat, orthologs)
+      return(obj.list2)
       # Save the results
-      saveRDS(objs_list, file = paste0(output_dir, "ortholog_objs_list.rds"))
+      saveRDS(obj.list2, file = paste0(output_dir, "ortholog_objs_list.rds"))
     }
     else {
       message("No reference and query objects found for orthologous gene analysis.")
@@ -1186,4 +1379,29 @@ get_metadata <- function(seurat_obj, type) {
   seurat_obj <- AddMetaData(object=seurat_obj, metadata=metadata)
 
   return(seurat_obj)
+}
+
+process_orthologous_objects <- function(seurat_obj, sample_output_dir, config, sample_name){
+  umap_seurat_obj <- run_umap(seurat_obj, sample_output_dir)
+  clustered_seurat_obj <- perform_clustering2(umap_seurat_obj, sample_output_dir)
+  if (config$DE_method == "Seurat") {
+    de_results <- find_differentially_expressed_features(clustered_seurat_obj, sample_output_dir)
+    analyze_known_markers(clustered_seurat_obj, de_results, sample_output_dir)
+  } else if (config$DE_method == "Scran") {
+    annot_df <- score_and_plot_markers(clustered_seurat_obj, sample_output_dir)
+  }
+  # Optionally annotate clusters and save if known markers are to be scored and plotted
+  if (config$score_and_plot_markers$known_markers) {
+    new_df_ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
+    # Get new cluster names ordered by cluster number
+    new_cluster_ids <- new_df_ordered$Cell.type
+    labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new_cluster_ids, sample_output_dir)
+
+    clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, sample_output_dir)
+    # Append both annotated objects to the return list
+    return(list(labeled_seurat_obj = labeled_seurat_obj, clustifyR_obj = clustifyR_obj))
+  } else {
+    # If no known markers scoring and plotting, return the clustered object only
+    return(list(clustered_seurat_obj = clustered_seurat_obj))
+  }
 }

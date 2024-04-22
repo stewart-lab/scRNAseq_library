@@ -1,19 +1,19 @@
 {
-  "title": "GAMM Timepoints",
+  "title": "GAMM-Reh pig-human scRNAseq",
   "annotation_reference": true,
   "DE_method": "Scran",
   "Number_of_samples": 2,
   "lanes": [ ],
-  "DATA_DIR": "/w5home/jfreeman/scRNA_PUBLIC_FASTQS/GAMM/GAMM_SSUS_RETINOID_DATA/",
+  "DATA_DIR": "/w5home/bmoore/scRNAseq/GAMM/DATA/FASTQs/",
   "fastq_alignment": {
     "SAMPLE_1": {
       "NAME": "GAMM_120",
       "species": "pig",
       "NUM_LANES": 2,
-      "cDNA_LANE1": "/data/2_S2_L001_R2_001.fastq.gz",
-      "BARCODE_LANE1": "/data/2_S2_L001_R1_001.fastq.gz",
-      "cDNA_LANE2": "/data/2_S2_L002_R2_001.fastq.gz",
-      "BARCODE_LANE2": "/data/2_S2_L002_R1_001.fastq.gz",
+      "cDNA_LANE1": "/data/GAMM/2_S2_L001_R2_001.fastq.gz",
+      "BARCODE_LANE1": "/data/GAMM/2_S2_L001_R1_001.fastq.gz",
+      "cDNA_LANE2": "/data/GAMM/2_S2_L002_R2_001.fastq.gz",
+      "BARCODE_LANE2": "/data/GAMM/2_S2_L002_R1_001.fastq.gz",
       "CHEMISTRY_VERSION": "V3",
       "SOLO_TYPE": "CB_UMI_Simple",
       "SOLO_MULTI_MAPPERS": "EM",
@@ -24,13 +24,17 @@
       "clip5pNbases": "0 151"
     },
     "SAMPLE_2": {
-      "NAME": "GAMM_40",
-      "species": "pig",
-      "NUM_LANES": 2,
-      "cDNA_LANE1": "/data/1_S1_L001_R2_001.fastq.gz",
-      "BARCODE_LANE1": "/data/1_S1_L001_R1_001.fastq.gz",
-      "cDNA_LANE2": "/data/1_S1_L002_R2_001.fastq.gz",
-      "BARCODE_LANE2": "/data/1_S1_L002_R1_001.fastq.gz",
+      "NAME": "Reh_205",
+      "species": "human",
+      "NUM_LANES": 4,
+      "cDNA_LANE1": "/data/reh_data/bamtofastq_S1_L001_R2_001.fastq.gz",
+      "BARCODE_LANE1": "/data/reh_data/bamtofastq_S1_L001_R1_001.fastq.gz",
+      "cDNA_LANE2": "/data/reh_data/bamtofastq_S1_L002_R2_001.fastq.gz",
+      "BARCODE_LANE2": "/data/reh_data/bamtofastq_S1_L002_R1_001.fastq.gz",
+      "cDNA_LANE3": "/data/reh_data/bamtofastq_S1_L003_R2_001.fastq.gz",
+      "BARCODE_LANE3": "/data/reh_data/bamtofastq_S1_L003_R1_001.fastq.gz",
+      "cDNA_LANE4": "/data/reh_data/bamtofastq_S1_L004_R2_001.fastq.gz",
+      "BARCODE_LANE4": "/data/reh_data/bamtofastq_S1_L004_R1_001.fastq.gz",
       "CHEMISTRY_VERSION": "V3",
       "SOLO_TYPE": "CB_UMI_Simple",
       "SOLO_MULTI_MAPPERS": "EM",
@@ -98,13 +102,13 @@
     "top_n": 11
   },
   "get_metadata": {
-    "metadata_file1": "/w5home/bmoore/scRNAseq/GAMM/human_data/cowan_cell_2020/metadata/meta_30weeks_mod.txt",
+    "metadata_file1": "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/GSE142526_metadata/F6/cca_fetalvsorg_125CP_205_metadata.csv",
     "metadata_file2": "/w5home/bmoore/scRNAseq/GAMM/gamm_metadata/gammS2_manual_annot_metadata_c0.5.txt",
-    "metadata_subset1": "f49b7",
+    "metadata_subset1": "D205",
     "metadata_subset2": "NA"
   },
   "score_and_plot_markers": {
-    "top_n_markers": 10,
+    "top_n_markers": 100,
     "known_markers": "False",
     "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt",
     "cluster_type": "seurat_clusters",
@@ -112,6 +116,10 @@
     "logFC_thresh": 0.5,
     "auc_thresh": 0.5
   },
+  "process_known_markers":{
+    "annot_type": "d120",
+    "n_rank": 10
+   },
   "transfer_anchors": {
     "reduc.type": "cca"
   }
