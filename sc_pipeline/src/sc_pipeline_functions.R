@@ -386,14 +386,16 @@ categorize_samples_by_species <- function(sample_specific_list, config) {
     if (tolower(species) == "human") {
       # Append to ref_objects
       ref_objects[[sample_name]] <- sample_specific_list[[i]]
+      ref_name <- sample_name
     } else {
       # Append to query_objects
       query_objects[[sample_name]] <- sample_specific_list[[i]]
+      query_name <- sample_name
     }
   }
 
   # Return a list containing both lists of objects
-  return(list(ref_objects = ref_objects, query_objects = query_objects))
+  return(list(ref_objects = ref_objects, query_objects = query_objects, ref_name = ref_name, query_name = query_name))
 }
 
 scale_data <- function(seurat_obj, path) {
@@ -1287,9 +1289,11 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
   if (!species_are_all_same(config)) {
     # Categorize samples by species
     categorized_samples <- categorize_samples_by_species(processed_seurat_objs, config)
-    
+    ref_name <- categorized_samples$ref_name
+    query_name <- categorized_samples$query_name
     # Assuming there are at least two objects for reference and query
     if (length(categorized_samples$ref_objects) > 0 && length(categorized_samples$query_objects) > 0) { 
+      sample_name <- names(sample_specific_list)[i]
       ref_obj <- categorized_samples$ref_objects[[1]]
       query_obj <- categorized_samples$query_objects[[1]]
       print(ref_obj)
@@ -1337,7 +1341,9 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       ref.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
         harmony_embeddings_R, key = 'harmony_', assay = 'RNA')
       # return the list of objects
-      obj.list2 <- list(ref.seurat, query.seurat)
+      obj.list2 <- list()
+      obj.list2[[ref_name]] <- ref.seurat
+      obj.list2[[query_name]] <- query.seurat
       return(obj.list2)
       # Save the results
       saveRDS(obj.list2, file = paste0(output_dir, "ortholog_objs_list.rds"))

@@ -63,9 +63,11 @@ saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat
 # Do cross species
 if (!species_are_all_same(config)) {
   objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
-  for (obj in objs_list) {
-     process_orthologous_objects(obj, output_base_dir)
-  }
+  sample_names <- names(objs_list)
+  ref_name <- sample_names[1]
+  query_name <- sample_names[2]
+  ref_list <- process_orthologous_objects(objs_list$ref_name, output_base_dir, config, ref_name)
+  query_list <- process_orthologous_objects(objs_list$query_name, output_base_dir, config, query_name)
 }
 ```
 
