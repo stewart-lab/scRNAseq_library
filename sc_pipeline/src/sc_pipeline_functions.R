@@ -1222,7 +1222,6 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   # Batch correction if needed
   if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
     env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
-    saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   } else {
     message("Skipping batch correction as 'orig.ident' has only one level.")
     env$batch_corrected_obj <- env$dim_reduced_seurat_obj
@@ -1237,7 +1236,7 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
     message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
     # For orthologous gene analysis, simply return the batch corrected object for now
     env$final_obj <- env$batch_corrected_obj
-    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_fin_seurat_obj.rds"))
+    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   }
   
   # Clean up the environment and perform final garbage collection
@@ -1298,7 +1297,7 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       # get feature lists for objects
       feature_list_Q <- query_obj@assays$RNA@var.features
       feature_list_Q <- as.vector(feature_list_Q)
-      feature_list_R <- ref_obj@assays$RNA@var.features
+      feature_list_R <- ref_obj@assays$RNA@var.features #ref.obj[[1]]
       feature_list_R <- as.vector(feature_list_R)
       # get scaled data
       scaled_matrix_Q <- query_obj@assays$RNA@scale.data
@@ -1338,7 +1337,7 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       ref.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
         harmony_embeddings_R, key = 'harmony_', assay = 'RNA')
       # return the list of objects
-      obj.list2 <- list(ref.seurat, query.seurat, orthologs)
+      obj.list2 <- list(ref.seurat, query.seurat)
       return(obj.list2)
       # Save the results
       saveRDS(obj.list2, file = paste0(output_dir, "ortholog_objs_list.rds"))
@@ -1351,16 +1350,16 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
 
 get_metadata <- function(seurat_obj, type) {
   # Get parameters from config
-  metadata_file1 <- config$get_metadata$metadata_file1
-  metadata_file2 <- config$get_metadata$metadata_file2
+  metadata_file_ref <- config$get_metadata$metadata_file_ref
+  metadata_file_query <- config$get_metadata$metadata_file_query
   metadata_subset1 <- config$get_metadata$metadata_subset1
   metadata_subset2 <- config$get_metadata$metadata_subset2
   # check type
   if (type == "ref") {
-    metadata_file <- metadata_file1
+    metadata_file <- metadata_file_ref
     metadata_subset <- metadata_subset1
   } else if (type == "query") {
-    metadata_file <- metadata_file2
+    metadata_file <- metadata_file_query
     metadata_subset <- metadata_subset2
   } else {
     stop("Invalid type. Please choose 'ref' or 'query'.")
@@ -1381,7 +1380,9 @@ get_metadata <- function(seurat_obj, type) {
   return(seurat_obj)
 }
 
-process_orthologous_objects <- function(seurat_obj, sample_output_dir, config, sample_name){
+process_orthologous_objects <- function(seurat_obj, output_dir, config, sample_name){
+  sample_output_dir <- file.path(output_dir, sample_name)
+  sample_output_dir <- paste0(sample_output_dir, "/")
   umap_seurat_obj <- run_umap(seurat_obj, sample_output_dir)
   clustered_seurat_obj <- perform_clustering2(umap_seurat_obj, sample_output_dir)
   if (config$DE_method == "Seurat") {

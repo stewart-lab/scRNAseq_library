@@ -57,7 +57,7 @@
     "max.percent.mt": 20
   },
   "ortholog_subset": {
-    "ortholog_file": "../cell_cycle_vignette/Human_Pig_Biomart_Filtered_mod.txt",
+    "ortholog_file": "../metadata/Human_Pig_Biomart_Filtered_mod.txt",
     "ref_species": "human"
   },
   "normalize_data": {
@@ -102,17 +102,17 @@
     "top_n": 11
   },
   "get_metadata": {
-    "metadata_file1": "/w5home/bmoore/scRNAseq/GAMM/human_data/reh_cellrep_2020/GSE142526_metadata/F6/cca_fetalvsorg_125CP_205_metadata.csv",
-    "metadata_file2": "/w5home/bmoore/scRNAseq/GAMM/gamm_metadata/gammS2_manual_annot_metadata_c0.5.txt",
-    "metadata_subset1": "D205",
+    "metadata_file_ref": "../metadata/Reh_cca_org_205_metadata.txt",
+    "metadata_file_query": "../metadata/gammS2_manual_annot_metadata_c0.5.txt",
+    "metadata_subset1": "NA",
     "metadata_subset2": "NA"
   },
   "score_and_plot_markers": {
     "top_n_markers": 100,
-    "known_markers": "False",
-    "known_markers_path": "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt",
+    "known_markers": "TRUE",
+    "known_markers_path": "../known_marker_lists/Kims_retinal_markers.txt",
     "cluster_type": "seurat_clusters",
-    "pairwise": "TRUE",
+    "pairwise": "FALSE",
     "logFC_thresh": 0.5,
     "auc_thresh": 0.5
   },
