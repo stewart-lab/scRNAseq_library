@@ -61,6 +61,9 @@ fi
 # Copy the top-level config.json to src/config.json
 cp $CONFIG_FILE ./sc_pipeline/src/config.json
 
+# change the ownership of the sc_pipeline directory to the current user
+chown -R $(id -u):$(id -g) ./sc_pipeline/
+
 echo "Step 4: Preparing for Docker container run"
 # Change to the output directory
 cd output
@@ -75,7 +78,7 @@ cd ..
 shared_volume_dir=$(pwd)/shared_volume
 echo "Step 5: Building Docker image for the next container"
 # Build the Docker image for the next container
-docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t my-scrna-seq:bioinfo_latest ./sc_pipeline
+docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t seuratv5 ./sc_pipeline
 
 echo "Step 6: Running the main Docker container"
 
@@ -85,10 +88,8 @@ docker run -it\
   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
   --mount type=bind,source="$shared_volume_dir",target=/scRNA-seq/shared_volume \
   --mount type=bind,source="./sc_pipeline/src/config.json",target=/scRNA-seq/src/config.json \
-  my-scrna-seq:bioinfo_latest /bin/bash -c "python /scRNA-seq/get_data.py $DATA_FLAG && /root/miniconda/bin/conda run -n scrnaseq Rscript /scRNA-seq/script.R"
-
-
-
+  seuratv5 /bin/bash -c "python /scRNA-seq/get_data.py $DATA_FLAG && /root/miniconda/bin/conda run -n scrnaseq Rscript /scRNA-seq/script.R"
+  
 echo "Pipeline completed successfully."
 
 

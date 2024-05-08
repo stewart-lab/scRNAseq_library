@@ -1,5 +1,5 @@
 # Start with a Python base image
-FROM jfreeman88/scrna-seq:bioinfo_latest
+FROM jfreeman88/seuratv5:latest_1
 
 # Create a user with a specific UID and GID, and create the home directory
 ARG USER_ID

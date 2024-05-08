@@ -91,7 +91,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
 
   # Estimate contamination fractitfidfMin
-  sc <- autoEstCont(sc, tfidfMin = tfidfMin)
+  sc <- autoEstCont(sc, tfidfMin = tfidfMin, forceAccept=TRUE)
   out <- adjustCounts(sc, roundToInt = TRUE)
 
   list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
@@ -120,7 +120,7 @@ process_lane <- function(lane) {
 
 create_seurat_and_sce <- function(out, project, feature_set) {
   # Create singular Seurat object
-  seu <- CreateSeuratObject(counts = out, project = project)
+  seu <- CreateSeuratObject(counts = out, project = project, data = NULL)
 
   # Convert Seurat objects to SingleCellExperiment object
   sce <- as.SingleCellExperiment(seu)
@@ -174,7 +174,7 @@ run_scDblFinder_and_merge <- function(
     dbl_table_list[[i]] <- dbl_table
     sce_list[[i]] <- sce_list[[i]][, sce_list[[i]]$scDblFinder.class ==
       "singlet"]
-    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]])
+    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]],data=NULL)
   }
   merged_dbl_table <- do.call(rbind, dbl_table_list)
   write.table(merged_dbl_table,

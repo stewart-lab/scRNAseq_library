@@ -1,126 +1,122 @@
 {
-  "title": "GAMM-Reh pig-human scRNAseq",
+  "title": "GSE194214_timecourse",
   "annotation_reference": true,
   "DE_method": "Scran",
   "Number_of_samples": 2,
   "lanes": [ ],
-  "DATA_DIR": "/w5home/bmoore/scRNAseq/GAMM/DATA/FASTQs/",
-  "fastq_alignment": {
-    "SAMPLE_1": {
-      "NAME": "GAMM_120",
-      "species": "pig",
-      "NUM_LANES": 2,
-      "cDNA_LANE1": "/data/GAMM/2_S2_L001_R2_001.fastq.gz",
-      "BARCODE_LANE1": "/data/GAMM/2_S2_L001_R1_001.fastq.gz",
-      "cDNA_LANE2": "/data/GAMM/2_S2_L002_R2_001.fastq.gz",
-      "BARCODE_LANE2": "/data/GAMM/2_S2_L002_R1_001.fastq.gz",
-      "CHEMISTRY_VERSION": "V3",
-      "SOLO_TYPE": "CB_UMI_Simple",
-      "SOLO_MULTI_MAPPERS": "EM",
-      "READ_FILES_COMMAND": "zcat",
-      "SOLO_UMI_DEDUP": "1MM_CR",
-      "RUN_THREAD_N": 8,
-      "isBarcodeFollowedbyReads": false,
-      "clip5pNbases": "0 151"
+  "DATA_DIR": "/w5home/bmoore/scRNAseq/LiFangChu/public_data/GSE194214/",
+    "fastq_alignment": {
+        "SAMPLE_1": {
+            "NAME": "Day1",
+            "species": "human",
+            "NUM_LANES": 2,
+            "cDNA_LANE1": "/data/SRR17712089_2.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR17712089_1.fastq.gz",
+            "cDNA_LANE2": "/data/SRR17712090_2.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR17712090_1.fastq.gz",
+            "CHEMISTRY_VERSION": "V3",
+            "SOLO_TYPE": "CB_UMI_Simple",
+            "SOLO_MULTI_MAPPERS": "EM",
+            "READ_FILES_COMMAND": "zcat",
+            "SOLO_UMI_DEDUP": "1MM_CR",
+            "RUN_THREAD_N": 8,
+            "isBarcodeFollowedbyReads": false,
+            "clip5pNbases": "0 91"
+        },
+        "SAMPLE_2": {
+            "NAME": "Day2",
+            "species": "human",
+            "NUM_LANES": 2,
+            "cDNA_LANE1": "/data/SRR17712087_2.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR17712087_1.fastq.gz",
+            "cDNA_LANE2": "/data/SRR17712088_2.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR17712088_1.fastq.gz",
+            "CHEMISTRY_VERSION": "V3",
+            "SOLO_TYPE": "CB_UMI_Simple",
+            "SOLO_MULTI_MAPPERS": "EM",
+            "READ_FILES_COMMAND": "zcat",
+            "SOLO_UMI_DEDUP": "1MM_CR",
+            "RUN_THREAD_N": 8,
+            "isBarcodeFollowedbyReads": false,
+            "clip5pNbases": "0 91"
+        }
     },
-    "SAMPLE_2": {
-      "NAME": "Reh_205",
-      "species": "human",
-      "NUM_LANES": 4,
-      "cDNA_LANE1": "/data/reh_data/bamtofastq_S1_L001_R2_001.fastq.gz",
-      "BARCODE_LANE1": "/data/reh_data/bamtofastq_S1_L001_R1_001.fastq.gz",
-      "cDNA_LANE2": "/data/reh_data/bamtofastq_S1_L002_R2_001.fastq.gz",
-      "BARCODE_LANE2": "/data/reh_data/bamtofastq_S1_L002_R1_001.fastq.gz",
-      "cDNA_LANE3": "/data/reh_data/bamtofastq_S1_L003_R2_001.fastq.gz",
-      "BARCODE_LANE3": "/data/reh_data/bamtofastq_S1_L003_R1_001.fastq.gz",
-      "cDNA_LANE4": "/data/reh_data/bamtofastq_S1_L004_R2_001.fastq.gz",
-      "BARCODE_LANE4": "/data/reh_data/bamtofastq_S1_L004_R1_001.fastq.gz",
-      "CHEMISTRY_VERSION": "V3",
-      "SOLO_TYPE": "CB_UMI_Simple",
-      "SOLO_MULTI_MAPPERS": "EM",
-      "READ_FILES_COMMAND": "zcat",
-      "SOLO_UMI_DEDUP": "1MM_CR",
-      "RUN_THREAD_N": 8,
-      "isBarcodeFollowedbyReads": false,
-      "clip5pNbases": "0 151"
+    "prep_seurat_and_soupX": {
+        "dims": 30,
+        "umap.method": "umap-learn",
+        "tfidfMin": 1,
+        "min.cells": 3
+    },
+    "filter_cells": {
+        "lower.nFeature": 200,
+        "upper.nFeature": 15000,
+        "max.percent.mt": 20
+    },
+    "ortholog_subset": {
+        "ortholog_file": "../metadata/Human_Pig_Biomart_Filtered_mod.txt",
+        "ref_species": "human"
+    },
+    "normalize_data": {
+        "min_size": 100,
+        "min_mean": 0.1,
+        "feature": "ECHS1"
+    },
+    "feature_selection": {
+        "n_features": 2000,
+        "analysis_type": "Scry"
+    },
+    "scale_data": {
+        "vars.2.regress": "cell.cycle",
+        "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+        "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
+    },
+    "run_and_visualize_pca": {
+        "top_n_dims": 2,
+        "heatmap_dims": 15,
+        "num_cells": 500,
+        "dims": 20,
+        "num.replicate": 100
+    },
+    "run_umap": {
+        "dims_umap": 20,
+        "umap.method": "umap-learn",
+        "umap.red": "harmony"
+    },
+    "perform_batch_correction": {
+        "dims.use": 20,
+        "max_iter": 50
+    },
+    "perform_clustering": {
+        "reduction": "harmony",
+        "resolution": 0.5,
+        "algorithm": "leiden",
+        "dims_snn": 10
+    },
+    "find_differentially_expressed_features": {
+        "min_pct": 0.25,
+        "logfc_threshold": 0.25,
+        "top_n": 11
+    },
+    "get_metadata": {
+        "metadata_file_ref": "../metadata/Reh_cca_org_205_metadata.txt",
+        "metadata_file_query": "../metadata/gammS2_manual_annot_metadata_c0.5.txt",
+        "metadata_subset1": "NA",
+        "metadata_subset2": "NA"
+    },
+    "score_and_plot_markers": {
+        "top_n_markers": 100,
+        "known_markers": "TRUE",
+        "known_markers_path": "../known_marker_lists/JackChu_markers.txt",
+        "cluster_type": "seurat_clusters",
+        "pairwise": "FALSE",
+        "logFC_thresh": 0.5,
+        "auc_thresh": 0.5
+    },
+    "process_known_markers": {
+        "annot_type": "manual",
+        "n_rank": 10
+    },
+    "transfer_anchors": {
+        "reduc.type": "cca"
     }
-  },
-  "prep_seurat_and_soupX": {
-    "dims": 30,
-    "umap.method": "umap-learn",
-    "tfidfMin": 0.75,
-    "min.cells": 3
-  },
-  "filter_cells": {
-    "lower.nFeature": 200,
-    "upper.nFeature": 10000,
-    "max.percent.mt": 20
-  },
-  "ortholog_subset": {
-    "ortholog_file": "../metadata/Human_Pig_Biomart_Filtered_mod.txt",
-    "ref_species": "human"
-  },
-  "normalize_data": {
-    "min_size": 100,
-    "min_mean": 0.1,
-    "feature": "ECHS1"
-  },
-  "feature_selection": {
-    "n_features": 2000,
-    "analysis_type": "Scry"
-  },
-  "scale_data": {
-    "vars.2.regress": "cell.cycle",
-    "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
-    "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
-  },
-  "run_and_visualize_pca": {
-    "top_n_dims": 2,
-    "heatmap_dims": 15,
-    "num_cells": 500,
-    "dims": 20,
-    "num.replicate": 100
-  },
-  "run_umap": {
-    "dims_umap": 20,
-    "umap.method": "umap-learn",
-    "umap.red": "pca"
-  },
-  "perform_batch_correction": {
-    "dims.use": 20,
-    "max_iter": 50
-  },
-  "perform_clustering": {
-    "reduction": "harmony",
-    "resolution": 0.5,
-    "algorithm": "leiden",
-    "dims_snn": 10
-  },
-  "find_differentially_expressed_features": {
-    "min_pct": 0.25,
-    "logfc_threshold": 0.25,
-    "top_n": 11
-  },
-  "get_metadata": {
-    "metadata_file_ref": "../metadata/Reh_cca_org_205_metadata.txt",
-    "metadata_file_query": "../metadata/gammS2_manual_annot_metadata_c0.5.txt",
-    "metadata_subset1": "NA",
-    "metadata_subset2": "NA"
-  },
-  "score_and_plot_markers": {
-    "top_n_markers": 100,
-    "known_markers": "TRUE",
-    "known_markers_path": "../known_marker_lists/Kims_retinal_markers.txt",
-    "cluster_type": "seurat_clusters",
-    "pairwise": "FALSE",
-    "logFC_thresh": 0.5,
-    "auc_thresh": 0.5
-  },
-  "process_known_markers":{
-    "annot_type": "d120",
-    "n_rank": 10
-   },
-  "transfer_anchors": {
-    "reduc.type": "cca"
-  }
 }
