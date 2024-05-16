@@ -32,7 +32,7 @@ library(clustifyr)
 library(ggplot2)
 library(ComplexHeatmap)
 setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
-output <- "/w5home/bmoore/scRNAseq_library/output/output_20240422_180439/"
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20240515_191139/Day1/"
 # Load configuration and set output directory
 config <- jsonlite::fromJSON(paste0(output,"config.json"), simplifyDataFrame = FALSE)
 output_base_dir <- output
@@ -60,6 +60,40 @@ for (sample_name in names(sample_specific_sce_list)) {
 # Save the processed Seurat objects
 saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
 ```
+# if process didn't complete- read in object here
+```{r}
+seurat.obj <- readRDS(file = paste0(output, "seurat_obj_labeled.rds"))
+print(seurat.obj)
+```
+# check running dimplot with phase
+```{r}
+pdf(paste0(output, "pca_after_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat.obj, group.by= "Phase"))
+    dev.off()
+```
+# try rerunning score markers
+```{r}
+annot_df <- score_and_plot_markers(seurat.obj, output)
+```
+# annotate
+```{r}
+new_df_ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
+# Get new cluster names ordered by cluster number
+new_cluster_ids <- new_df_ordered$Cell.type
+names(new_cluster_ids) <- levels(seurat.obj)
+seurat.obj$CellType <- Idents(seurat.obj)
+head(seurat.obj@meta.data)
+```
+# switch back to seurat cluster as Idents
+```{r}
+Idents(seurat.obj) <- "seurat_clusters"
+head(Idents(seurat.obj))
+```
+```{r}
+seurat.obj <- annotate_clusters_and_save(seurat.obj, new_cluster_ids, output)
+```
+
+
 ```{r}
 # read in processed samples list
 #processed_samples_list<- readRDS(file = paste0(output_base_dir, "processed_seurat_objects.rds"))

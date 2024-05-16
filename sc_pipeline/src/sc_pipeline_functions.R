@@ -429,8 +429,8 @@ scale_data <- function(seurat_obj, path) {
 
     # Select species-specific cell cycle markers
     if (species == "human") {
-      s.genes <- varslist[1]$human.gene.name
-      g2m.genes <- varslist[1]$human.gene.name
+      s.genes <- cc.genes$s.genes
+      g2m.genes <- cc.genes$g2m.genes
     } else if (species == "pig") {
       s.genes <- varslist[4]$pig.gene.name
       g2m.genes <- varslist[8]$pig.gene.name
@@ -453,7 +453,7 @@ scale_data <- function(seurat_obj, path) {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj))
+    print(DimPlot(seurat_obj, group.by= "Phase"))
     dev.off()
     # scale data and regress out cell cycle
     seurat_obj <- ScaleData(seurat_obj,
@@ -464,7 +464,7 @@ scale_data <- function(seurat_obj, path) {
     # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj))
+    print(DimPlot(seurat_obj, group.by= "Phase"))
     dev.off()
   } else {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
@@ -597,7 +597,8 @@ perform_clustering <- function(seurat_obj, path) {
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", 
+  label = TRUE, pt.size = .5)
   print(umap_clusters)
   dev.off()
 
@@ -625,7 +626,7 @@ perform_clustering2 <- function(seurat_obj, path) {
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", label = TRUE, pt.size = .5)
   print(umap_clusters)
   dev.off()
 
@@ -1055,14 +1056,17 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
 
 
 annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_path = output) {
+  # make sure idents are set to seurat_clusters
+  Idents(seurat_obj) <- "seurat_clusters"
   # Rename the clusters based on the new IDs
   names(new_cluster_ids) <- levels(seurat_obj)
   seurat_obj <- RenameIdents(seurat_obj, new_cluster_ids)
-
+  # store names as celltype
+  seurat_obj$CellType <- Idents(seurat_obj)
   # Generate and plot the UMAP plot
 
   pdf(paste0(output_path, "labeled-clusters.pdf"), bg = "white")
-  print(DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5))
+  print(DimPlot(seurat_obj, reduction = "umap", group.by = 'CellType', label = TRUE, pt.size = 0.5))
   dev.off()
   # Save the Seurat object
   saveRDS(seurat_obj, file = paste0(output_path, "seurat_obj_labeled.rds"))

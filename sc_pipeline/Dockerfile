@@ -1,5 +1,5 @@
 # Start with a Python base image
-FROM jfreeman88/seuratv5:latest_1
+FROM stewartlab/seuratv5:1.0
 
 # Create a user with a specific UID and GID, and create the home directory
 ARG USER_ID
