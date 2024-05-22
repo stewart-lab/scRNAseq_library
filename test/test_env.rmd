@@ -1,0 +1,49 @@
+---
+title: "scRNAseq_pipeline"
+output: pdf_document
+params:
+  output: "default_output" 
+  config_path: "default_config_path" 
+---
+# ENVIRONMENT SETUP
+```{r env, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+use_condaenv("/root/miniconda/envs/scrnaseq", required = TRUE)#"/root/miniconda/envs/scrnaseq"
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(SoupX)
+library(scDblFinder)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+library(tidyverse)
+library(tibble)
+library(stringr)
+library(clustifyr)
+library(ggplot2)
+library(ComplexHeatmap)
+output <- params$output
+# Load configuration and set output directory
+config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
+output_base_dir <- paste0("../", output, "/")
+source("sc_pipeline_functions.R")
+```
+
+## Figures
+
+The figure sizes have been customised so that you can easily put two images side-by-side. 
+
+```{r, fig.show='hold'}
+plot(1:10)
+plot(10:1)
+```
+
+
+

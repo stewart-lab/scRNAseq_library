@@ -11,7 +11,7 @@ params:
 ```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
-use_condaenv("/root/miniconda/envs/scrnaseq")
+use_condaenv("/root/miniconda/envs/scrnaseq", required = TRUE)
 library(dplyr)
 library(Seurat)
 library(patchwork)
@@ -26,136 +26,49 @@ library(purrr)
 library(jsonlite)
 library(rmarkdown)
 library(tidyverse)
-use_condaenv("/root/miniconda/envs/scrnaseq")
 library(tibble)
 library(stringr)
 library(clustifyr)
 library(ggplot2)
 library(ComplexHeatmap)
 output <- params$output
+# Load configuration and set output directory
 config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
-output <- paste0("../", output, "/")
+output_base_dir <- paste0("../", output, "/")
 source("sc_pipeline_functions.R")
 ```
+```{r}
+# Assuming process_lane, combine_feature_plots, and split_sce_list_by_sample are defined in 'sc_pipeline_functions.R'
+processed_data_list <- lapply(config$lanes, process_lane)
+seurat_list <- purrr::map(processed_data_list, "seu")
+sce_list <- purrr::map(processed_data_list, "sce")
 
-# Load data
-```{r Load, SoupX and Obj Creation}
-# Process the data
-all_processed_data <- lapply(config$lanes, process_lane)
-seurat_objs_list <- purrr::map(all_processed_data, "seu")
-filtered_sce_list <- purrr::map(all_processed_data, "sce")
-feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-combine_feature_plots(seurat_objs_list, feature_set1, file_name_base = "post_soupx_qc")
-rm(all_processed_data, seurat_objs_list, feature_set1)
-gc(full = TRUE)
-```
+feature_set <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+combine_feature_plots(seurat_list, output_base_dir, feature_set, file_name_base = "post_soupx_qc")
 
-# Dbl Remover
-```{r scDbl Finder and lane merging}
-# Run doublet finder and merge lanes
-lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(filtered_sce_list)
-rm(filtered_sce_list)
-gc(full = TRUE)
-```
+sample_specific_sce_list <- split_sce_list_by_sample(sce_list)
+clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
 
-# Mitochondrial gene filtering
-```{r MT Gene Filtering}
-seurat_obj_mt_filtered <- filter_cells(lane_and_merged_seurat_obj)
-rm(lane_and_merged_seurat_obj)
-gc(full = TRUE)
-```
-
-# Normalization
-```{r Normalization}
-normalized_seurat_obj <- normalize_data(seurat_obj_mt_filtered)
-rm(seurat_obj_mt_filtered)
-gc(full = TRUE)
-```
-
-# Feature selection
-```{r Feature Selection}
-feature_selected_seurat_obj <- feature_selection(normalized_seurat_obj)
-rm(normalized_seurat_obj)
-gc(full = TRUE)
-```
-
-# Scaling data
-```{r Scaling Data}
-scaled_seurat_obj <- scale_data(feature_selected_seurat_obj)
-rm(feature_selected_seurat_obj)
-gc(full = TRUE)
-```
-
-# Dimensional reduction
-```{r Dimensional Reduction}
-dim_reduced_seurat_obj <- run_and_visualize_pca(scaled_seurat_obj)
-rm(scaled_seurat_obj)
-gc(full = TRUE)
-```
-
-# Batch correction
-```{r Batch Correction}
-# Check the number of unique levels in orig.ident
-if (length(unique(dim_reduced_seurat_obj$orig.ident)) > 1) {
-  # Perform batch correction if orig.ident has more than one level
-  batch_corrected_obj <- perform_batch_correction(dim_reduced_seurat_obj)
-} else {
-  # Skip batch correction and use the original object
-  batch_corrected_obj <- dim_reduced_seurat_obj
-  message("Skipping batch correction as orig.ident has only one level.")
+processed_samples_list <- list()
+for (sample_name in names(sample_specific_sce_list)) {
+  sample_data <- sample_specific_sce_list[[sample_name]]
+  seurat_obj <- process_sample(sample_name, sample_data, output_base_dir, config)
+  processed_samples_list[[sample_name]] <- seurat_obj
 }
 
-# Remove the original object to free up memory
-rm(dim_reduced_seurat_obj)
-gc(full = TRUE)
+# Save the processed Seurat objects
+saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
 ```
-
-# UMAP
-```{r UMAP}
-# Check if batch_corrected_obj is a list (i.e., batch correction was performed)
-if (is.list(batch_corrected_obj)) {
-  # Run UMAP on the Seurat object returned by perform_batch_correction
-  umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj)
-} else {
-  # Run UMAP on the original Seurat object (i.e., batch correction was skipped)
-  umap_seurat_obj <- run_umap(batch_corrected_obj)
-}
-
-# Remove the batch_corrected_obj to free up memory
-rm(batch_corrected_obj)
-gc(full = TRUE)
-```
-
-# Clustering 
-```{r Clustering}
-clustered_seurat_obj <- perform_clustering(umap_seurat_obj)
-rm(umap_seurat_obj)
-gc(full = TRUE)
-```
-
-# Find markers with Differential expressed features (genes)
-```{r Differential Expression}
-if (config$DE_method == "Seurat") {
-  de_results <- find_differentially_expressed_features(clustered_seurat_obj)
-  analyze_known_markers(clustered_seurat_obj, de_results, output)
-} else if (config$DE_method == "Scran") {
-  annot_df <- score_and_plot_markers(clustered_seurat_obj, output)
+```{r}
+# Do cross species
+if (!species_are_all_same(config)) {
+  objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
+  sample_names <- names(objs_list)
+  ref_name <- sample_names[1]
+  query_name <- sample_names[2]
+  ref_list <- process_orthologous_objects(objs_list$ref_name, output_base_dir, config, ref_name)
+  query_list <- process_orthologous_objects(objs_list$query_name, output_base_dir, config, query_name)
 }
 ```
-# save the clustered object
-```{r Save Final Object}
-saveRDS(clustered_seurat_obj, file = paste0(output, "clustered_seurat_obj.rds"))
-```
-# Both annotation methods
-```{r Cluster Annotation}
-if (config$score_and_plot_markers$known_markers) {
-  # order clusters from annotation data frame
-  new_df.ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
-  # get new cluster names ordered by cluster number
-  new.cluster.ids <- new_df.ordered$Cell.type
-  # annotate
-  labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new.cluster.ids, output)
 
-  clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, output)
-}
-```
+
