@@ -9,7 +9,7 @@ file.copy(file.path(getwd(), "/src/config.json"), config_path)
 cat(paste0("Starting pipeline at ", timestamp, " with output directory ", output, "\n"))
 
 rmarkdown::render(
-    input = file.path(getwd(), "src", "sc_pipeline.rmd"),
+    input = file.path(getwd(), "src", "sc_pipeline.rmd"), # sc_pipeline.rmd test_env.rmd
     output_format = "pdf_document",
     output_dir = output,
     intermediates_dir = output,

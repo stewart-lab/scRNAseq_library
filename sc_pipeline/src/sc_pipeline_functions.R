@@ -1180,6 +1180,8 @@ annotate_with_clustifyR <- function(clustered_seurat_obj, output) {
 
   # Save object with clustifyr annotation
   saveRDS(clustered_seurat_obj, file = paste0(output, "seurat_obj_clustifyr.rds"))
+
+  return(clustered_seurat_obj)
 }
 
 clean_environment <- function(list_to_remove) {

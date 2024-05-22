@@ -32,9 +32,9 @@ library(clustifyr)
 library(ggplot2)
 library(ComplexHeatmap)
 setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
-output <- "/w5home/bmoore/scRNAseq_library/output/output_20240515_191139/Day1/"
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20240517_165517/Day1/"
 # Load configuration and set output directory
-config <- jsonlite::fromJSON(paste0(output,"config.json"), simplifyDataFrame = FALSE)
+config <- jsonlite::fromJSON("/w5home/bmoore/scRNAseq_library/output/output_20240517_165517/config.json", simplifyDataFrame = FALSE)
 output_base_dir <- output
 source("sc_pipeline_functions.R")
 ```
@@ -64,6 +64,25 @@ saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat
 ```{r}
 seurat.obj <- readRDS(file = paste0(output, "seurat_obj_labeled.rds"))
 print(seurat.obj)
+```
+# retry clustifyr
+```{r}
+clustifyR_obj <- annotate_with_clustifyR(seurat.obj, output)
+print(clustifyR_obj)
+```
+# make list
+```{r}
+processed_samples_list <- list(labeled_seurat_obj = seurat.obj, clustifyR_obj = clustifyR_obj)
+print(processed_samples_list)
+```
+```{r}
+processed_samples_list2 <- list()
+processed_samples_list2[["sample1"]] <- processed_samples_list
+print(processed_samples_list2)
+```
+```{r}
+seurat.objs <- readRDS(file = "/w5home/bmoore/scRNAseq_library/output/output_20240517_165517/processed_seurat_objects.rds")
+print(seurat.objs)
 ```
 # check running dimplot with phase
 ```{r}
