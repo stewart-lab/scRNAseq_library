@@ -554,6 +554,12 @@ run_umap <- function(seurat_obj, path) {
   dims_umap <- 1:config$run_umap$dims_umap
   umap.method <- config$run_umap$umap.method
   umap.red <- config$run_umap$umap.red
+  # check that harmony embeddings exist
+  if ("harmony" %in% names(Embeddings(seurat_obj)) && umap.red=="harmony") {
+    message("Harmony embeddings exist. Proceeding with UMAP reduction.")
+  } else {
+    umap.red <- "pca"
+  }
   # Run UMAP
   seurat_obj <- RunUMAP(seurat_obj,
     dims = dims_umap, umap.method = umap.method,
