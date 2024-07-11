@@ -1,7 +1,6 @@
 # scRNA-seq Analysis Guide
 
-This README provides instructions on how to do a general single-cell RNA sequencing (scRNA-seq) analysis via Docker, as well as 
-some specialized analyses such as automated annotation, cell type composition, and pseudotime.
+This README provides instructions on how to do a general single-cell RNA sequencing (scRNA-seq) analysis via Docker, including cross-species analysis and automated annotation via marker lists.
 
 ## Prerequisites
 
@@ -45,9 +44,7 @@ source run_pipeline.sh
      - If no the following follow-up question will be asked: If you'd like to load a stored experiment select data. If you have aligned FASTQs loaded and changed pipeline parameters, select fastq [data/fastq]:
           - If data, that means you would like to load one of our pre-aligned datasets and you must select between the three: [REH,GAMM_S1,GAMM_S2]
           - If fastq, the alignment step will be skipped but your presumabley new config parameters will be applied to the latest time-stamped run 
-    
-    
-   
+       
 
 # scRNA-seq Analysis Configuration Guide
 
@@ -158,6 +155,7 @@ This README provides a brief description of the configuration file used in the s
   - `n_rank`: Lowest rank based on the log fold change to consider when annotating cell type (e.g. `10`)
 
 Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat, Scran, SoupX documentation.
+Note: **Clustifyr** used to do automated annotation via provided marker list in addition to manual annotation.
 
 ### Output files
 
@@ -200,196 +198,6 @@ Please adjust the parameters as per your requirements. For additional details on
    - `seurat_obj_labeled.rds` contains manual annotation (if manual annotation was selected, otherwise contains just clusters)
    - `seurat_obj_clustifyr.rds` contains clustifyr annotation if marker files were provided.
 
-# Automated annotation
-
-## Clustifyr
-
-Clustifyr can take either a marker list or a reference seurat object/ dataset to annotate clusters in query data.
-
-The introduction vignette can be found here: https://rnabioco.github.io/clustifyr/articles/clustifyR.html
-
-To run, modify script with your data and marker list
-
-```
-src/clustifyr.R
-```
-- R requirements
-```
-BiocManager::install("clustifyr")
-library(clustifyr)
-library(ggplot2)
-library(cowplot)
-library(Seurat)
-```
-## scPred
-
-scPred uses a reference object/ dataset to predict annotations of clusters in query data based on similarity of cell expression to the reference. The default algorithm is SVM-radial, however many different models/algorithms can be applied from the caret package: https://topepo.github.io/caret/available-models.html. 
-
-The introduction vignette for scPred can be found here: https://powellgenomicslab.github.io/scPred/articles/introduction.html
-
-To run, your query and reference data must first be processed the same way. Cross-species predictions need an ortholog file:
-
-```
-src/preprocess_crossspecies.Rmd
-```
-- R requirements
-
-```
-library(dplyr)
-library(Seurat)
-library(patchwork)
-library(scran)
-library(BiocParallel)
-library(DropletUtils)
-library(cowplot)
-library(harmony)
-library(SoupX)
-library(scDblFinder)
-library(reticulate)
-library(purrr)
-library(jsonlite)
-library(rmarkdown)
-```
-
-Next run the scPred script with your preprocessed query and reference objects. scPred will divide the reference into training and testing objects, where the model is trained on the training set, and then applied to the testing set. Watch for cell types that don't predict well in the test set- this may mean the model for that cell type isn't good, and you can try a different one. After a final model is built (you can have different algorithms for each cell type if you want), then you can apply to the query data. To run, update with your reference and query objects, you can also specify different algorithms/models after first running your training data with the SVM-radial algorithm.
-
-```
-src/scPred_GAMM.Rmd
-```
-
-- R requirements
-```
-library(devtools)
-devtools::install_github("powellgenomicslab/scPred")
-library(scPred)
-library(Seurat)
-library(magrittr)
-library(harmony)
-library(rmarkdown)
-library(jsonlite)
-library(purrr)
-library(scran)
-library(patchwork)
-library(dplyr)
-library(reticulate)
-```
-
-## Seurat mapping
-
-Seurat mapping also uses a reference object/ dataset to predict annotations of clusters based on similairty of cell expression to the reference. It does this by doing a canonical correlation analysis to find "anchor" cells between the reference and query, then annotated clusters based on these anchor cells. 
-
-The Seurat mapping vignette can be found here: https://satijalab.org/seurat/articles/integration_mapping
-
-Again, query and reference data need to be preprocessed the same way. First run preprocess_crossspecies.Rmd, and cross-species predictions need an ortholog file. 
-
-```
-src/preprocess_crossspecies.Rmd
-```
-
-Next run the seurat mapping script on your preprocessed data. Seurat will integrate the two datasets together to find anchors, then transfer the anontation data from reference to query. Seurat lets you view the query in either query space or reference space.
-
-```
-src/seurat_mapping_GAMM.Rmd
-```
-
-- R requirements
-```
-library(dplyr)
-library(Seurat)
-library(patchwork)
-library(scran)
-library(BiocParallel)
-library(DropletUtils)
-library(cowplot)
-library(harmony)
-library(reticulate)
-library(purrr)
-library(jsonlite)
-library(rmarkdown)
-library(ggplot2)
-library(scPred)
-```
-
-# Cell type composition analysis
-
-## sccomp
-
-sccomp measures cell type composition across datasets to see if the numbers of certain cell type have changed due to developmetn stage, condition, species, etc. It uses a beta-binomial distribution for each cell type that then sums to one.
-
-The tutorial for sccomp is here: https://github.com/stemangiola/sccomp
-
-To run sccomp you need processed and labeled data sets. Since you are comparing cell type compositionality, you need to have annotated data with the same cell type marker list or same reference set. 
-
-```
-src/sccomp.R
-```
-
-- R requirements
-```
-if (!requireNamespace("BiocManager")) install.packages("BiocManager")
-BiocManager::install("sccomp")
-library(sccomp)
-library(Seurat)
-library(tidyverse)
-library(loo)
-```
-# Pseudotime/ trajectory analysis
-
-Cells are often in transition from one cell type to another, and pseudotime captures relationships between clusters, beginning with the least differentiated state to the most mature/terminal state(s).
-
-## Palantir and CellRank
-
-Palantir models trajectories of differentiated cells by treating cell fate as a probabilistic process and leverages entropy to measure cell plasticity along the trajectory. CellRank uses Palantir in
-it's pseudotime kernel, but can also use RNA velocity, similarity, cytotrace, time-series, or matebolic labeling to calculate trajectories. Here we use it with Palantir. Together they identify initial
-and terminal states, cell fate probabilities, and driver genes.
-
-Tutorials:
-- Palantir: https://github.com/dpeerlab/Palantir
-- CellRank: https://cellrank.readthedocs.io/en/latest/notebooks/tutorials/general/100_getting_started.html
-
-To run Palantir and CellRank you first have to have a Seurat object that is clustered and annotated (see above). 
-
-Next convert your Seurat object to an anndata object:
-
-```
-# before running, change the working directory and the input and output filenames in the script.
-src/convert_seurat2anndata.R
-```
-
-- R requirements
-```
-library(reticulate)
-library(purrr)
-library(jsonlite)
-library(rmarkdown)
-library(Seurat)
-library(SeuratDisk)
-```
-
-Once you have your anndata object, set up your python environment:
-
-```
-# set up with pseudotime_requirements.txt
-source src/install_pseudotime_env.sh
-# activate
-source pst_venv/bin/activate
-```
-
-Now you are ready to run Palantir and CellRank
-
-- open src/pseudotime_GAMM.ipynb is vscode and update the following variables:
-
-```
-# variables
-DATA_DIR = "your_directory" # directory where anndata object is
-ADATA_FILE = "gamms2_cca_pred.h5ad" # the name of your h5ad (anndata) file
-ANNOT_TYPE = "manual" # the type of annotation used, options are: "seurat_map", "clustifyr", "manual"
-CROSS_SPECIES = "TRUE" # is this a cross-species annotation? "TRUE" or "FALSE"
-NC = 8 # number of components that are used to find terminal cells. In general, lower for few terminal cell types, higher for many terminal cell types
-```
-
-- now run src/pseudotime_GAMM.ipynb
-- figures will be saved to the data directory
 
 # References: 
 
@@ -397,13 +205,6 @@ Star solo paper: https://doi.org/10.1101/2021.05.05.442755
 
 clustifyr paper: https://doi.org/10.12688/f1000research.22969.2
 
-scPred paper: https://doi.org/10.1186/s13059-019-1862-5
-
 Seurat paper: https://doi.org/10.1016/j.cell.2019.05.031
 
-sccomp paper: https://doi.org/10.1073/pnas.2203828120
-
-Palantir paper: https://doi.org/10.1038/s41587-019-0068-4
-
-CellRank2 paper: https://doi.org/10.1101/2023.07.19.549685
 
