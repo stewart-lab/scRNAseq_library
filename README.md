@@ -85,26 +85,34 @@ This README provides a brief description of the configuration file used in the s
 - `prep_seurat_and_soupX`: A dictionary to specify parameters for Seurat and SoupX preparation.
   - `dims`: The number of dimensions. (e.g., 30)
   - `umap.method`: The method used for UMAP. (e.g., "umap-learn")
+  - `tfidfMin`: Minimum value of tfidf to accept for a marker gene to estimate background contamination. (e.g., 1) A higher tf-idf value implies a more specific marker.
+  - `min.cells`: Include features (genes) detected in at least this many cells. (e.g., 3)
 
 - `filter_cells`: A dictionary for specifying cell filtering parameters.
-  - `lower.nFeature`: The lower limit of features. (e.g., 200)
-  - `upper.nFeature`: The upper limit of features. (e.g., 10000)
+  - `lower.nFeature`: The lower limit of features (genes). (e.g., 200)
+  - `upper.nFeature`: The upper limit of features (genes). (e.g., 25000)
   - `max.percent.mt`: The maximum percentage of mitochondrial content. (e.g., 20)
 
-- `normalize_data`: A dictionary for specifying normalization parameters.
+- `ortholog_subset`:
+  - `ortholog_file`: File containg list of orthologs for cross-species analysis. From Ensemble, should contain tab-delimited: ref.gene.stable.ID	ref.gene.name	query.gene.stable.ID	query.gene.name
+  - `ref_species`: Name of reference species. Default is human.
+
+- `normalize_data`: A dictionary for specifying normalization parameters. We use Scran normalization.
   - `min_size`: The minimum size. (e.g., 100)
   - `min_mean`: The minimum mean. (e.g., 0.1)
   - `feature`: The feature to normalize. (e.g., "ECHS1")
 
 - `feature_selection`: A dictionary for specifying feature selection parameters.
   - `n_features`: The number of features to select. (e.g., 2000)
-  - `analysis_type`: The type of analysis to use. (e.g., "Scry")
+  - `analysis_type`: The type of analysis to use, we recommend Scry. ("Scry" or "Seurat")
 
 - `scale_data`: A dictionary for specifying scale data parameters.
   - `vars.2.regress`: Genes to regress out. (e.g., "cell.cycle")
+  - `marker.path.s`: Path to cell cycle S genes. Default in repo: "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt""
+  - `marker.path.g2m`: Path to cell cycle G2M genes. Default in repo: "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt"
 
 - `run_and_visualize_pca`: A dictionary for specifying PCA parameters.
-  - `top_n_dims`: The top n dimensions for PCA. (e.g., 2)
+  - `top_n_dims`: The top n dimensions of PCA to display. (e.g., 2)
   - `heatmap_dims`: The number of dimensions for the heatmap. (e.g., 15)
   - `num_cells`: The number of cells to use. (e.g., 500)
   - `dims`: The number of dimensions to use for jackstraw. (e.g., 20)
@@ -113,29 +121,43 @@ This README provides a brief description of the configuration file used in the s
 - `run_umap`: A dictionary for running UMAP.
   - `dims_umap`: The number of dimensions to use in UMAP reduction. (e.g., 20)
   - `umap.method`: Method to run UMAP. (e.g., "umap-learn")
-  - `umap.red`: Reduction method to use. (e.g., "pca")
+  - `umap.red`: Reduction method to use. (e.g., "pca" or "harmony")
 
 - `perform_batch_correction`: A dictionary for specifying batch correction parameters.
   - `dims.use`: The number of dimensions to use. (e.g., 20)
   - `max_iter`: The maximum number of iterations. (e.g., 50)
 
 - `perform_clustering`: A dictionary for specifying clustering parameters.
-  - `reduction`: Type of reduction to use for clustering. (e.g., "harmony")
-  - `resolution`: The resolution for clustering. (e.g., 0.5)
+  - `reduction`: Type of reduction to use for KNN graph. (e.g., "pca" or "harmony")
+  - `resolution`: The resolution for clustering. Lower means fewer clusters, higher means more clusters. (e.g., 0.5)
   - `algorithm`: The algorithm used for clustering. (e.g., "leiden")
   - `dims_snn`: Number of dimensions to use for KNN graph. (e.g., 10)
 
-- `find_differentially_expressed_features`: A dictionary for specifying parameters to find differentially expressed features.
+- `find_differentially_expressed_features`: A dictionary for specifying parameters to find differentially expressed features. Used if using Seurat to identify DE, if using Scran then score_and_plot_markers is used.
   - `min_pct`: The minimum percentage for filtering. (e.g., 0.25)
   - `logfc_threshold`: The threshold for log fold-change. (e.g., 0.25)
   - `top_n`: The top n features to select. (e.g., 11)
 
-- `score_and_plot_markers`: A dictionary for specifying parameters for scoring and plotting markers.
-  - `top_n_markers`: The top n markers to use. (e.g., 10)
-  - `known_markers`: Whether to use known markers. (e.g., "TRUE")
-  - `known_markers_path`: The path to the known markers. (e.g., "../known_marker_lists/Gamm_lab_Consolidated_markerList.txt")
+- `get_metadata`: Adding in known metadata i.e. if a reference is being used and this reference has already been annotated.
+  - `metadata_file_ref`: Reference metadata file. Should be tab-delimited with cells as first column and subsequent cell information in the following columns. Example files in metadata folder. Put file in metadata folder, then "../metadata/filename.txt".
+  - `metadata_file_query`: Query metadata file. Same format as above.
+  - `metadata_subset1`: Subset metadata for reference. Subsets for a name in "source" column. If `NA`, full metadata is used.
+  - `metadata_subset2`: Subset metadata for query. Same format as above.
 
-Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat and SoupX documentation.
+- `score_and_plot_markers`: A dictionary for specifying parameters for scoring and plotting markers. DE genes scored and found by Scran.
+  - `top_n_markers`: The top n markers to use (cut off for how many markers to find). (e.g., `100`)
+  - `known_markers`: Whether to use known markers. If FALSE, manual annotation cannot be done and only returns DE gene list. (`TRUE` or `FALSE`)
+  - `known_markers_path`: The path to the known markers. (e.g., `../known_marker_lists/Gamm_lab_Consolidated_markerList.txt`)
+  - `cluster_type`: Cluster type to determine DE genes/ markers. (e.g. `seurat_clusters`,`orig.ident`)
+  - `pairwise`: Do you want to calculate all pairwise comparisons between clusters? (`TRUE` or `FALSE`)
+  - `logFC_thresh`: Cohen's D log fold change threshold, only DE genes above this threshold are kept. (e.g. `0.25`)
+  - `auc_thresh`: Area-under-the-curve threshold (the probability that a randomly chosen observation from one group is greater than a random). (e.g. `0.49`)
+ 
+- `process_known_markers`: A dictonary to determine how to annotate clusters with known markers
+  - `annot_type`: Type of annotation, manual being using markers in the top n_rank to annotate. Other options are related to Gamm paper. (`manual`,`d40`,`d120`)
+  - `n_rank`: Lowest rank based on the log fold change to consider when annotating cell type (e.g. `10`)
+
+Please adjust the parameters as per your requirements. For additional details on each of these parameters, refer to the Seurat, Scran, SoupX documentation.
 
 ### Output files
 
@@ -166,13 +188,17 @@ Please adjust the parameters as per your requirements. For additional details on
    - `umap_lanes.pdf`: Umap colored by sample
    - `umap_clusters.pdf`: Umap of clusters
    - `labeled-clusters.pdf`: Umap of labeled clusters (if marker list is used)
+   - `clustifyr_marker_annotation_umap.pdf`: Umap of clusters annotated by Clustifyr (if marker list is used)
 - DE gene/ Marker files:
    - See Scran's `scoreMarkers` for details on columns in output files: https://rdrr.io/github/MarioniLab/scran/man/scoreMarkers.html
-   - `Top100genes_clust` files: contain the top 100 genes for a particular cluster against all other clusters, sorted by median.logFC.cohen and subsetted by the median Cohen's D logFC threshold and median AUC threshold (both default at 0.5).
+   - `Top100genes_clust` files: contain the top 100 genes for a particular cluster against all other clusters, sorted by median.logFC.cohen and subsetted by the median Cohen's D logFC threshold and median AUC threshold.
    - If a known markers list is given, this list is merged with the `Top100genes_clust` file. These are the `KnownDE.markers_clust_` files.
    - The top ranked markers from the merged list are used to make feature umap plots highlighting the gene expression of that marker. Default is the ranked in the top 10.
    - Pairwise comparisons are also made if `pairwise=TRUE`. Each pairwise comparison between every cluster is made, and DE genes kept with the genes are higher than the median Cohen's D logFC threshold and median AUC threshold. These files start with `DEgenes_clust_X.vs_Y`.
 - `sc_pipeline.pdf`: Code and output from the sc_pipeline
+- Seurat objects:
+   - `seurat_obj_labeled.rds` contains manual annotation (if manual annotation was selected, otherwise contains just clusters)
+   - `seurat_obj_clustifyr.rds` contains clustifyr annotation if marker files were provided.
 
 # Automated annotation
 
