@@ -895,7 +895,7 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
       }
       # Write out marker dataframe with known DE markers
       write.table(marker_df,
-        file = paste0(output_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
+        file = paste0(subdirectory_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
         quote = FALSE, sep = "\t", row.names = FALSE
       )
 

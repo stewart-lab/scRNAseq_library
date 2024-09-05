@@ -27,7 +27,7 @@ if [ "$confirm" == "y" ] || [ "$confirm" == "Y" ]; then
 
   echo "Step 2.2: Building Docker image for alignment"
   # Build the Docker image from the pre_pipeline directory
-  docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t align_fastqs ./pre_pipeline
+  docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t scaligner ./pre_pipeline
 
   echo "Step 2.3: Running Docker container for alignment"
   # Run the Docker container and execute the STAR.sh script
@@ -36,9 +36,9 @@ docker run -it \
     --mount type=bind,source="$DATA_DIR",target=/data \
     --mount type=bind,source="$SHARED_VOLUME",target=/shared_volume \
     --mount type=bind,source="$CONFIG_FILE",target=/config.json \
-    align_fastqs /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
+    scaligner /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
 else
-  echo "Skipped align_fastqs."
+  echo "Skipped scaligner."
   
   echo "Step 2.4: Asking for data flag"
   # Ask the user which flag to use for get_data.py
