@@ -1236,6 +1236,7 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   # Batch correction if needed
   if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
     env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
+    saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   } else {
     message("Skipping batch correction as 'orig.ident' has only one level.")
     env$batch_corrected_obj <- env$dim_reduced_seurat_obj
@@ -1313,7 +1314,7 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       # get feature lists for objects
       feature_list_Q <- query_obj@assays$RNA@var.features
       feature_list_Q <- as.vector(feature_list_Q)
-      feature_list_R <- ref_obj@assays$RNA@var.features #ref.obj[[1]]
+      feature_list_R <- ref_obj@assays$RNA@var.features
       feature_list_R <- as.vector(feature_list_R)
       # get scaled data
       scaled_matrix_Q <- query_obj@assays$RNA@scale.data

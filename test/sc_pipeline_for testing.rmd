@@ -1,0 +1,92 @@
+---
+title: "scRNAseq_pipeline"
+output: pdf_document
+params:
+  output: "default_output" 
+  config_path: "default_config_path" 
+---
+
+# ENVIRONMENT SETUP
+
+```{r env, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(reticulate)
+use_condaenv("/w5home/bmoore/miniconda3/envs/scRNAseq_best", required = TRUE)#"/root/miniconda/envs/scrnaseq"
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(scran)
+library(BiocParallel)
+library(DropletUtils)
+library(cowplot)
+library(harmony)
+library(SoupX)
+library(scDblFinder)
+library(purrr)
+library(jsonlite)
+library(rmarkdown)
+library(tidyverse)
+library(tibble)
+library(stringr)
+library(clustifyr)
+library(ggplot2)
+library(ComplexHeatmap)
+setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20240417_150543/"
+# Load configuration and set output directory
+config <- jsonlite::fromJSON(paste0(output,"config.json"), simplifyDataFrame = FALSE)
+output_base_dir <- output
+source("sc_pipeline_functions.R")
+```
+```{r}
+# Assuming process_lane, combine_feature_plots, and split_sce_list_by_sample are defined in 'sc_pipeline_functions.R'
+processed_data_list <- lapply(config$lanes, process_lane)
+seurat_list <- purrr::map(processed_data_list, "seu")
+sce_list <- purrr::map(processed_data_list, "sce")
+
+feature_set <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+combine_feature_plots(seurat_list, output_base_dir, feature_set, file_name_base = "post_soupx_qc")
+
+sample_specific_sce_list <- split_sce_list_by_sample(sce_list)
+clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
+
+processed_samples_list <- list()
+for (sample_name in names(sample_specific_sce_list)) {
+  sample_data <- sample_specific_sce_list[[sample_name]]
+  seurat_obj <- process_sample(sample_name, sample_data, output_base_dir, config)
+  processed_samples_list[[sample_name]] <- seurat_obj
+}
+
+# Save the processed Seurat objects
+saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+```
+```{r}
+# read in processed samples list
+#processed_samples_list<- readRDS(file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+query.obj <- readRDS(file = paste0(output_base_dir, "GAMM_120/GAMM_120_batchcorr_seurat_obj.rds"))
+ref.obj <- readRDS(file = paste0(output_base_dir, "Reh_205/Reh_205_batchcorr_seurat_obj.rds"))
+```
+```{r}
+processed_samples_list <- list()
+processed_samples_list[["Reh_205"]] <- ref.obj[[1]]
+processed_samples_list[["GAMM_120"]] <- query.obj[[1]]
+print(processed_samples_list)
+```
+```{r}
+# Do cross species
+if (!species_are_all_same(config)) {
+  objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
+}
+```
+```{r}
+query.seurat <- readRDS(file = paste0(output, "query_ortho-subset_seurat.rds"))
+colnames(query.seurat@meta.data)
+```
+```{r}
+  for (obj in objs_list) {
+     process_orthologous_objects(obj, output_base_dir)
+  }
+
+```
+
+
