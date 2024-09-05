@@ -1,5 +1,5 @@
 # Use the mambaforge base image
-FROM jfreeman88/get_data:STAR
+FROM stewartlab/scaligner:latest
 
 ARG USER_ID
 ARG GROUP_ID

@@ -91,7 +91,7 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
   sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
 
   # Estimate contamination fractitfidfMin
-  sc <- autoEstCont(sc, tfidfMin = tfidfMin)
+  sc <- autoEstCont(sc, tfidfMin = tfidfMin, forceAccept=TRUE)
   out <- adjustCounts(sc, roundToInt = TRUE)
 
   list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
@@ -120,7 +120,7 @@ process_lane <- function(lane) {
 
 create_seurat_and_sce <- function(out, project, feature_set) {
   # Create singular Seurat object
-  seu <- CreateSeuratObject(counts = out, project = project)
+  seu <- CreateSeuratObject(counts = out, project = project, data = NULL)
 
   # Convert Seurat objects to SingleCellExperiment object
   sce <- as.SingleCellExperiment(seu)
@@ -174,7 +174,7 @@ run_scDblFinder_and_merge <- function(
     dbl_table_list[[i]] <- dbl_table
     sce_list[[i]] <- sce_list[[i]][, sce_list[[i]]$scDblFinder.class ==
       "singlet"]
-    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]])
+    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]],data=NULL)
   }
   merged_dbl_table <- do.call(rbind, dbl_table_list)
   write.table(merged_dbl_table,
@@ -386,14 +386,16 @@ categorize_samples_by_species <- function(sample_specific_list, config) {
     if (tolower(species) == "human") {
       # Append to ref_objects
       ref_objects[[sample_name]] <- sample_specific_list[[i]]
+      ref_name <- sample_name
     } else {
       # Append to query_objects
       query_objects[[sample_name]] <- sample_specific_list[[i]]
+      query_name <- sample_name
     }
   }
 
   # Return a list containing both lists of objects
-  return(list(ref_objects = ref_objects, query_objects = query_objects))
+  return(list(ref_objects = ref_objects, query_objects = query_objects, ref_name = ref_name, query_name = query_name))
 }
 
 scale_data <- function(seurat_obj, path) {
@@ -427,8 +429,8 @@ scale_data <- function(seurat_obj, path) {
 
     # Select species-specific cell cycle markers
     if (species == "human") {
-      s.genes <- varslist[1]$human.gene.name
-      g2m.genes <- varslist[1]$human.gene.name
+      s.genes <- cc.genes$s.genes
+      g2m.genes <- cc.genes$g2m.genes
     } else if (species == "pig") {
       s.genes <- varslist[4]$pig.gene.name
       g2m.genes <- varslist[8]$pig.gene.name
@@ -451,7 +453,7 @@ scale_data <- function(seurat_obj, path) {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj))
+    print(DimPlot(seurat_obj, group.by= "Phase"))
     dev.off()
     # scale data and regress out cell cycle
     seurat_obj <- ScaleData(seurat_obj,
@@ -462,7 +464,7 @@ scale_data <- function(seurat_obj, path) {
     # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj))
+    print(DimPlot(seurat_obj, group.by= "Phase"))
     dev.off()
   } else {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
@@ -552,6 +554,12 @@ run_umap <- function(seurat_obj, path) {
   dims_umap <- 1:config$run_umap$dims_umap
   umap.method <- config$run_umap$umap.method
   umap.red <- config$run_umap$umap.red
+  # check that harmony embeddings exist
+  if ("harmony" %in% names(Embeddings(seurat_obj)) && umap.red=="harmony") {
+    message("Harmony embeddings exist. Proceeding with UMAP reduction.")
+  } else {
+    umap.red <- "pca"
+  }
   # Run UMAP
   seurat_obj <- RunUMAP(seurat_obj,
     dims = dims_umap, umap.method = umap.method,
@@ -595,7 +603,8 @@ perform_clustering <- function(seurat_obj, path) {
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", 
+  label = TRUE, pt.size = .5)
   print(umap_clusters)
   dev.off()
 
@@ -623,7 +632,7 @@ perform_clustering2 <- function(seurat_obj, path) {
 
   # Save UMAP clusters plot
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = .5)
+  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", label = TRUE, pt.size = .5)
   print(umap_clusters)
   dev.off()
 
@@ -886,7 +895,7 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
       }
       # Write out marker dataframe with known DE markers
       write.table(marker_df,
-        file = paste0(output_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
+        file = paste0(subdirectory_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
         quote = FALSE, sep = "\t", row.names = FALSE
       )
 
@@ -1053,14 +1062,17 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
 
 
 annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_path = output) {
+  # make sure idents are set to seurat_clusters
+  Idents(seurat_obj) <- "seurat_clusters"
   # Rename the clusters based on the new IDs
   names(new_cluster_ids) <- levels(seurat_obj)
   seurat_obj <- RenameIdents(seurat_obj, new_cluster_ids)
-
+  # store names as celltype
+  seurat_obj$CellType <- Idents(seurat_obj)
   # Generate and plot the UMAP plot
 
   pdf(paste0(output_path, "labeled-clusters.pdf"), bg = "white")
-  print(DimPlot(seurat_obj, reduction = "umap", label = TRUE, pt.size = 0.5))
+  print(DimPlot(seurat_obj, reduction = "umap", group.by = 'CellType', label = TRUE, pt.size = 0.5))
   dev.off()
   # Save the Seurat object
   saveRDS(seurat_obj, file = paste0(output_path, "seurat_obj_labeled.rds"))
@@ -1174,6 +1186,8 @@ annotate_with_clustifyR <- function(clustered_seurat_obj, output) {
 
   # Save object with clustifyr annotation
   saveRDS(clustered_seurat_obj, file = paste0(output, "seurat_obj_clustifyr.rds"))
+
+  return(clustered_seurat_obj)
 }
 
 clean_environment <- function(list_to_remove) {
@@ -1237,7 +1251,7 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
     message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
     # For orthologous gene analysis, simply return the batch corrected object for now
     env$final_obj <- env$batch_corrected_obj
-    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_fin_seurat_obj.rds"))
+    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   }
   
   # Clean up the environment and perform final garbage collection
@@ -1288,9 +1302,11 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
   if (!species_are_all_same(config)) {
     # Categorize samples by species
     categorized_samples <- categorize_samples_by_species(processed_seurat_objs, config)
-    
+    ref_name <- categorized_samples$ref_name
+    query_name <- categorized_samples$query_name
     # Assuming there are at least two objects for reference and query
     if (length(categorized_samples$ref_objects) > 0 && length(categorized_samples$query_objects) > 0) { 
+      sample_name <- names(sample_specific_list)[i]
       ref_obj <- categorized_samples$ref_objects[[1]]
       query_obj <- categorized_samples$query_objects[[1]]
       print(ref_obj)
@@ -1338,7 +1354,9 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       ref.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
         harmony_embeddings_R, key = 'harmony_', assay = 'RNA')
       # return the list of objects
-      obj.list2 <- list(ref.seurat, query.seurat, orthologs)
+      obj.list2 <- list()
+      obj.list2[[ref_name]] <- ref.seurat
+      obj.list2[[query_name]] <- query.seurat
       return(obj.list2)
       # Save the results
       saveRDS(obj.list2, file = paste0(output_dir, "ortholog_objs_list.rds"))
@@ -1351,16 +1369,16 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
 
 get_metadata <- function(seurat_obj, type) {
   # Get parameters from config
-  metadata_file1 <- config$get_metadata$metadata_file1
-  metadata_file2 <- config$get_metadata$metadata_file2
+  metadata_file_ref <- config$get_metadata$metadata_file_ref
+  metadata_file_query <- config$get_metadata$metadata_file_query
   metadata_subset1 <- config$get_metadata$metadata_subset1
   metadata_subset2 <- config$get_metadata$metadata_subset2
   # check type
   if (type == "ref") {
-    metadata_file <- metadata_file1
+    metadata_file <- metadata_file_ref
     metadata_subset <- metadata_subset1
   } else if (type == "query") {
-    metadata_file <- metadata_file2
+    metadata_file <- metadata_file_query
     metadata_subset <- metadata_subset2
   } else {
     stop("Invalid type. Please choose 'ref' or 'query'.")
@@ -1381,7 +1399,9 @@ get_metadata <- function(seurat_obj, type) {
   return(seurat_obj)
 }
 
-process_orthologous_objects <- function(seurat_obj, sample_output_dir, config, sample_name){
+process_orthologous_objects <- function(seurat_obj, output_dir, config, sample_name){
+  sample_output_dir <- file.path(output_dir, sample_name)
+  sample_output_dir <- paste0(sample_output_dir, "/")
   umap_seurat_obj <- run_umap(seurat_obj, sample_output_dir)
   clustered_seurat_obj <- perform_clustering2(umap_seurat_obj, sample_output_dir)
   if (config$DE_method == "Seurat") {
