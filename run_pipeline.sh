@@ -1,42 +1,34 @@
 #!/bin/bash
 
+
 echo "Step 1: Importing DATA_DIR from config.json"
-# Import DATA_DIR from config.json
 CONFIG_FILE="./config.json"
 DATA_DIR=$(python -c "import json; print(json.load(open('$CONFIG_FILE'))['DATA_DIR'])")
 echo "DATA_DIR imported as $DATA_DIR"
 
 echo "Step 2: Confirming data alignment"
-# Confirm with the user if they have loaded new data or would like to realign
 read -p "Have you loaded new data or would you like to realign? [y/N]: " confirm
 
-data_flag="fastq"  # Default to --fastq
-
-if [ "$confirm" == "y" ] || [ "$confirm" == "Y" ]; then
+if [[ "$confirm" =~ ^[Yy]$ ]]; then
   echo "Step 2.1: Removing and recreating the SHARED_VOLUME"
-  # Define the shared volume path
-  SHARED_VOLUME="./shared_volume"
+  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+  SHARED_VOLUME="./shared_volume_$TIMESTAMP"
 
   rm -rf "$SHARED_VOLUME"
-
-  # Recreate the SHARED_VOLUME directory
   mkdir -p "$SHARED_VOLUME"
-
-  # Your next steps here
-  DATA_FLAG="--fastq"
+  chmod 777 "$SHARED_VOLUME"
 
   echo "Step 2.2: Building Docker image for alignment"
   # Build the Docker image from the pre_pipeline directory
-  docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t scaligner ./pre_pipeline
+  docker build -t scaligner_v2_with_genomes_and_jq ./pre_pipeline
 
-  echo "Step 2.3: Running Docker container for alignment"
-  # Run the Docker container and execute the STAR.sh script
-docker run -it \
-    --user=$(id -u):$(id -g) \
-    --mount type=bind,source="$DATA_DIR",target=/data \
-    --mount type=bind,source="$SHARED_VOLUME",target=/shared_volume \
-    --mount type=bind,source="$CONFIG_FILE",target=/config.json \
-    scaligner /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
+echo "Step 2.3: Running Docker container for alignment"
+docker run --userns=host -it \
+    -v "$(realpath "$DATA_DIR"):/data:ro" \
+    -v "$(realpath "$SHARED_VOLUME"):/shared_volume" \
+    -v "$(realpath "$CONFIG_FILE"):/config.json:ro" \
+    scaligner_v2_with_genomes_and_jq /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
+
 else
   echo "Skipped scaligner."
   
@@ -75,7 +67,7 @@ output_dir=$(pwd)
 cd ..
 
 # Get the absolute path to the shared_volume directory
-shared_volume_dir=$(pwd)/shared_volume
+shared_volume_dir=$(pwd)/shared_volume_20240918_003920
 echo "Step 5: Building Docker image for the next container"
 # Build the Docker image for the next container
 docker build --build-arg USER_ID=$(id -u) --build-arg GROUP_ID=$(id -g) -t seuratv5 ./sc_pipeline

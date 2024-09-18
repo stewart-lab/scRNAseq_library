@@ -1,7 +1,16 @@
 #!/bin/bash
 
+
 # Path to the configuration file
 CONFIG_FILE="/config.json"
+
+umask 000
+
+# Ensure the shared volume is writable
+if [ ! -w /shared_volume ]; then
+    echo "Cannot write to /shared_volume. Please check permissions."
+    exit 1
+fi
 
 declare -A GENOME_DIRS
 GENOME_DIRS["human"]="/usr/local/bin/human_genome/star_solo_index"
@@ -27,6 +36,7 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     echo "Warning: Genome directory not set for species '$SPECIES' in sample $SAMPLE_KEY. Skipping."
     continue
   fi
+
   # Fetch configuration for each sample using the constructed key
   SAMPLE_NAME=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.NAME" $CONFIG_FILE)  # Unique name for the sample
   NUM_LANES=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.NUM_LANES" $CONFIG_FILE)
@@ -66,8 +76,11 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
       STAR_OPTIONS="--soloBarcodeMate $soloBarcodeMate --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart"
     fi
 
+    # Create output directory in shared volume
+    mkdir -p /shared_volume/${SAMPLE_NAME}_lane${i}
+
     # Run STAR command with options for the current sample and lane
-    nohup STAR --genomeDir $GENOME_DIR \
+    STAR --genomeDir $GENOME_DIR \
     --readFilesIn "$cDNA_LANE" "$BARCODE_LANE" \
     --readFilesCommand $READ_FILES_COMMAND \
     --soloUMIlen $SOLO_UMI_LEN --soloType $SOLO_TYPE \
@@ -77,9 +90,12 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     --soloUMIdedup $SOLO_UMI_DEDUP \
     $STAR_OPTIONS \
     --outFileNamePrefix "/shared_volume/${SAMPLE_NAME}_lane${i}/" \
-    --runThreadN $RUN_THREAD_N > "/shared_volume/nohup_${SAMPLE_NAME}_lane${i}.out" &
+    --runThreadN $RUN_THREAD_N \
+    --runDirPerm All_RWX # Add this line to set file permissions
+
+    # Log the completion of each lane
+    echo "Completed processing ${SAMPLE_NAME}_lane${i}" >> /shared_volume/alignment_log.txt
   done
 done
 
-
-
+echo "All samples processed successfully" >> /shared_volume/alignment_log.txt

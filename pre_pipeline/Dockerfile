@@ -1,37 +1,10 @@
-# Use the mambaforge base image
-FROM stewartlab/scaligner:latest
-
-ARG USER_ID
-ARG GROUP_ID
-RUN groupadd -g ${GROUP_ID} myuser && \
-    useradd -l -u ${USER_ID} -g myuser -m myuser
+FROM stewartlab/scalinger:latest
 
 
-# Initialize shell for conda
-RUN conda init bash
-
-# Set working directory
 WORKDIR /src
 
-# Copy the current directory contents into the container at /src
-COPY . /src/
+# **Copy the STAR.sh script into /src**
+COPY STAR.sh /src/
 
-# change permissions of everything in the /data directory
-RUN chmod -R 777 /data/
-
+# **Ensure that STAR.sh is executable**
 RUN chmod +x /src/STAR.sh
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
