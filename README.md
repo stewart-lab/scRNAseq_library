@@ -56,7 +56,7 @@ This README provides a brief description of the configuration file used in the s
 
 - `title`: The title for the analysis.
 - `annotation_reference`: Indicates whether annotation reference is used in cluster labeling. (e.g., "FALSE")
-- `DE_method`: The method used for differential expression analysis. (we recommend "Scran")
+- `DE_method`: The method used for differential expression analysis. "Seurat" or "Scran" (we recommend "Scran")
 - `species`: The species for the analysis. (e.g., "human", "pig")
 - `lanes`: THIS WILL BE AUTOPOPULATED VIA THE PIPELINE
 - `DATA_DIR`: The directory where the FASTQs are stored. (e.g., "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/")
@@ -76,6 +76,8 @@ This README provides a brief description of the configuration file used in the s
   - `READ_FILES_COMMAND`: Read files command. (e.g., "zcat")
   - `SOLO_UMI_DEDUP`: Solo UMI deduplication. (e.g., "1MM_CR")
   - `RUN_THREAD_N`: Number of threads to run. (e.g., 8)
+  - `isBarcodeFollowedbyReads`: true or false, Parameter to indicate cDNA reads on barcode file
+  - `clip5pNbases`: If bases should be clipped, what is the range to be kept. Reads outside of this range are clipped. (e.g.,"0 91")
 
 ### Data Preparation and Analysis
 
@@ -203,8 +205,16 @@ Note: **Clustifyr** used to do automated annotation via provided marker list in 
 
 Star solo paper: https://doi.org/10.1101/2021.05.05.442755
 
-clustifyr paper: https://doi.org/10.12688/f1000research.22969.2
+SoupX paper: https://doi.org/10.1093/gigascience/giaa151
+
+scDblFinder paper: https://doi.org/10.12688/f1000research.73600.2
 
 Seurat paper: https://doi.org/10.1016/j.cell.2019.05.031
+
+Scran paper: https://doi.org/10.1186/s13059-016-0947-7
+
+Clustifyr paper: https://doi.org/10.12688/f1000research.22969.2
+
+
 
 
