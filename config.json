@@ -22,23 +22,6 @@
             "RUN_THREAD_N": 40,
             "isBarcodeFollowedbyReads": false,
             "clip5pNbases": "0 91"
-        },
-        "SAMPLE_2": {
-            "NAME": "Day3",
-            "species": "human",
-            "NUM_LANES": 2,
-            "cDNA_LANE1": "/data/SRR17712085_2.fastq.gz",
-            "BARCODE_LANE1": "/data/SRR17712085_1.fastq.gz",
-            "cDNA_LANE2": "/data/SRR17712086_2.fastq.gz",
-            "BARCODE_LANE2": "/data/SRR17712086_1.fastq.gz",
-            "CHEMISTRY_VERSION": "V3",
-            "SOLO_TYPE": "CB_UMI_Simple",
-            "SOLO_MULTI_MAPPERS": "EM",
-            "READ_FILES_COMMAND": "zcat",
-            "SOLO_UMI_DEDUP": "1MM_CR",
-            "RUN_THREAD_N": 8,
-            "isBarcodeFollowedbyReads": false,
-            "clip5pNbases": "0 91"
         }
     },
     "prep_seurat_and_soupX": {
@@ -109,7 +92,7 @@
         "known_markers_path": "../known_marker_lists/JackChu_markers.txt",
         "cluster_type": "seurat_clusters",
         "pairwise": "FALSE",
-        "logFC_thresh": 0.5,
+        "logFC_thresh": 0.25,
         "auc_thresh": 0.5
     },
     "process_known_markers": {
