@@ -40,14 +40,13 @@ config["lanes"] = []
 
 gene_full_dirs = []
 
+
 def search_gene_full_dirs(search_dir):
     for root, dirs, files in os.walk(search_dir):
         for dir in dirs:
             if dir.endswith("GeneFull"):
                 gene_full_path = os.path.join("/scRNA-seq", root, dir)
-                gene_full_dirs.append(
-                    {"name": dir, "base_directory": gene_full_path}
-                )
+                gene_full_dirs.append({"name": dir, "base_directory": gene_full_path})
 
 
 if args.data:
@@ -122,7 +121,7 @@ if args.data:
 # Define the directory to search based on the --fastq flag
 search_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "DATA")
 if args.fastq:
-    search_dir = "./shared_volume"
+    search_dir = "./shared_mount"
     for root, dirs, files in os.walk(search_dir):
         for dir in dirs:
             if dir == "GeneFull":
@@ -140,12 +139,18 @@ if args.fastq:
                             # Remove the UniqueAndMult file or improperly double gzipped files
                             os.remove(file_path)
                             continue  # Skip further processing for these files
-                        if (file.endswith(".tsv") or file.startswith("matrix")) and not file.endswith(".gz"):
+                        if (
+                            file.endswith(".tsv") or file.startswith("matrix")
+                        ) and not file.endswith(".gz"):
                             # Gzip only .tsv files or files starting with "matrix" that are not already gzipped
                             gz_file_path = f"{file_path}.gz"
-                            if not os.path.exists(gz_file_path):  # Check if gzipped version does not exist
+                            if not os.path.exists(
+                                gz_file_path
+                            ):  # Check if gzipped version does not exist
                                 try:
-                                    with open(file_path, "rb") as f_in, gzip.open(gz_file_path, "wb") as f_out:
+                                    with open(file_path, "rb") as f_in, gzip.open(
+                                        gz_file_path, "wb"
+                                    ) as f_out:
                                         shutil.copyfileobj(f_in, f_out)
                                     print(f"Successfully gzipped {file_path}")
                                 except Exception as e:

@@ -1,207 +1,73 @@
-read_aligned_data <- function(base_directory, project_name, output_base_dir) {
-  # Existing directories
-  filtered_data_directory <- paste0(base_directory, "/filtered/")
-  raw_data_directory <- paste0(base_directory, "/raw/")
-
-  # Modify the alignment directory to include the project_name in its path
-  # This ensures unique directories for each lane based on its name
-  alignment_directory <- paste0(output_base_dir, "/alignment_", project_name, "/")
-  alignment_raw_directory <- paste0(alignment_directory, "raw/")
-  alignment_filtered_directory <- paste0(alignment_directory, "filtered/")
-
-  # Create directories
-  dir.create(alignment_directory, recursive = TRUE, showWarnings = FALSE)
-  dir.create(alignment_raw_directory, recursive = TRUE, showWarnings = FALSE)
-  dir.create(alignment_filtered_directory, recursive = TRUE, showWarnings = FALSE)
-
-  # Try to copy Summary.csv to alignment directory
-  summary_file_path <- paste0(base_directory, "/Summary.csv")
-  alignment_summary_file_path <- paste0(alignment_directory, "Alignment_Summary.csv")
-
-  tryCatch({
-    file.copy(summary_file_path, alignment_summary_file_path, overwrite = TRUE)
-    message("Summary.csv has been copied successfully to alignment directory.")
-  }, warning = function(w) {
-    message("Warning: ", conditionMessage(w))
-  }, error = function(e) {
-    message("Summary.csv could not be copied: ", conditionMessage(e))
-  }, finally = {
-    message("Continuing with the rest of the function.")
-  })
-
-  # Function to copy .gz files from a directory to a target directory
-  copy_gz_files_to_directory <- function(source_directory, target_directory) {
-    gz_files <- list.files(source_directory, pattern = "\\.gz$", full.names = TRUE)
-    sapply(gz_files, function(file) {
-      file.copy(file, file.path(target_directory, basename(file)), overwrite = TRUE)
-    })
-  }
-
-  # Copy .gz files from raw and filtered data directories
-  copy_gz_files_to_directory(raw_data_directory, alignment_raw_directory)
-  copy_gz_files_to_directory(filtered_data_directory, alignment_filtered_directory)
-
-  list(
-    filtered = Read10X(filtered_data_directory),
-    raw = Read10X(raw_data_directory),
-    project = project_name
-  )
-}
-
-
-prep_seurat_and_soupX <- function(data.raw, data, project) {
-  dims_umap <- 1:config$prep_seurat_and_soupX$dims
-  umap.method <- config$prep_seurat_and_soupX$umap.method
-  tfidfMin <- config$prep_seurat_and_soupX$tfidfMin
-  min.cells <- config$prep_seurat_and_soupX$min.cells
-  # Create SoupChannel object
-  sc <- SoupChannel(data.raw, data)
-
-  # Remove 'data.raw' as it's no longer needed.
-  rm(data.raw)
-  gc()
-
-  # Create a Seurat object without filtering
-  seurat_obj <- CreateSeuratObject(counts = data, project = project, min.cells = min.cells)
-
-  # Remove 'data' as it's no longer needed.
-  rm(data)
-  gc(full = TRUE)
-
-  # Perform transformations and find clusters
-  seurat_obj <- SCTransform(seurat_obj, verbose = F)
-  seurat_obj <- RunPCA(seurat_obj, verbose = F)
-
-  # Use the provided 'dims' parameter in the following functions
-  if (umap.method == "uwot") {
-    # Run UMAP
-    seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method)
-  } else if (umap.method == "umap-learn") {
-    # Run UMAP
-    seurat_obj <- RunUMAP(seurat_obj, dims = dims_umap, umap.method = umap.method, metric = "correlation")
-  } else {
-    stop("Invalid UMAP method")
-  }
-  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_umap, verbose = F)
-  seurat_obj <- FindClusters(seurat_obj, verbose = T)
-
-  # Extract clusters from Seurat object and add to SoupChannel
-  meta <- seurat_obj@meta.data
-  umap <- seurat_obj@reductions$umap@cell.embeddings
-  sc <- setClusters(sc, setNames(meta$seurat_clusters, rownames(meta)))
-
-  # Estimate contamination fractitfidfMin
-  sc <- autoEstCont(sc, tfidfMin = tfidfMin, forceAccept=TRUE)
-  out <- adjustCounts(sc, roundToInt = TRUE)
-
-  list(seurat_obj = seurat_obj, meta = meta, umap = umap, out = out)
-}
-
-process_lane <- function(lane) {
-  aligned_data <- read_aligned_data(lane$base_directory, lane$name, output_base_dir)
-  soupX_obj <- prep_seurat_and_soupX(data.raw = aligned_data$raw, data = aligned_data$filtered, project = aligned_data$project)
-
-  # Now we no longer need 'aligned_data', we can remove it.
-  rm(aligned_data)
-  gc()
-
-  # Call 'create_seurat_and_sce()' while 'soupX_obj' is still in scope.
-  feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  sce_obj <- create_seurat_and_sce(out = soupX_obj$out, project = lane$name, feature_set = feature_set1)
-
-  # Now we no longer need 'soupX_obj', we can remove it.
-  rm(soupX_obj)
-  gc(full = TRUE)
-
-  # Here, you may want to save 'sce_obj' to a file if it's a large object.
-  # Otherwise, return it.
-  return(sce_obj)
-}
-
-create_seurat_and_sce <- function(out, project, feature_set) {
-  # Create singular Seurat object
-  seu <- CreateSeuratObject(counts = out, project = project, data = NULL)
-
-  # Convert Seurat objects to SingleCellExperiment object
-  sce <- as.SingleCellExperiment(seu)
-
-  list(seu = seu, sce = sce)
-}
-
 split_sce_list_by_sample <- function(filtered_sce_list) {
-  # Extract the first 'ident' value from each SCE object and strip '_lane' part
-  identifiers <- sapply(filtered_sce_list, function(x) {
-    # Assuming 'ident' is stored within colData and stripping '_lane' part
-    ident_value <- colData(x)$ident[1] # Get the first 'ident' value
-    sub("_lane.*", "", ident_value) # Remove '_lane' and anything after it
+  # Parallel processing of identifiers
+  identifiers <- map_chr(filtered_sce_list, function(x) {
+    ident_value <- colData(x)$ident[1]
+    sub("_lane.*", "", ident_value)
   })
-
   unique_identifiers <- unique(identifiers)
-
-  # Initialize a list to hold sublists for each unique identifier
-  split_lists <- vector("list", length(unique_identifiers))
-  names(split_lists) <- unique_identifiers
-
-  # Split the original list into sublists based on the unique identifiers
-  for (i in seq_along(unique_identifiers)) {
-    condition <- unique_identifiers[i]
-    # Subset SCE objects that match the current condition based on the stripped ident
-    split_lists[[condition]] <- filtered_sce_list[identifiers == condition]
-  }
+  
+  # Initialize and split lists in parallel
+  split_lists <- future_map(unique_identifiers, function(condition) {
+    filtered_sce_list[identifiers == condition]
+  }) %>% setNames(unique_identifiers)
 
   return(split_lists)
 }
 
-
 species_are_all_same <- function(config) {
-  # Extract species from each sample under fastq_alignment
-  species_values <- sapply(config$fastq_alignment, function(x) x$species)
-
-  # Check if all species values are the same
-  all_same <- all(species_values == species_values[1])
-
-  return(all_same)
+  species_values <- future_map_chr(config$fastq_alignment, "species")
+  all(species_values == species_values[1])
 }
 
-run_scDblFinder_and_merge <- function(
-    sce_list, path, save_plot = TRUE, file_name = "after_dbl_removal_and_merge") {
+run_scDblFinder_and_merge <- function(sce_list, path, save_plot = TRUE, file_name = "after_dbl_removal_and_merge") {
   set.seed(1234)
-  result_list <- list()
-  dbl_table_list <- list()
-  for (i in seq_along(sce_list)) {
-    sce_list[[i]] <- scDblFinder(sce_list[[i]])
-    dbl_table <- as.data.frame(table(call = sce_list[[i]]$scDblFinder.class))
-    dbl_table_list[[i]] <- dbl_table
-    sce_list[[i]] <- sce_list[[i]][, sce_list[[i]]$scDblFinder.class ==
-      "singlet"]
-    result_list[[paste0("seurat_obj", i)]] <- as.Seurat(sce_list[[i]],data=NULL)
-  }
-  merged_dbl_table <- do.call(rbind, dbl_table_list)
+  
+  # Process each SCE object in parallel
+  processed_results <- future_map(seq_along(sce_list), function(i) {
+    sce <- scDblFinder(sce_list[[i]])
+    dbl_table <- as.data.frame(table(call = sce$scDblFinder.class))
+    sce_filtered <- sce[, sce$scDblFinder.class == "singlet"]
+    seurat_obj <- as.Seurat(sce_filtered, data = NULL)
+    
+    list(
+      dbl_table = dbl_table,
+      seurat_obj = seurat_obj
+    )
+  })
+  
+  # Extract results
+  dbl_tables <- map(processed_results, "dbl_table")
+  seurat_objects <- map(processed_results, "seurat_obj")
+  
+  # Merge doublet tables
+  merged_dbl_table <- do.call(rbind, dbl_tables)
   write.table(merged_dbl_table,
     file = paste0(path, "/merged_doublet_table.txt"),
     sep = "\t", row.names = TRUE, quote = FALSE
   )
-  # Merge all seurat objects in the list
-  merged_seurat_obj <- Reduce(function(x, y) merge(x, y), result_list)
+  
+  # Merge Seurat objects
+  merged_seurat_obj <- Reduce(function(x, y) merge(x, y), seurat_objects)
+  
   if (save_plot) {
     create_feature_scatter_plot(
       obj = merged_seurat_obj,
-      feature1 = "nCount_RNA", feature2 = "nFeature_RNA",
-      file_name = file_name, path = path
+      feature1 = "nCount_RNA",
+      feature2 = "nFeature_RNA",
+      file_name = file_name,
+      path = path
     )
   }
+  
   return(merged_seurat_obj)
 }
 
-
 filter_cells <- function(seurat_obj, sample_name, path, save_plots = TRUE) {
   # Get parameters from config
-  lower.nFeature <- config$filter_cells$lower.nFeature
-  upper.nFeature <- config$filter_cells$upper.nFeature
-  max.percent.mt <- config$filter_cells$max.percent.mt
+  params <- config$filter_cells
+  
+  # Find species using base R
   species <- NULL
-
-  # Loop through each sample in the config to match sample_name
   for (sample in names(config$fastq_alignment)) {
     sample_details <- config$fastq_alignment[[sample]]
     if (sample_details$NAME == sample_name) {
@@ -209,45 +75,68 @@ filter_cells <- function(seurat_obj, sample_name, path, save_plots = TRUE) {
       break
     }
   }
-  if (is.null(species)) {
-    stop("Species is NULL. Please check your config file.")
-  }
-
-  # Define mt features based on species
-  if (species == "pig") {
-    mt.list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
-    if (is.null(mt.list)) {
-      warning("mt.list is not provided for pig species")
-    } else {
-      # Check if all features are in the matrix
-      if (!all(mt.list %in% rownames(seurat_obj))) {
-        for (mt in mt.list) {
-          print(paste(mt, " in rownames: ", all(mt %in% rownames(seurat_obj))))
-          if (all(mt %in% rownames(seurat_obj)) == FALSE) {
-            print(paste(mt, " is not in rownames"))
-            # remove mt from mt.list
-            mt.list <- mt.list[!mt.list %in% mt]
-          }
-        }
-      }
-    }
-    percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
+  
+  if (is.null(species)) stop("Species is NULL. Please check your config file.")
+  
+  # Process mitochondrial percentage in parallel
+  percent_mt <- if (species == "pig") {
+    mt.list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", 
+                 "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
+    
+    # Check features in parallel
+    valid_features <- future_map_lgl(mt.list, function(mt) {
+      mt %in% rownames(seurat_obj)
+    })
+    mt.list <- mt.list[valid_features]
+    
+    PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
   } else if (species == "human") {
-    percent_mt <- PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
+    PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
   } else {
     stop("Species not recognized: please input 'pig' or 'human'")
   }
+  
   seurat_obj[["percent.mt"]] <- percent_mt
-
-  # Create pre-filter plot
-  pre_filter_plot <- create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt", file_name = "percent_mt_unfiltered", save = save_plots, path)
-  seurat_obj <- subset(seurat_obj, subset = nFeature_RNA > lower.nFeature & nFeature_RNA < upper.nFeature & percent.mt < max.percent.mt)
-
-  # Create post-filter plots
-  post_filter_plot <- create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt", file_name = "percent_mt_filtered", save = save_plots, path)
-
-
+  
+  # Create plots and filter in parallel
+  future({
+    if (save_plots) {
+      create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
+                                file_name = "percent_mt_unfiltered",
+                                save = TRUE, path = path)
+    }
+  })
+  
+  seurat_obj <- subset(seurat_obj,
+                      subset = nFeature_RNA > params$lower.nFeature &
+                              nFeature_RNA < params$upper.nFeature &
+                              percent.mt < params$max.percent.mt)
+  
+  future({
+    if (save_plots) {
+      create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
+                                file_name = "percent_mt_filtered",
+                                save = TRUE, path = path)
+    }
+  })
+  
   return(seurat_obj)
+}
+
+# Add a helper function for parallel plotting
+create_feature_scatter_plot <- function(obj, feature1, feature2, 
+                                      file_name, save = TRUE, path) {
+  p <- FeatureScatter(obj, feature1 = feature1, feature2 = feature2)
+  
+  if (save) {
+    future({
+      pdf(paste0(path, "/", file_name, ".pdf"))
+      print(p)
+      dev.off()
+    })
+  }
+  
+  return(p)
 }
 
 ortholog_subset <- function(ref_seurat, query_seurat, project_names, path = output) {
@@ -398,12 +287,17 @@ categorize_samples_by_species <- function(sample_specific_list, config) {
   return(list(ref_objects = ref_objects, query_objects = query_objects, ref_name = ref_name, query_name = query_name))
 }
 
-scale_data <- function(seurat_obj, path) {
+scale_data <- function(seurat_obj, path, sample_name = NULL) {
   vars.2.regress <- config$scale_data$vars.2.regress
   marker.path.s <- config$scale_data$marker.path.s
   marker.path.g2m <- config$scale_data$marker.path.g2m
+  
+  # If sample_name is not provided, try to get it from the Seurat object
+  if (is.null(sample_name)) {
+    sample_name <- unique(seurat_obj$orig.ident)[1]
+  }
+  
   species <- NULL
-
   # Loop through each sample in the config to match sample_name
   for (sample in names(config$fastq_alignment)) {
     sample_details <- config$fastq_alignment[[sample]]
@@ -411,6 +305,11 @@ scale_data <- function(seurat_obj, path) {
       species <- sample_details$species
       break
     }
+  }
+  
+  if (is.null(species)) {
+    warning("Species not found in config, defaulting to 'human'")
+    species <- "human"
   }
 
   # Get all gene names
@@ -435,40 +334,53 @@ scale_data <- function(seurat_obj, path) {
       s.genes <- varslist[4]$pig.gene.name
       g2m.genes <- varslist[8]$pig.gene.name
     } else {
-      stop("Unsupported species")
+      warning("Unsupported species, defaulting to human cell cycle genes")
+      s.genes <- cc.genes$s.genes
+      g2m.genes <- cc.genes$g2m.genes
     }
-    # Check if the genes in the list are present in the dataset
-    missing_genes <- setdiff(g2m.genes, rownames(seurat_obj))
+
+    # Check genes in parallel
+    missing_genes <- future_map(g2m.genes, function(gene) {
+      if (!(gene %in% rownames(seurat_obj))) gene else NULL
+    }) %>% compact()
+    
     if (length(missing_genes) > 0) {
-      print(paste("Missing genes: ", paste(missing_genes, collapse = ", ")))
+      warning(paste("Missing genes:", paste(missing_genes, collapse = ", ")))
     }
 
     # Perform cell cycle scoring
     seurat_obj <- CellCycleScoring(seurat_obj,
       s.features = s.genes,
-      g2m.features = g2m.genes, set.ident = TRUE
+      g2m.features = g2m.genes, 
+      set.ident = TRUE
     )
 
-    # visualize before regressing out cell cycle
-    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
-    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
-    pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj, group.by= "Phase"))
-    dev.off()
-    # scale data and regress out cell cycle
+    # Save plots in parallel
+    future({
+      seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+      seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+      pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
+      print(DimPlot(seurat_obj, group.by = "Phase"))
+      dev.off()
+    })
+
+    # Scale data and regress out cell cycle
     seurat_obj <- ScaleData(seurat_obj,
       vars.to.regress = c("S.Score", "G2M.Score"),
       features = all.genes
     )
-    # visualize after regressing out cell cycle
-    # When running a PCA on only cell cycle genes, cells no longer separate by cell-cycle phase
-    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
-    pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
-    print(DimPlot(seurat_obj, group.by= "Phase"))
-    dev.off()
+
+    # Save post-regression plot in parallel
+    future({
+      seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+      pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
+      print(DimPlot(seurat_obj, group.by = "Phase"))
+      dev.off()
+    })
   } else {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
   }
+
   return(seurat_obj)
 }
 
@@ -551,27 +463,121 @@ perform_batch_correction <- function(seurat_obj, path) {
 }
 
 run_umap <- function(seurat_obj, path) {
-  dims_umap <- 1:config$run_umap$dims_umap
-  umap.method <- config$run_umap$umap.method
-  umap.red <- config$run_umap$umap.red
-  # check that harmony embeddings exist
-  if ("harmony" %in% names(Embeddings(seurat_obj)) && umap.red=="harmony") {
-    message("Harmony embeddings exist. Proceeding with UMAP reduction.")
+  # Debug: Print initial function entry
+  message("DEBUG: Entering run_umap function")
+  
+  # Debug: Print config object structure
+  message("DEBUG: Config structure:")
+  message(str(config))
+  
+  # Debug: Print raw values before conversion
+  message("DEBUG: Raw config values:")
+  message("dims_umap: ", paste(capture.output(str(config$run_umap$dims_umap)), collapse="\n"))
+  message("umap.method: ", paste(capture.output(str(config$run_umap$umap.method)), collapse="\n"))
+  
+  # Try getting values with error catching
+  tryCatch({
+    dims_umap <- as.numeric(1:config$run_umap$dims_umap)
+    message("DEBUG: dims_umap converted successfully: ", paste(dims_umap, collapse=", "))
+  }, error = function(e) {
+    message("ERROR in dims_umap conversion: ", e$message)
+    stop(e)
+  })
+  
+  tryCatch({
+    umap.method <- as.character(config$run_umap$umap.method)
+    message("DEBUG: umap.method converted successfully: ", umap.method)
+  }, error = function(e) {
+    message("ERROR in umap.method conversion: ", e$message)
+    stop(e)
+  })
+  
+  # Debug: Print object types
+  message("DEBUG: Object types:")
+  message("dims_umap type: ", typeof(dims_umap))
+  message("umap.method type: ", typeof(umap.method))
+  
+  # Determine reduction method with debug
+  message("DEBUG: Checking for harmony embeddings")
+  umap.red <- if ("harmony" %in% names(Embeddings(seurat_obj))) {
+    message("DEBUG: Using harmony reduction")
+    "harmony"
   } else {
-    umap.red <- "pca"
+    message("DEBUG: Using pca reduction")
+    "pca"
   }
-  # Run UMAP
-  seurat_obj <- RunUMAP(seurat_obj,
-    dims = dims_umap, umap.method = umap.method,
-    reduction = umap.red, group.by = "orig.ident"
-  )
-  # Generate UMAP plot
-  pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
-  print(DimPlot(seurat_obj, reduction = "umap"))
-  dev.off()
-
-  # Return the updated Seurat object
+  
+  # Run UMAP based on method with debug
+  tryCatch({
+    message("DEBUG: Starting UMAP with method: ", umap.method)
+    
+    if (umap.method == "uwot") {
+      message("DEBUG: Using uwot method")
+      seurat_obj <- RunUMAP(seurat_obj, 
+                           dims = dims_umap, 
+                           umap.method = "uwot",
+                           reduction = umap.red,
+                           group.by = "orig.ident")
+    } else {
+      message("DEBUG: Using umap-learn method")
+      library(reticulate)
+      
+      # Debug Python environment
+      message("DEBUG: Python configuration:")
+      message(str(py_config()))
+      
+      message("DEBUG: Importing UMAP")
+      py_run_string("import umap.umap_ as umap")
+      py_run_string("from umap import UMAP")
+      
+      seurat_obj <- RunUMAP(seurat_obj, 
+                           dims = dims_umap, 
+                           umap.method = "umap-learn",
+                           reduction = umap.red,
+                           group.by = "orig.ident",
+                           metric = "correlation")
+    }
+    
+    message("DEBUG: UMAP completed successfully")
+    
+  }, error = function(e) {
+    message("DEBUG: Error in UMAP execution: ", e$message)
+    warning("UMAP failed, falling back to uwot method")
+    seurat_obj <<- RunUMAP(seurat_obj, 
+                          dims = dims_umap, 
+                          umap.method = "uwot",
+                          reduction = umap.red,
+                          group.by = "orig.ident")
+  })
+  
+  # Generate plot with debug
+  message("DEBUG: Generating UMAP plot")
+  tryCatch({
+    pdf(paste0(path, "umap_plot.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj, reduction = "umap"))
+    dev.off()
+    message("DEBUG: Plot generated successfully")
+  }, error = function(e) {
+    message("ERROR in plot generation: ", e$message)
+  })
+  
+  message("DEBUG: Exiting run_umap function")
   return(seurat_obj)
+}
+
+# Wrapper function for debugging
+debug_run_umap <- function(seurat_obj, path) {
+  tryCatch({
+    message("DEBUG: Starting UMAP processing")
+    result <- run_umap(seurat_obj, path)
+    message("DEBUG: UMAP processing completed")
+    return(result)
+  }, error = function(e) {
+    message("ERROR: ", e$message)
+    message("Stack trace:")
+    print(sys.calls())
+    stop(e)
+  })
 }
 
 perform_clustering <- function(seurat_obj, path) {

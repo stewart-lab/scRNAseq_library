@@ -7,7 +7,7 @@ CONFIG_FILE="/config.json"
 umask 000
 
 # Ensure the shared volume is writable
-if [ ! -w /shared_volume ]; then
+if [ ! -w /shared_mount ]; then
     echo "Cannot write to /shared_volume. Please check permissions."
     exit 1
 fi
@@ -77,7 +77,7 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     fi
 
     # Create output directory in shared volume
-    mkdir -p /shared_volume/${SAMPLE_NAME}_lane${i}
+    mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
 
     # Run STAR command with options for the current sample and lane
     STAR --genomeDir $GENOME_DIR \
@@ -89,13 +89,13 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     --soloCellFilter $SOLO_CELL_FILTER --soloMultiMappers $SOLO_MULTI_MAPPERS \
     --soloUMIdedup $SOLO_UMI_DEDUP \
     $STAR_OPTIONS \
-    --outFileNamePrefix "/shared_volume/${SAMPLE_NAME}_lane${i}/" \
+    --outFileNamePrefix "/shared_mount/${SAMPLE_NAME}_lane${i}/" \
     --runThreadN $RUN_THREAD_N \
     --runDirPerm All_RWX # Add this line to set file permissions
 
     # Log the completion of each lane
-    echo "Completed processing ${SAMPLE_NAME}_lane${i}" >> /shared_volume/alignment_log.txt
+    echo "Completed processing ${SAMPLE_NAME}_lane${i}" >> /shared_mount/alignment_log.txt
   done
 done
 
-echo "All samples processed successfully" >> /shared_volume/alignment_log.txt
+echo "All samples processed successfully" >> /shared_mount/alignment_log.txt

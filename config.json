@@ -1,10 +1,10 @@
 {
-  "title": "GSE194214_timecourse",
-  "annotation_reference": true,
-  "DE_method": "Scran",
-  "Number_of_samples": 2,
-  "lanes": [ ],
-  "DATA_DIR": "/w5home/bmoore/scRNAseq/LiFangChu/public_data/GSE194214/",
+    "title": "GSE194214_timecourse",
+    "annotation_reference": true,
+    "DE_method": "Scran",
+    "Number_of_samples": 2,
+    "lanes": [ ],
+    "DATA_DIR": "/w5home/bmoore/scRNAseq/LiFangChu/public_data/GSE194214/",
     "fastq_alignment": {
         "SAMPLE_1": {
             "NAME": "Day5",
@@ -19,7 +19,7 @@
             "SOLO_MULTI_MAPPERS": "EM",
             "READ_FILES_COMMAND": "zcat",
             "SOLO_UMI_DEDUP": "1MM_CR",
-            "RUN_THREAD_N": 8,
+            "RUN_THREAD_N": 40,
             "isBarcodeFollowedbyReads": false,
             "clip5pNbases": "0 91"
         },
