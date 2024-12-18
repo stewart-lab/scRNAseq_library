@@ -1,52 +1,35 @@
 split_sce_list_by_sample <- function(filtered_sce_list) {
-  # Parallel processing of identifiers
+  # Removed parallelization, using simple map
   identifiers <- map_chr(filtered_sce_list, function(x) {
     ident_value <- colData(x)$ident[1]
     sub("_lane.*", "", ident_value)
   })
   unique_identifiers <- unique(identifiers)
-  
-  # Initialize and split lists in parallel
-  split_lists <- future_map(unique_identifiers, function(condition) {
+  # Direct map instead of future_map
+  split_lists <- map(unique_identifiers, function(condition) {
     filtered_sce_list[identifiers == condition]
   }) %>% setNames(unique_identifiers)
-
   return(split_lists)
-}
-
-species_are_all_same <- function(config) {
-  species_values <- future_map_chr(config$fastq_alignment, "species")
-  all(species_values == species_values[1])
 }
 
 run_scDblFinder_and_merge <- function(sce_list, path, save_plot = TRUE, file_name = "after_dbl_removal_and_merge") {
   set.seed(1234)
-  
-  # Process each SCE object in parallel
-  processed_results <- future_map(seq_along(sce_list), function(i) {
+  # Removed parallelization, use map instead of future_map
+  processed_results <- map(seq_along(sce_list), function(i) {
     sce <- scDblFinder(sce_list[[i]])
     dbl_table <- as.data.frame(table(call = sce$scDblFinder.class))
     sce_filtered <- sce[, sce$scDblFinder.class == "singlet"]
     seurat_obj <- as.Seurat(sce_filtered, data = NULL)
-    
-    list(
-      dbl_table = dbl_table,
-      seurat_obj = seurat_obj
-    )
+    list(dbl_table = dbl_table, seurat_obj = seurat_obj)
   })
   
-  # Extract results
   dbl_tables <- map(processed_results, "dbl_table")
   seurat_objects <- map(processed_results, "seurat_obj")
   
-  # Merge doublet tables
   merged_dbl_table <- do.call(rbind, dbl_tables)
-  write.table(merged_dbl_table,
-    file = paste0(path, "/merged_doublet_table.txt"),
-    sep = "\t", row.names = TRUE, quote = FALSE
-  )
+  write.table(merged_dbl_table, file = file.path(path, "merged_doublet_table.txt"),
+              sep = "\t", row.names = TRUE, quote = FALSE)
   
-  # Merge Seurat objects
   merged_seurat_obj <- Reduce(function(x, y) merge(x, y), seurat_objects)
   
   if (save_plot) {
@@ -63,10 +46,7 @@ run_scDblFinder_and_merge <- function(sce_list, path, save_plot = TRUE, file_nam
 }
 
 filter_cells <- function(seurat_obj, sample_name, path, save_plots = TRUE) {
-  # Get parameters from config
   params <- config$filter_cells
-  
-  # Find species using base R
   species <- NULL
   for (sample in names(config$fastq_alignment)) {
     sample_details <- config$fastq_alignment[[sample]]
@@ -75,230 +55,112 @@ filter_cells <- function(seurat_obj, sample_name, path, save_plots = TRUE) {
       break
     }
   }
-  
   if (is.null(species)) stop("Species is NULL. Please check your config file.")
   
-  # Process mitochondrial percentage in parallel
-  percent_mt <- if (species == "pig") {
-    mt.list <- c("ND1", "ND2", "COX1", "COX2", "ATP8", "ATP6", "COX3", 
-                 "ND3", "ND4L", "ND4", "ND5", "ND6", "CYTB")
-    
-    # Check features in parallel
-    valid_features <- future_map_lgl(mt.list, function(mt) {
-      mt %in% rownames(seurat_obj)
-    })
+  # Removed parallelization in mitochondrial feature checks
+  if (species == "pig") {
+    mt.list <- c("ND1","ND2","COX1","COX2","ATP8","ATP6","COX3","ND3","ND4L","ND4","ND5","ND6","CYTB")
+    valid_features <- map_lgl(mt.list, ~ .x %in% rownames(seurat_obj))
     mt.list <- mt.list[valid_features]
-    
-    PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
+    percent_mt <- PercentageFeatureSet(seurat_obj, features = mt.list, assay = "RNA")
   } else if (species == "human") {
-    PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
+    percent_mt <- PercentageFeatureSet(seurat_obj, pattern = "^MT-", assay = "RNA")
   } else {
     stop("Species not recognized: please input 'pig' or 'human'")
   }
   
   seurat_obj[["percent.mt"]] <- percent_mt
   
-  # Create plots and filter in parallel
-  future({
-    if (save_plots) {
-      create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
+  if (save_plots) {
+    # Direct call instead of future
+    create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
                                 file_name = "percent_mt_unfiltered",
                                 save = TRUE, path = path)
-    }
-  })
+  }
   
-  seurat_obj <- subset(seurat_obj,
-                      subset = nFeature_RNA > params$lower.nFeature &
-                              nFeature_RNA < params$upper.nFeature &
-                              percent.mt < params$max.percent.mt)
+  seurat_obj <- subset(
+    seurat_obj,
+    subset = nFeature_RNA > params$lower.nFeature &
+             nFeature_RNA < params$upper.nFeature &
+             percent.mt < params$max.percent.mt
+  )
   
-  future({
-    if (save_plots) {
-      create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
+  if (save_plots) {
+    create_feature_scatter_plot(seurat_obj, "nCount_RNA", "percent.mt",
                                 file_name = "percent_mt_filtered",
                                 save = TRUE, path = path)
-    }
-  })
+  }
   
   return(seurat_obj)
 }
 
-# Add a helper function for parallel plotting
-create_feature_scatter_plot <- function(obj, feature1, feature2, 
-                                      file_name, save = TRUE, path) {
+create_feature_scatter_plot <- function(obj, feature1, feature2, file_name, save = TRUE, path) {
   p <- FeatureScatter(obj, feature1 = feature1, feature2 = feature2)
-  
   if (save) {
-    future({
-      pdf(paste0(path, "/", file_name, ".pdf"))
-      print(p)
-      dev.off()
-    })
+    pdf(file.path(path, paste0(file_name, ".pdf")))
+    print(p)
+    dev.off()
   }
-  
   return(p)
 }
 
-ortholog_subset <- function(ref_seurat, query_seurat, project_names, path = output) {
-  # Get parameters from config
-  ortholog_file <- config$ortholog_subset$ortholog_file
-  # read in orrtholog file
-  orthologs <- read.csv2(ortholog_file, sep = "\t", header = TRUE, row.names = 1)
-  # ortholog gene list
-  orthos <- as.vector(orthologs$human.gene.name)
-  # turn seurat objects into matrices
-  ref.matrix <- GetAssayData(ref_seurat, slot = "data")
-  query.matrix <- GetAssayData(query_seurat, slot = "data")
-
-  # subset matrix so they match only orthologous genes
-  ref.matrix.flt <- ref.matrix[rownames(ref.matrix) %in% orthos, ]
-  # subset orthologs to they only match expr matrix
-  orthologs <- orthologs[orthologs$human.gene.name %in% rownames(ref.matrix.flt), ]
-  # switch reference genes to query genes
-  # reorder based on exp matrix genes
-  ind_reorder <- match(rownames(ref.matrix.flt), orthologs$human.gene.name)
-  orthologs.reorder <- orthologs[ind_reorder, ]
-  # now replace rownames of exp matrix with pig genes
-  pig.orthos <- as.vector(orthologs.reorder$pig.gene.name)
-  row.names(ref.matrix.flt) <- pig.orthos
-  # subset pig data so that there is same genes
-  query.matrix.flt <- query.matrix[rownames(query.matrix) %in% pig.orthos, ]
-  dim(query.matrix.flt)
-  # subset human refernce based on gamm data
-  ref.matrix.flt <- ref.matrix.flt[rownames(ref.matrix.flt) %in% rownames(query.matrix.flt), ]
-  dim(ref.matrix.flt)
-  # get rid of duplicates in reference by averaging them
-  # Aggregate rows based on row names
-  ref.matrix.flt <- aggregate(ref.matrix.flt, by = list(rownames(ref.matrix.flt)), FUN = mean)
-  # use column 1 as rownames
-  rownames(ref.matrix.flt) <- ref.matrix.flt$Group.1
-  ref.matrix.flt <- select(ref.matrix.flt, -c("Group.1"))
-  # turn back to sparse matrix
-  library(Matrix)
-  ref.matrix.flt <- as.matrix(ref.matrix.flt)
-  ref.matrix.flt <- Matrix(ref.matrix.flt, sparse = TRUE)
-  # create seurat object
-  ref.seurat <- CreateSeuratObject(ref.matrix.flt, project = project_names[[1]], assay = "RNA")
-  query.seurat <- CreateSeuratObject(query.matrix.flt, project = project_names[[2]], assay = "RNA")
-  # put in a list to export
-  obj.list <- list(ref.seurat, query.seurat, orthologs)
-  return(obj.list)
-}
-
-
 normalize_data <- function(seurat_obj, path) {
-  # Get parameters from config
   min_size <- config$normalize_data$min_size
   min_mean <- config$normalize_data$min_mean
   feature <- config$normalize_data$feature
-
+  
   sce <- as.SingleCellExperiment(seurat_obj)
-
-  # Cluster the cells for scran
   clusters <- quickCluster(sce, use.ranks = FALSE, min.size = min_size)
-
-  # Calculate size factors per cell
   sce <- computeSumFactors(sce, clusters = clusters, min.mean = min_mean)
-
-  # Apply size factors to generate log normalized data
   sce <- logNormCounts(sce)
-
-  # Replace Seurat normalized values with scran
-  seurat_obj[["RNA"]] <- SetAssayData(seurat_obj[["RNA"]],
-    slot = "data",
-    new.data = logcounts(sce)
-  )
-
+  
+  seurat_obj[["RNA"]] <- SetAssayData(seurat_obj[["RNA"]], slot = "data", new.data = logcounts(sce))
   seurat_obj$sizeFactors <- sizeFactors(sce)
   seurat_obj <- UpdateSeuratObject(seurat_obj)
-
-  # Create violin plots pre and post normalization
+  
   vin_pre <- VlnPlot(seurat_obj, feature, slot = "counts")
   vin_post <- VlnPlot(seurat_obj, feature, slot = "data")
-
-  # Save violin plots
-  pdf(file = paste0(path, "violin_pre_norm.pdf"), width = 8, height = 6)
+  
+  pdf(file.path(path, "violin_pre_norm.pdf"), width = 8, height = 6)
   print(vin_pre)
   dev.off()
-
-  pdf(file = paste0(path, "violin_post_norm.pdf"), width = 8, height = 6)
+  
+  pdf(file.path(path, "violin_post_norm.pdf"), width = 8, height = 6)
   print(vin_post)
   dev.off()
-
+  
   return(seurat_obj)
 }
 
 feature_selection <- function(seurat_obj) {
   n_features <- config$feature_selection$n_features
   analysis_type <- config$feature_selection$analysis_type
-
+  
   if (analysis_type == "Seurat") {
-    # Seurat method
     seurat_obj <- FindVariableFeatures(seurat_obj, selection.method = "vst", nfeatures = n_features)
   } else if (analysis_type == "Scry") {
-    # Scry method
     m <- GetAssayData(seurat_obj, slot = "counts", assay = "RNA")
     devi <- scry::devianceFeatureSelection(m)
     dev_ranked_genes <- rownames(seurat_obj)[order(devi, decreasing = TRUE)]
     topdev <- head(dev_ranked_genes, n_features)
-    # replace variable features with the deviance ranked genes
     VariableFeatures(seurat_obj) <- topdev
     seurat_obj <- UpdateSeuratObject(seurat_obj)
   } else {
     stop("Invalid analysis_type. Please choose 'Seurat' or 'Scry'.")
   }
+  
   return(seurat_obj)
 }
 
-get_species_by_sample_name <- function(sample_name, config) {
-  for (sample in names(config$fastq_alignment)) {
-    sample_details <- config$fastq_alignment[[sample]]
-    if (sample_details$NAME == sample_name) {
-      return(sample_details$species)
-    }
-  }
-  return(NA) # Return NA if no species is found for the sample name
-}
-categorize_samples_by_species <- function(sample_specific_list, config) {
-  # Initialize empty lists to hold ref and query objects
-  ref_objects <- list()
-  query_objects <- list()
-
-  # Iterate over each sample in the list
-  for (i in seq_along(sample_specific_list)) {
-    # Assuming each element in sample_specific_list has a unique identifier or name
-    # This part may need adjustment depending on the structure of your sample_specific_list
-    sample_name <- names(sample_specific_list)[i]
-    species <- get_species_by_sample_name(sample_name, config)
-
-    # Check if species is "Human" and categorize the sample accordingly
-    if (tolower(species) == "human") {
-      # Append to ref_objects
-      ref_objects[[sample_name]] <- sample_specific_list[[i]]
-      ref_name <- sample_name
-    } else {
-      # Append to query_objects
-      query_objects[[sample_name]] <- sample_specific_list[[i]]
-      query_name <- sample_name
-    }
-  }
-
-  # Return a list containing both lists of objects
-  return(list(ref_objects = ref_objects, query_objects = query_objects, ref_name = ref_name, query_name = query_name))
-}
 
 scale_data <- function(seurat_obj, path, sample_name = NULL) {
   vars.2.regress <- config$scale_data$vars.2.regress
   marker.path.s <- config$scale_data$marker.path.s
   marker.path.g2m <- config$scale_data$marker.path.g2m
   
-  # If sample_name is not provided, try to get it from the Seurat object
-  if (is.null(sample_name)) {
-    sample_name <- unique(seurat_obj$orig.ident)[1]
-  }
+  if (is.null(sample_name)) sample_name <- unique(seurat_obj$orig.ident)[1]
   
   species <- NULL
-  # Loop through each sample in the config to match sample_name
   for (sample in names(config$fastq_alignment)) {
     sample_details <- config$fastq_alignment[[sample]]
     if (sample_details$NAME == sample_name) {
@@ -311,79 +173,51 @@ scale_data <- function(seurat_obj, path, sample_name = NULL) {
     warning("Species not found in config, defaulting to 'human'")
     species <- "human"
   }
-
-  # Get all gene names
+  
   all.genes <- rownames(seurat_obj)
-
-  # Scale the data
+  
   if (vars.2.regress == "cell.cycle") {
-    # Read cell cycle markers
-    cell.cycle.markers.s <- read.csv2(marker.path.s,
-      sep = "\t", header = TRUE, row.names = 1
-    )
-    cell.cycle.markers.g2m <- read.csv2(marker.path.g2m,
-      sep = "\t", header = TRUE, row.names = 1
-    )
+    cell.cycle.markers.s <- read.csv2(marker.path.s, sep = "\t", header = TRUE, row.names = 1)
+    cell.cycle.markers.g2m <- read.csv2(marker.path.g2m, sep = "\t", header = TRUE, row.names = 1)
     varslist <- c(cell.cycle.markers.s, cell.cycle.markers.g2m)
-
-    # Select species-specific cell cycle markers
+    
     if (species == "human") {
       s.genes <- cc.genes$s.genes
       g2m.genes <- cc.genes$g2m.genes
     } else if (species == "pig") {
-      s.genes <- varslist[4]$pig.gene.name
-      g2m.genes <- varslist[8]$pig.gene.name
+      s.genes <- varslist[[4]]$pig.gene.name
+      g2m.genes <- varslist[[8]]$pig.gene.name
     } else {
       warning("Unsupported species, defaulting to human cell cycle genes")
       s.genes <- cc.genes$s.genes
       g2m.genes <- cc.genes$g2m.genes
     }
-
-    # Check genes in parallel
-    missing_genes <- future_map(g2m.genes, function(gene) {
-      if (!(gene %in% rownames(seurat_obj))) gene else NULL
-    }) %>% compact()
     
+    missing_genes <- map(g2m.genes, ~ if(!(.x %in% rownames(seurat_obj))) .x else NULL) %>% compact()
     if (length(missing_genes) > 0) {
-      warning(paste("Missing genes:", paste(missing_genes, collapse = ", ")))
+      warning("Missing genes: ", paste(missing_genes, collapse = ", "))
     }
+    
+    seurat_obj <- CellCycleScoring(seurat_obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+    
+    # Removed future calls, run directly
+    seurat_obj <- ScaleData(seurat_obj, features = all.genes)
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(file.path(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
+    print(DimPlot(seurat_obj, group.by = "Phase"))
+    dev.off()
 
-    # Perform cell cycle scoring
-    seurat_obj <- CellCycleScoring(seurat_obj,
-      s.features = s.genes,
-      g2m.features = g2m.genes, 
-      set.ident = TRUE
-    )
-
-    # Save plots in parallel
-    future({
-      seurat_obj <- ScaleData(seurat_obj, features = all.genes)
-      seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
-      pdf(paste0(path, "pca_before_cc_regression.pdf"), width = 8, height = 6)
-      print(DimPlot(seurat_obj, group.by = "Phase"))
-      dev.off()
-    })
-
-    # Scale data and regress out cell cycle
-    seurat_obj <- ScaleData(seurat_obj,
-      vars.to.regress = c("S.Score", "G2M.Score"),
-      features = all.genes
-    )
-
-    # Save post-regression plot in parallel
-    future({
-      seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
-      pdf(paste0(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)
-      print(DimPlot(seurat_obj, group.by = "Phase"))
-      dev.off()
-    })
+    seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c("S.Score","G2M.Score"), features = all.genes)
+    seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
+    pdf(file.path(path,"pca_after_cc_regression.pdf"),width=8,height=6)
+    print(DimPlot(seurat_obj, group.by="Phase"))
+    dev.off()
   } else {
     seurat_obj <- ScaleData(seurat_obj, features = all.genes)
   }
-
+  
   return(seurat_obj)
 }
-
 
 
 run_and_visualize_pca <- function(seurat_obj, path) {
@@ -392,74 +226,62 @@ run_and_visualize_pca <- function(seurat_obj, path) {
   num_cells <- config$run_and_visualize_pca$num_cells
   dims <- 1:config$run_and_visualize_pca$dims
   num_replicate <- config$run_and_visualize_pca$num.replicate
-
-  # Perform PCA
+  
   seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
-
-  # Visualize feature loadings
-  pdf(paste0(path, "top_n_dims_with_genes.pdf"), width = 8, height = 6)
-  print(VizDimLoadings(seurat_obj, dims = 1:top_n_dims, reduction = "pca"))
+  
+  pdf(file.path(path,"top_n_dims_with_genes.pdf"),width=8,height=6)
+  print(VizDimLoadings(seurat_obj,dims=1:top_n_dims,reduction="pca"))
   dev.off()
-
-  # Generate scatter plot of PCA results
-  pdf(paste0(path, "pca_scatter_plot.pdf"), width = 8, height = 6)
-  print(DimPlot(seurat_obj, reduction = "pca"))
+  
+  pdf(file.path(path,"pca_scatter_plot.pdf"),width=8,height=6)
+  print(DimPlot(seurat_obj,reduction="pca"))
   dev.off()
-
-  # Save PCA heat map
-  pdf(paste0(path, "pca_heat_map.pdf"), width = 8, height = 6)
-  print(DimHeatmap(seurat_obj, nfeatures = 5, dims = heatmap_dims, cells = num_cells, balanced = TRUE, fast = FALSE, combine = TRUE))
+  
+  pdf(file.path(path,"pca_heat_map.pdf"),width=8,height=6)
+  print(DimHeatmap(seurat_obj,nfeatures=5,dims=heatmap_dims,cells=num_cells,balanced=TRUE,fast=FALSE,combine=TRUE))
   dev.off()
-  # Save Elbow plots
-  pdf(paste0(path, "elbow_pca.pdf"), width = 8, height = 6)
-  elbow_pca <- ElbowPlot(seurat_obj, reduction = "pca")
+  
+  pdf(file.path(path,"elbow_pca.pdf"),width=8,height=6)
+  elbow_pca <- ElbowPlot(seurat_obj,reduction="pca")
   print(elbow_pca)
   dev.off()
-
-  # Perform JackStraw
+  
   if (num_replicate == "NA") {
     print("jackstraw not run")
   } else {
-    seurat_obj <- JackStraw(seurat_obj, num.replicate = num_replicate)
-    seurat_obj <- ScoreJackStraw(seurat_obj, dims = dims)
-
-    # Save JackStraw plot
-    pdf(paste0(path, "jack_straw.pdf"), width = 8, height = 6)
-    jack_straw <- JackStrawPlot(seurat_obj, dims = dims)
+    seurat_obj <- JackStraw(seurat_obj,num.replicate=num_replicate)
+    seurat_obj <- ScoreJackStraw(seurat_obj,dims=dims)
+    
+    pdf(file.path(path,"jack_straw.pdf"),width=8,height=6)
+    jack_straw <- JackStrawPlot(seurat_obj,dims=dims)
     print(jack_straw)
     dev.off()
   }
-
-  # Return the updated Seurat object
+  
   return(seurat_obj)
 }
 
-perform_batch_correction <- function(seurat_obj, path) {
+
+perform_batch_correction <- function(seurat_obj,path) {
   dims.use <- 1:config$perform_batch_correction$dims.use
   max_iter <- config$perform_batch_correction$max_iter
-
-  # Generate pre-batch correction PCA plot
-  pdf(paste0(path, "batch_uncorrected_pca.pdf"), width = 8, height = 6)
-  p1_pre <- DimPlot(object = seurat_obj, reduction = "pca", pt.size = .1, group.by = "orig.ident")
-  p2_pre <- VlnPlot(object = seurat_obj, features = "PC_1", group.by = "orig.ident", pt.size = .1)
-  print(p1_pre + p2_pre)
+  
+  pdf(file.path(path,"batch_uncorrected_pca.pdf"),width=8,height=6)
+  p1_pre <- DimPlot(seurat_obj,reduction="pca",pt.size=.1,group.by="orig.ident")
+  p2_pre <- VlnPlot(seurat_obj,features="PC_1",group.by="orig.ident",pt.size=.1)
+  print(p1_pre+p2_pre)
   dev.off()
-
-  # Run Harmony
-  seurat_obj <- RunHarmony(seurat_obj, group.by.vars = "orig.ident", dims.use = dims.use, max.iter.harmony = max_iter)
-
-  # Access Harmony embeddings
-  harmony_embeddings <- Embeddings(seurat_obj, "harmony")
-
-  # Generate post-batch correction PCA plot
-  pdf(paste0(path, "batch_corrected_pca.pdf"), width = 8, height = 6)
-  p1_post <- DimPlot(object = seurat_obj, reduction = "harmony", pt.size = .1, group.by = "orig.ident")
-  p2_post <- VlnPlot(object = seurat_obj, features = "harmony_1", group.by = "orig.ident", pt.size = .1)
-  print(p1_post + p2_post)
+  
+  seurat_obj <- RunHarmony(seurat_obj, group.by.vars="orig.ident",dims.use=dims.use,max.iter.harmony=max_iter)
+  harmony_embeddings <- Embeddings(seurat_obj,"harmony")
+  
+  pdf(file.path(path,"batch_corrected_pca.pdf"),width=8,height=6)
+  p1_post <- DimPlot(seurat_obj,reduction="harmony",pt.size=.1,group.by="orig.ident")
+  p2_post <- VlnPlot(seurat_obj,features="harmony_1",group.by="orig.ident",pt.size=.1)
+  print(p1_post+p2_post)
   dev.off()
-
-  # Return the updated Seurat object and harmony embeddings
-  return(list(seurat_obj = seurat_obj, harmony_embeddings = harmony_embeddings))
+  
+  return(list(seurat_obj=seurat_obj,harmony_embeddings=harmony_embeddings))
 }
 
 run_umap <- function(seurat_obj, path) {
@@ -618,33 +440,65 @@ perform_clustering <- function(seurat_obj, path) {
   return(seurat_obj)
 }
 
-perform_clustering2 <- function(seurat_obj, path) {
-  resolution <- config$perform_clustering$resolution
-  algorithm <- config$perform_clustering$algorithm
-  reduction <- config$perform_clustering$reduction
-  dims_snn <- 1:config$perform_clustering$dims_snn
 
-  # Perform K-nearest neighbor (KNN) graph
-  seurat_obj <- FindNeighbors(seurat_obj, dims = dims_snn, reduction = reduction)
-
-  # Save UMAP lanes plot
-  pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
-  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5)
-  print(umap_lanes)
-  dev.off()
-
-  # Cluster cells
-  seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = algorithm)
-
-  # Save UMAP clusters plot
-  pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", label = TRUE, pt.size = .5)
-  print(umap_clusters)
-  dev.off()
-
-  # Return the updated Seurat object
-  return(seurat_obj)
+process_sample <- function(sample_name, sample_data, output_base_dir, config) {
+  # Initialize an environment for storing intermediate results
+  env <- new.env()
+  
+  # Make output directory for each sample
+  sample_output_dir <- file.path(output_base_dir, sample_name)
+  dir.create(sample_output_dir, recursive = TRUE, showWarnings = FALSE)
+  sample_output_dir <- paste0(sample_output_dir, "/")
+  
+  # 1. Doublet finder and lane merging
+  env$lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(sample_data, sample_output_dir)
+  
+  # 2. Mitochondrial gene filtering
+  env$seurat_obj_mt_filtered <- filter_cells(env$lane_and_merged_seurat_obj, sample_name, sample_output_dir)
+  rm(list = "lane_and_merged_seurat_obj", envir = env); env$lane_and_merged_seurat_obj <- NULL
+  
+  # Perform garbage collection after each major step to manage memory
+  gc(full = TRUE)
+  
+  # Normalize, select features, scale, and run PCA
+  env$normalized_seurat_obj <- normalize_data(env$seurat_obj_mt_filtered, sample_output_dir)
+  rm(list = "seurat_obj_mt_filtered", envir = env); env$seurat_obj_mt_filtered <- NULL
+  env$feature_selected_seurat_obj <- feature_selection(env$normalized_seurat_obj)
+  rm(list = "normalized_seurat_obj", envir = env); env$normalized_seurat_obj <- NULL
+  env$scaled_seurat_obj <- scale_data(env$feature_selected_seurat_obj, sample_output_dir)
+  rm(list = "feature_selected_seurat_obj", envir = env); env$feature_selected_seurat_obj <- NULL
+  env$dim_reduced_seurat_obj <- run_and_visualize_pca(env$scaled_seurat_obj, sample_output_dir)
+  rm(list = "scaled_seurat_obj", envir = env); env$scaled_seurat_obj <- NULL
+  
+  # Batch correction if needed
+  if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
+    env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
+    saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
+  } else {
+    message("Skipping batch correction as 'orig.ident' has only one level.")
+    env$batch_corrected_obj <- env$dim_reduced_seurat_obj
+  }
+  rm(list = "dim_reduced_seurat_obj", envir = env); env$dim_reduced_seurat_obj <- NULL
+  
+  # Proceed based on species consistency
+  if (species_are_all_same(config)) {
+    message("Species are consistent across all samples.")
+    env$final_obj <- process_consistent_species(env$batch_corrected_obj, sample_output_dir, config, sample_name)
+  } else {
+    message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
+    # For orthologous gene analysis, simply return the batch corrected object for now
+    env$final_obj <- env$batch_corrected_obj
+    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
+  }
+  
+  # Clean up the environment and perform final garbage collection
+  rm(list = ls(envir = env), envir = env)
+  gc(full = TRUE)
+  
+  return(env$final_obj)
 }
+
+
 
 find_differentially_expressed_features <- function(seurat_obj, path) {
   # Get parameters from the config file
@@ -1210,62 +1064,7 @@ create_sample_output_dir <- function(base_dir, sample_name) {
 }
 
 
-process_sample <- function(sample_name, sample_data, output_base_dir, config) {
-  # Initialize an environment for storing intermediate results
-  env <- new.env()
-  
-  # Make output directory for each sample
-  sample_output_dir <- file.path(output_base_dir, sample_name)
-  dir.create(sample_output_dir, recursive = TRUE, showWarnings = FALSE)
-  sample_output_dir <- paste0(sample_output_dir, "/")
-  
-  # 1. Doublet finder and lane merging
-  env$lane_and_merged_seurat_obj <- run_scDblFinder_and_merge(sample_data, sample_output_dir)
-  
-  # 2. Mitochondrial gene filtering
-  env$seurat_obj_mt_filtered <- filter_cells(env$lane_and_merged_seurat_obj, sample_name, sample_output_dir)
-  rm(list = "lane_and_merged_seurat_obj", envir = env); env$lane_and_merged_seurat_obj <- NULL
-  
-  # Perform garbage collection after each major step to manage memory
-  gc(full = TRUE)
-  
-  # Normalize, select features, scale, and run PCA
-  env$normalized_seurat_obj <- normalize_data(env$seurat_obj_mt_filtered, sample_output_dir)
-  rm(list = "seurat_obj_mt_filtered", envir = env); env$seurat_obj_mt_filtered <- NULL
-  env$feature_selected_seurat_obj <- feature_selection(env$normalized_seurat_obj)
-  rm(list = "normalized_seurat_obj", envir = env); env$normalized_seurat_obj <- NULL
-  env$scaled_seurat_obj <- scale_data(env$feature_selected_seurat_obj, sample_output_dir)
-  rm(list = "feature_selected_seurat_obj", envir = env); env$feature_selected_seurat_obj <- NULL
-  env$dim_reduced_seurat_obj <- run_and_visualize_pca(env$scaled_seurat_obj, sample_output_dir)
-  rm(list = "scaled_seurat_obj", envir = env); env$scaled_seurat_obj <- NULL
-  
-  # Batch correction if needed
-  if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
-    env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
-    saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
-  } else {
-    message("Skipping batch correction as 'orig.ident' has only one level.")
-    env$batch_corrected_obj <- env$dim_reduced_seurat_obj
-  }
-  rm(list = "dim_reduced_seurat_obj", envir = env); env$dim_reduced_seurat_obj <- NULL
-  
-  # Proceed based on species consistency
-  if (species_are_all_same(config)) {
-    message("Species are consistent across all samples.")
-    env$final_obj <- process_consistent_species(env$batch_corrected_obj, sample_output_dir, config, sample_name)
-  } else {
-    message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
-    # For orthologous gene analysis, simply return the batch corrected object for now
-    env$final_obj <- env$batch_corrected_obj
-    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
-  }
-  
-  # Clean up the environment and perform final garbage collection
-  rm(list = ls(envir = env), envir = env)
-  gc(full = TRUE)
-  
-  return(env$final_obj)
-}
+
 
 process_consistent_species <- function(batch_corrected_obj, sample_output_dir, config, sample_name) {
   message("Species are consistent across all samples.")
@@ -1430,4 +1229,93 @@ process_orthologous_objects <- function(seurat_obj, output_dir, config, sample_n
     # If no known markers scoring and plotting, return the clustered object only
     return(list(clustered_seurat_obj = clustered_seurat_obj))
   }
+}
+
+ortholog_subset <- function(ref_seurat, query_seurat, project_names, path = output) {
+  # Get parameters from config
+  ortholog_file <- config$ortholog_subset$ortholog_file
+  # read in orrtholog file
+  orthologs <- read.csv2(ortholog_file, sep = "\t", header = TRUE, row.names = 1)
+  # ortholog gene list
+  orthos <- as.vector(orthologs$human.gene.name)
+  # turn seurat objects into matrices
+  ref.matrix <- GetAssayData(ref_seurat, slot = "data")
+  query.matrix <- GetAssayData(query_seurat, slot = "data")
+
+  # subset matrix so they match only orthologous genes
+  ref.matrix.flt <- ref.matrix[rownames(ref.matrix) %in% orthos, ]
+  # subset orthologs to they only match expr matrix
+  orthologs <- orthologs[orthologs$human.gene.name %in% rownames(ref.matrix.flt), ]
+  # switch reference genes to query genes
+  # reorder based on exp matrix genes
+  ind_reorder <- match(rownames(ref.matrix.flt), orthologs$human.gene.name)
+  orthologs.reorder <- orthologs[ind_reorder, ]
+  # now replace rownames of exp matrix with pig genes
+  pig.orthos <- as.vector(orthologs.reorder$pig.gene.name)
+  row.names(ref.matrix.flt) <- pig.orthos
+  # subset pig data so that there is same genes
+  query.matrix.flt <- query.matrix[rownames(query.matrix) %in% pig.orthos, ]
+  dim(query.matrix.flt)
+  # subset human refernce based on gamm data
+  ref.matrix.flt <- ref.matrix.flt[rownames(ref.matrix.flt) %in% rownames(query.matrix.flt), ]
+  dim(ref.matrix.flt)
+  # get rid of duplicates in reference by averaging them
+  # Aggregate rows based on row names
+  ref.matrix.flt <- aggregate(ref.matrix.flt, by = list(rownames(ref.matrix.flt)), FUN = mean)
+  # use column 1 as rownames
+  rownames(ref.matrix.flt) <- ref.matrix.flt$Group.1
+  ref.matrix.flt <- select(ref.matrix.flt, -c("Group.1"))
+  # turn back to sparse matrix
+  library(Matrix)
+  ref.matrix.flt <- as.matrix(ref.matrix.flt)
+  ref.matrix.flt <- Matrix(ref.matrix.flt, sparse = TRUE)
+  # create seurat object
+  ref.seurat <- CreateSeuratObject(ref.matrix.flt, project = project_names[[1]], assay = "RNA")
+  query.seurat <- CreateSeuratObject(query.matrix.flt, project = project_names[[2]], assay = "RNA")
+  # put in a list to export
+  obj.list <- list(ref.seurat, query.seurat, orthologs)
+  return(obj.list)
+}
+
+categorize_samples_by_species <- function(sample_specific_list, config) {
+  # Initialize empty lists to hold ref and query objects
+  ref_objects <- list()
+  query_objects <- list()
+
+  # Iterate over each sample in the list
+  for (i in seq_along(sample_specific_list)) {
+    # Assuming each element in sample_specific_list has a unique identifier or name
+    # This part may need adjustment depending on the structure of your sample_specific_list
+    sample_name <- names(sample_specific_list)[i]
+    species <- get_species_by_sample_name(sample_name, config)
+
+    # Check if species is "Human" and categorize the sample accordingly
+    if (tolower(species) == "human") {
+      # Append to ref_objects
+      ref_objects[[sample_name]] <- sample_specific_list[[i]]
+      ref_name <- sample_name
+    } else {
+      # Append to query_objects
+      query_objects[[sample_name]] <- sample_specific_list[[i]]
+      query_name <- sample_name
+    }
+  }
+
+  # Return a list containing both lists of objects
+  return(list(ref_objects = ref_objects, query_objects = query_objects, ref_name = ref_name, query_name = query_name))
+}
+
+species_are_all_same <- function(config) {
+  species_values <- future_map_chr(config$fastq_alignment, "species")
+  all(species_values == species_values[1])
+}
+
+get_species_by_sample_name <- function(sample_name, config) {
+  for (sample in names(config$fastq_alignment)) {
+    sample_details <- config$fastq_alignment[[sample]]
+    if (sample_details$NAME == sample_name) {
+      return(sample_details$species)
+    }
+  }
+  return(NA) # Return NA if no species is found for the sample name
 }

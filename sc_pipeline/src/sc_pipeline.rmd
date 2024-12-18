@@ -72,7 +72,7 @@ sample_specific_sce_list <- split_sce_list_by_sample(sce_list)
 #clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
 
 # Process samples in parallel
-processed_samples_list <- future_map(names(sample_specific_sce_list), function(sample_name) {
+processed_samples_list <- lapply(names(sample_specific_sce_list), function(sample_name) {
   sample_data <- sample_specific_sce_list[[sample_name]]
   process_sample(sample_name, sample_data, output_base_dir, config)
 })
