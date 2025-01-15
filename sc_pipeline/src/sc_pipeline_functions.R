@@ -441,6 +441,7 @@ perform_clustering <- function(seurat_obj, path) {
 }
 
 
+
 process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   # Initialize an environment for storing intermediate results
   env <- new.env()
@@ -490,7 +491,6 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
     env$final_obj <- env$batch_corrected_obj
     saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   }
-  
   # Clean up the environment and perform final garbage collection
   rm(list = ls(envir = env), envir = env)
   gc(full = TRUE)
@@ -1104,72 +1104,116 @@ process_consistent_species <- function(batch_corrected_obj, sample_output_dir, c
 }
 
 perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, output_dir) {
+  # Add debug logging
+  message("Starting orthologous gene analysis...")
+  
   if (!species_are_all_same(config)) {
     # Categorize samples by species
+    message("Categorizing samples by species...")
     categorized_samples <- categorize_samples_by_species(processed_seurat_objs, config)
     ref_name <- categorized_samples$ref_name
     query_name <- categorized_samples$query_name
-    # Assuming there are at least two objects for reference and query
-    if (length(categorized_samples$ref_objects) > 0 && length(categorized_samples$query_objects) > 0) { 
-      sample_name <- names(sample_specific_list)[i]
+    
+    # Debug logging
+    message("Reference name: ", ref_name)
+    message("Query name: ", query_name)
+    
+    # Check if we have valid reference and query objects
+    if (length(categorized_samples$ref_objects) > 0 && length(categorized_samples$query_objects) > 0) {
       ref_obj <- categorized_samples$ref_objects[[1]]
       query_obj <- categorized_samples$query_objects[[1]]
-      print(ref_obj)
-      print(query_obj)
-      # get feature lists for objects
-      feature_list_Q <- query_obj@assays$RNA@var.features
-      feature_list_Q <- as.vector(feature_list_Q)
-      feature_list_R <- ref_obj@assays$RNA@var.features
-      feature_list_R <- as.vector(feature_list_R)
-      # get scaled data
-      scaled_matrix_Q <- query_obj@assays$RNA@scale.data
-      scaled_matrix_R <- ref_obj@assays$RNA@scale.data
-      # get harmony embeddings
+      
+      # Verify objects have required data
+      if (is.null(ref_obj) || is.null(query_obj)) {
+        stop("Reference or query object is NULL")
+      }
+      
+      # Check for required reductions
+      if (!"harmony" %in% names(Reductions(ref_obj))) {
+        message("Warning: Harmony reduction not found in reference object. Running harmony...")
+        ref_obj <- RunHarmony(ref_obj, group.by.vars = "orig.ident")
+      }
+      
+      if (!"harmony" %in% names(Reductions(query_obj))) {
+        message("Warning: Harmony reduction not found in query object. Running harmony...")
+        query_obj <- RunHarmony(query_obj, group.by.vars = "orig.ident")
+      }
+      
+      # Get feature lists
+      message("Getting feature lists...")
+      feature_list_Q <- VariableFeatures(query_obj)
+      feature_list_R <- VariableFeatures(ref_obj)
+      
+      # Get scaled data
+      message("Getting scaled data...")
+      scaled_matrix_Q <- GetAssayData(query_obj, slot = "scale.data")
+      scaled_matrix_R <- GetAssayData(ref_obj, slot = "scale.data")
+      
+      # Get harmony embeddings
+      message("Getting harmony embeddings...")
       harmony_embeddings_Q <- Embeddings(query_obj, reduction = "harmony")
       harmony_embeddings_R <- Embeddings(ref_obj, reduction = "harmony")
-      # get project names
-      ref_project <- ref_obj$orig.ident[[1]]
-      query_project <- query_obj$orig.ident[[1]]
+      
+      # Get project names
+      message("Getting project names...")
+      ref_project <- unique(ref_obj$orig.ident)[1]
+      query_project <- unique(query_obj$orig.ident)[1]
       ref_project <- sub("_lane.*", "", ref_project)
       query_project <- sub("_lane.*", "", query_project)
       project_names <- c(ref_project, query_project)
-      # subset orthologs
-      print("subsetting orthologs")
+      
+      # Subset orthologs
+      message("Subsetting orthologs...")
       objs.list <- ortholog_subset(ref_obj, query_obj, project_names)
-      print("ortholog subset complete")
+      
       ref.seurat <- objs.list[[1]]
       query.seurat <- objs.list[[2]]
       orthologs <- objs.list[[3]]
-      print(ref.seurat)
-      print(query.seurat)
-      saveRDS(ref.seurat, file = paste0(output_dir, "ref_ortho-subset_seurat.rds"))
-      saveRDS(query.seurat, file = paste0(output_dir, "query_ortho-subset_seurat.rds"))
-      # get metadata 
+      
+      # Save intermediate objects
+      saveRDS(ref.seurat, file = file.path(output_dir, "ref_ortho-subset_seurat.rds"))
+      saveRDS(query.seurat, file = file.path(output_dir, "query_ortho-subset_seurat.rds"))
+      
+      # Get metadata
+      message("Getting metadata...")
       ref.seurat <- get_metadata(ref.seurat, "ref")
       query.seurat <- get_metadata(query.seurat, "query")
-      # add variable features back in
+      
+      # Add variable features back
+      message("Adding variable features...")
       VariableFeatures(query.seurat) <- feature_list_Q
       VariableFeatures(ref.seurat) <- feature_list_R
-      # add scaled data back in
-      query.seurat@assays$RNA@scale.data <- scaled_matrix_Q 
-      ref.seurat@assays$RNA@scale.data <- scaled_matrix_R
-      # add harmony embeddings back in
-      query.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
-        harmony_embeddings_Q, key = 'harmony_', assay = 'RNA')
-      ref.seurat[['harmony']] <- CreateDimReducObject(embeddings = 
-        harmony_embeddings_R, key = 'harmony_', assay = 'RNA')
-      # return the list of objects
+      
+      # Add scaled data back
+      message("Adding scaled data...")
+      query.seurat[["RNA"]]@scale.data <- scaled_matrix_Q
+      ref.seurat[["RNA"]]@scale.data <- scaled_matrix_R
+      
+      # Add harmony embeddings back
+      message("Adding harmony embeddings...")
+      query.seurat[["harmony"]] <- CreateDimReducObject(embeddings = harmony_embeddings_Q, 
+                                                       key = "harmony_", 
+                                                       assay = "RNA")
+      ref.seurat[["harmony"]] <- CreateDimReducObject(embeddings = harmony_embeddings_R, 
+                                                     key = "harmony_", 
+                                                     assay = "RNA")
+      
+      # Return the list of objects
       obj.list2 <- list()
       obj.list2[[ref_name]] <- ref.seurat
       obj.list2[[query_name]] <- query.seurat
+      
+      # Save final results
+      saveRDS(obj.list2, file = file.path(output_dir, "ortholog_objs_list.rds"))
+      
       return(obj.list2)
-      # Save the results
-      saveRDS(obj.list2, file = paste0(output_dir, "ortholog_objs_list.rds"))
+    } else {
+      stop("No reference and query objects found for orthologous gene analysis.")
     }
-    else {
-      message("No reference and query objects found for orthologous gene analysis.")
-    }
-}
+  } else {
+    message("All samples are of the same species. Skipping orthologous gene analysis.")
+    return(NULL)
+  }
 }
 
 get_metadata <- function(seurat_obj, type) {

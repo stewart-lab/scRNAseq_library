@@ -36,8 +36,9 @@ library(ggplot2)
 library(ComplexHeatmap)
 
 # Set up parallel processing
-options(future.globals.maxSize = 131072 * 1024^2)  # 128GB
-plan(multisession, workers = 64)
+# Reduce number of workers and increase per-worker memory
+options(future.globals.maxSize = 50000 * 1024^2)  # 50GB
+plan(multisession, workers = 4)  # Reduce from 64 to 4 workers
 
 # Python setup
 py_config()
@@ -84,12 +85,26 @@ saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat
 ```{r}
 # Do cross species
 if (!species_are_all_same(config)) {
+  message("Starting cross-species analysis...")
   objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
-  sample_names <- names(objs_list)
-  ref_name <- sample_names[1]
-  query_name <- sample_names[2]
-  ref_list <- process_orthologous_objects(objs_list$ref_name, output_base_dir, config, ref_name)
-  query_list <- process_orthologous_objects(objs_list$query_name, output_base_dir, config, query_name)
+  
+  if (!is.null(objs_list)) {
+    sample_names <- names(objs_list)
+    if (length(sample_names) >= 2) {
+      ref_name <- sample_names[1]
+      query_name <- sample_names[2]
+      
+      message(paste("Processing reference:", ref_name))
+      ref_list <- process_orthologous_objects(objs_list[[ref_name]], output_base_dir, config, ref_name)
+      
+      message(paste("Processing query:", query_name))
+      query_list <- process_orthologous_objects(objs_list[[query_name]], output_base_dir, config, query_name)
+    } else {
+      warning("Insufficient samples for cross-species analysis")
+    }
+  } else {
+    warning("No objects returned from orthologous gene analysis")
+  }
 }
 ```
 
