@@ -52,13 +52,10 @@ docker run -it \
   --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
   --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \
   --entrypoint=/bin/sh \
-<<<<<<< HEAD
-  seuratv5 -c "python3 /scRNA-seq/get_data.py && /opt/conda/envs/scrnaseq/bin/Rscript /scRNA-seq/script.R"
-=======
   seuratv5 -c "python3 /scRNA-seq/get_data.py $DATA_FLAG" && \
 
 # Second command for script.R with full path to Rscript
-docker run -it \
+docker run -d \
   --memory="64g" \
   --memory-swap="64g" \
   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
@@ -73,4 +70,3 @@ docker run -it \
 
 
 
->>>>>>> 02d3a70 (wip)
