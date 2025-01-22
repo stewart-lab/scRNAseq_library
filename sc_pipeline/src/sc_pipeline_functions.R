@@ -473,7 +473,8 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   
   # Batch correction if needed
   if (length(unique(env$dim_reduced_seurat_obj$orig.ident)) > 1) {
-    env$batch_corrected_obj <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
+    batchList <- perform_batch_correction(env$dim_reduced_seurat_obj, sample_output_dir)
+    env$batch_corrected_obj <- batchList[["seurat_obj"]]
     saveRDS(env$batch_corrected_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
   } else {
     message("Skipping batch correction as 'orig.ident' has only one level.")
@@ -481,21 +482,24 @@ process_sample <- function(sample_name, sample_data, output_base_dir, config) {
   }
   rm(list = "dim_reduced_seurat_obj", envir = env); env$dim_reduced_seurat_obj <- NULL
   
-  # Proceed based on species consistency
+  # Process based on species consistency
   if (species_are_all_same(config)) {
     message("Species are consistent across all samples.")
-    env$final_obj <- process_consistent_species(env$batch_corrected_obj, sample_output_dir, config, sample_name)
+    
+    # Determine whether the batch_corrected_obj is a list and run UMAP accordingly
+    if (is.list(env$batch_corrected_obj)) {
+      final_obj <- process_consistent_species(env$batch_corrected_obj$seurat_obj, sample_output_dir, config, sample_name)
+    } else {
+      final_obj <- process_consistent_species(env$batch_corrected_obj, sample_output_dir, config, sample_name)
+    }
+    
+    # Return the final processed object
+    return(final_obj)
   } else {
-    message("Species are not consistent across all samples. Initiating orthologous gene analysis.")
-    # For orthologous gene analysis, simply return the batch corrected object for now
-    env$final_obj <- env$batch_corrected_obj
-    saveRDS(env$final_obj, file = paste0(sample_output_dir, sample_name, "_batchcorr_seurat_obj.rds"))
+    message("Species are not consistent. Returning batch corrected object for orthologous analysis.")
+    # Return the batch corrected object for later orthologous analysis
+    return(env$batch_corrected_obj)
   }
-  # Clean up the environment and perform final garbage collection
-  rm(list = ls(envir = env), envir = env)
-  gc(full = TRUE)
-  
-  return(env$final_obj)
 }
 
 
@@ -1067,40 +1071,40 @@ create_sample_output_dir <- function(base_dir, sample_name) {
 
 
 process_consistent_species <- function(batch_corrected_obj, sample_output_dir, config, sample_name) {
-  message("Species are consistent across all samples.")
+  message("Processing consistent species data...")
   
-  # Determine whether the batch_corrected_obj is a list and run UMAP accordingly
-  if (is.list(batch_corrected_obj)) {
-    umap_seurat_obj <- run_umap(batch_corrected_obj$seurat_obj, sample_output_dir)
-  } else {
-    umap_seurat_obj <- run_umap(batch_corrected_obj, sample_output_dir)
-  }
+  # Run UMAP
+  umap_seurat_obj <- run_umap(batch_corrected_obj, sample_output_dir)
   
   # Perform clustering
   clustered_seurat_obj <- perform_clustering(umap_seurat_obj, sample_output_dir)
   
-  # Differential expression analysis based on the method specified in config
+  # Save intermediate object
+  saveRDS(clustered_seurat_obj, file = file.path(sample_output_dir, "clustered_seurat_obj.rds"))
+  
+  # Process based on DE method
   if (config$DE_method == "Seurat") {
     de_results <- find_differentially_expressed_features(clustered_seurat_obj, sample_output_dir)
     analyze_known_markers(clustered_seurat_obj, de_results, sample_output_dir)
+    final_obj <- clustered_seurat_obj  # Store for return
   } else if (config$DE_method == "Scran") {
     annot_df <- score_and_plot_markers(clustered_seurat_obj, sample_output_dir)
+    
+    if (config$score_and_plot_markers$known_markers) {
+      new_df_ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
+      new_cluster_ids <- new_df_ordered$Cell.type
+      labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new_cluster_ids, sample_output_dir)
+      clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, sample_output_dir)
+      final_obj <- list(labeled_seurat_obj = labeled_seurat_obj, clustifyR_obj = clustifyR_obj)
+    } else {
+      final_obj <- clustered_seurat_obj
+    }
   }
   
-  # Optionally annotate clusters and save if known markers are to be scored and plotted
-  if (config$score_and_plot_markers$known_markers) {
-    new_df_ordered <- annot_df[order(as.numeric(annot_df$Cluster)), ]
-    # Get new cluster names ordered by cluster number
-    new_cluster_ids <- new_df_ordered$Cell.type
-    labeled_seurat_obj <- annotate_clusters_and_save(clustered_seurat_obj, new_cluster_ids, sample_output_dir)
-
-    clustifyR_obj <- annotate_with_clustifyR(clustered_seurat_obj, sample_output_dir)
-    # Append both annotated objects to the return list
-    return(list(labeled_seurat_obj = labeled_seurat_obj, clustifyR_obj = clustifyR_obj))
-  } else {
-    # If no known markers scoring and plotting, return the clustered object only
-    return(list(clustered_seurat_obj = clustered_seurat_obj))
-  }
+  # Save final processed object
+  saveRDS(final_obj, file = file.path(sample_output_dir, "final_processed_obj.rds"))
+  
+  return(final_obj)
 }
 
 perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, output_dir) {

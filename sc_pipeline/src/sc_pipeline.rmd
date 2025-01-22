@@ -72,15 +72,34 @@ combine_feature_plots(seurat_list, output_base_dir, feature_set, file_name_base 
 sample_specific_sce_list <- split_sce_list_by_sample(sce_list)
 #clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
 
-# Process samples in parallel
+# Process samples and store results
 processed_samples_list <- lapply(names(sample_specific_sce_list), function(sample_name) {
+  message(paste("Processing sample:", sample_name))
   sample_data <- sample_specific_sce_list[[sample_name]]
-  process_sample(sample_name, sample_data, output_base_dir, config)
+  result <- process_sample(sample_name, sample_data, output_base_dir, config)
+  
+  # Add some error checking
+  if (is.null(result)) {
+    warning(paste("No results returned for sample:", sample_name))
+    return(NULL)
+  }
+  
+  return(result)
 })
+
+# Name the list elements
 names(processed_samples_list) <- names(sample_specific_sce_list)
 
+# Remove any NULL entries
+processed_samples_list <- Filter(Negate(is.null), processed_samples_list)
+
 # Save the processed Seurat objects
-saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+if (length(processed_samples_list) > 0) {
+  saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+  message("Successfully saved processed samples list")
+} else {
+  warning("No processed samples to save!")
+}
 ```
 ```{r}
 # Do cross species

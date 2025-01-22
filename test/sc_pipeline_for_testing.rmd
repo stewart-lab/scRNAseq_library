@@ -11,7 +11,12 @@ params:
 ```{r env, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
-use_condaenv("/w5home/bmoore/miniconda3/envs/scRNAseq_best", required = TRUE)#"/root/miniconda/envs/scrnaseq"
+use_condaenv("/w5home/bmoore/miniconda3/envs/scRNAseq_new", required = TRUE)#"/root/miniconda/envs/scrnaseq"
+library(reticulate)
+library(future)
+library(future.apply)
+library(furrr)
+library(purrr)
 library(dplyr)
 library(Seurat)
 library(patchwork)
@@ -22,19 +27,19 @@ library(cowplot)
 library(harmony)
 library(SoupX)
 library(scDblFinder)
-library(purrr)
 library(jsonlite)
 library(rmarkdown)
 library(tidyverse)
 library(tibble)
 library(stringr)
 library(clustifyr)
+library(scry)
 library(ggplot2)
 library(ComplexHeatmap)
 setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
-output <- "/w5home/bmoore/scRNAseq_library/output/output_20240517_165517/Day1/"
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20250116_155212/"
 # Load configuration and set output directory
-config <- jsonlite::fromJSON("/w5home/bmoore/scRNAseq_library/output/output_20240517_165517/config.json", simplifyDataFrame = FALSE)
+config <- jsonlite::fromJSON(paste0(output, "config.json"), simplifyDataFrame = FALSE)
 output_base_dir <- output
 source("sc_pipeline_functions.R")
 ```
@@ -132,16 +137,19 @@ if (!species_are_all_same(config)) {
 }
 ```
 ```{r}
-query.seurat <- readRDS(file = paste0(output, "query_ortho-subset_seurat.rds"))
+query.seurat <- readRDS("/w5home/bmoore/scRNAseq_library/output/output_20250121_192632/Day120-pig/Day120-pig_batchcorr_seurat_obj.rds")
 colnames(query.seurat@meta.data)
-ref.seurat <- readRDS(file = paste0(output, "ref_ortho-subset_seurat.rds"))
-print(query.seurat)
-print(ref.seurat)
+ref.seurat <- readRDS(file = "/w5home/bmoore/scRNAseq_library/output/output_20250121_192632/Day205-human/Day205-human_batchcorr_seurat_obj.rds")
+print(colnames(query.seurat))
+print(colnames(ref.seurat))
 ```
 ```{r}
-process_orthologous_objects(obj.list2[[1]], output_base_dir, config, names(processed_samples_list)[1])
-process_orthologous_objects(obj.list2[[2]], output_base_dir, config, names(processed_samples_list)[2])
+processed_samples_list <- list(query.seurat[1],ref.seurat[1])
+```
 
+```{r}
+#source("sc_pipeline_functions.R")
+objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
 ```
 
 
