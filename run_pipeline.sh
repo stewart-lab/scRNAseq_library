@@ -38,6 +38,7 @@ cd output
 output_dir=$(pwd)
 cd ..
 shared_mount_dir="$(pwd)/shared_mount"
+DATA_FLAG="--fastq"  # Default to --fastq
 
 echo "Step 5: Building Docker image for the main container"
 docker build -t seuratv5 ./sc_pipeline
@@ -47,14 +48,6 @@ chmod 777 "$output_dir"
 chmod 777 ./sc_pipeline/src/config.json
 
 # Run pipeline with simplified commands
-docker run -it \
-  --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
-  --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
-  --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \
-  --entrypoint=/bin/sh \
-  seuratv5 -c "python3 /scRNA-seq/get_data.py $DATA_FLAG" && \
-
-# Second command for script.R with full path to Rscript
 docker run -d \
   --memory="64g" \
   --memory-swap="64g" \
@@ -62,7 +55,17 @@ docker run -d \
   --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
   --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \
   --entrypoint=/bin/sh \
-  seuratv5 -c "/opt/conda/envs/scrnaseq/bin/Rscript /scRNA-seq/script.R"
+  seuratv5 -c "python3 /scRNA-seq/get_data.py $DATA_FLAG && /opt/conda/envs/scrnaseq/bin/Rscript /scRNA-seq/script.R" \
+
+# Second command for script.R with full path to Rscript
+# docker run -d \
+#   --memory="64g" \
+#   --memory-swap="64g" \
+#   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
+#   --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
+#   --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \
+#   --entrypoint=/bin/sh \
+#   seuratv5 -c "/opt/conda/envs/scrnaseq/bin/Rscript /scRNA-seq/script.R"
 
 
 

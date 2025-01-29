@@ -1,29 +1,12 @@
 {
-    "title": "pig-human_retinal_organoid",
-    "annotation_reference": true,
+    "title": "human_retinal_organoid",
+    "annotation_reference": false,
     "DE_method": "Scran",
-    "Number_of_samples": 2,
+    "Number_of_samples": 1,
     "lanes": [ ],
     "DATA_DIR": "/w5home/bmoore/scRNAseq/GAMM/DATA/fastqs/",
     "fastq_alignment": {
         "SAMPLE_1": {
-            "NAME": "Day120-pig",
-            "species": "pig",
-            "NUM_LANES": 2,
-            "cDNA_LANE1": "/data/GAMM/2_S2_L001_R2_001.fastq.gz",
-            "BARCODE_LANE1": "/data/GAMM/2_S2_L001_R1_001.fastq.gz",
-            "cDNA_LANE2": "/data/GAMM/2_S2_L002_R2_001.fastq.gz",
-            "BARCODE_LANE2": "/data/GAMM/2_S2_L002_R1_001.fastq.gz",
-            "CHEMISTRY_VERSION": "V3",
-            "SOLO_TYPE": "CB_UMI_Simple",
-            "SOLO_MULTI_MAPPERS": "EM",
-            "READ_FILES_COMMAND": "zcat",
-            "SOLO_UMI_DEDUP": "1MM_CR",
-            "RUN_THREAD_N": 8,
-            "isBarcodeFollowedbyReads": false,
-            "clip5pNbases": "0 91"
-        },
-        "SAMPLE_2": {
             "NAME": "Day205-human",
             "species": "human",
             "NUM_LANES": 4,
@@ -31,10 +14,6 @@
             "BARCODE_LANE1": "/data/bamtofastq_S1_L001_R1_001.fastq.gz",
             "cDNA_LANE2": "/data/bamtofastq_S1_L002_R2_001.fastq.gz",
             "BARCODE_LANE2": "/data/bamtofastq_S1_L002_R1_001.fastq.gz",
-            "cDNA_LANE3": "/data/bamtofastq_S1_L003_R2_001.fastq.gz",
-            "BARCODE_LANE3": "/data/bamtofastq_S1_L003_R1_001.fastq.gz",
-            "cDNA_LANE4": "/data/bamtofastq_S1_L004_R2_001.fastq.gz",
-            "BARCODE_LANE4": "/data/bamtofastq_S1_L004_R1_001.fastq.gz",
             "CHEMISTRY_VERSION": "V3",
             "SOLO_TYPE": "CB_UMI_Simple",
             "SOLO_MULTI_MAPPERS": "EM",
@@ -119,8 +98,5 @@
     "process_known_markers": {
         "annot_type": "d120",
         "n_rank": 10
-    },
-    "transfer_anchors": {
-        "reduc.type": "cca"
     }
 }

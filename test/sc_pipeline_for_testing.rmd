@@ -36,12 +36,14 @@ library(clustifyr)
 library(scry)
 library(ggplot2)
 library(ComplexHeatmap)
+#library(leidenAlg)
 setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
-output <- "/w5home/bmoore/scRNAseq_library/output/output_20250116_155212/"
+output <- "/w5home/bmoore/scRNAseq_library/output/output_20250122_204811/"
 # Load configuration and set output directory
 config <- jsonlite::fromJSON(paste0(output, "config.json"), simplifyDataFrame = FALSE)
 output_base_dir <- output
 source("sc_pipeline_functions.R")
+source("process_lane.R")
 ```
 ```{r}
 # Assuming process_lane, combine_feature_plots, and split_sce_list_by_sample are defined in 'sc_pipeline_functions.R'
@@ -116,11 +118,15 @@ head(Idents(seurat.obj))
 ```{r}
 seurat.obj <- annotate_clusters_and_save(seurat.obj, new_cluster_ids, output)
 ```
-
-
 ```{r}
 # read in processed samples list
-#processed_samples_list<- readRDS(file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+processed_samples_list<- readRDS(file = paste0(output_base_dir, "processed_seurat_objects.rds"))
+print(processed_samples_list)
+print(names(processed_samples_list))
+```
+
+```{r}
+#if processed list doesn't read in , try batch-corrected objects
 query.obj <- readRDS(file = paste0(output_base_dir, "GAMM_120/GAMM_120_batchcorr_seurat_obj.rds"))
 ref.obj <- readRDS(file = paste0(output_base_dir, "Reh_205/Reh_205_batchcorr_seurat_obj.rds"))
 ```
@@ -132,24 +138,66 @@ print(processed_samples_list)
 ```
 ```{r}
 # Do cross species
+source("sc_pipeline_functions.R")
 if (!species_are_all_same(config)) {
   objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
 }
 ```
 ```{r}
-query.seurat <- readRDS("/w5home/bmoore/scRNAseq_library/output/output_20250121_192632/Day120-pig/Day120-pig_batchcorr_seurat_obj.rds")
-colnames(query.seurat@meta.data)
-ref.seurat <- readRDS(file = "/w5home/bmoore/scRNAseq_library/output/output_20250121_192632/Day205-human/Day205-human_batchcorr_seurat_obj.rds")
-print(colnames(query.seurat))
-print(colnames(ref.seurat))
+# read in subsetted data
+query.seurat.subset <- readRDS(paste0(output_base_dir,"query_ortho-subset_seurat.rds"))
+ref.seurat.subset <- readRDS(file = paste0(output_base_dir,"ref_ortho-subset_seurat.rds"))
+print(query.seurat.subset)
+print(ref.seurat.subset)
 ```
 ```{r}
-processed_samples_list <- list(query.seurat[1],ref.seurat[1])
+query_cells <- colnames(query.seurat.subset)
+
+
+# Add "_1" suffix to match harmony embeddings cell names
+query_cells_modified <- paste0(query_cells, "_1")
+
+
+# Subset the harmony embeddings to match the cells in the Seurat objects
+harmony_embeddings_Q <- harmony_embeddings_Q[query_cells_modified, , drop = FALSE]
+
+
+# Remove the "_1" suffix from rownames to match Seurat object cell names
+rownames(harmony_embeddings_Q) <- query_cells
+
+
+      # Create dimension reduction objects with matched embeddings
+      query.seurat.subset[["harmony"]] <- CreateDimReducObject(
+        embeddings = harmony_embeddings_Q,
+        key = "harmony_",
+        assay = DefaultAssay(query.seurat.subset)
+      )
+
 ```
 
+# starting with process_orthologous_objects
 ```{r}
-#source("sc_pipeline_functions.R")
-objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
+# read in ortho.obj.list
+objs_list <- readRDS(file = file.path(output_base_dir, "ortholog_objs_list.rds"))
+objs_list
+
 ```
-
-
+```{r}
+  if (!is.null(objs_list)) {
+    sample_names <- names(objs_list)
+    if (length(sample_names) >= 2) {
+      ref_name <- sample_names[1]
+      query_name <- sample_names[2]
+      
+      message(paste("Processing reference:", ref_name))
+      ref_list <- process_orthologous_objects(objs_list[[ref_name]], output_base_dir, config, ref_name)
+      
+      message(paste("Processing query:", query_name))
+      query_list <- process_orthologous_objects(objs_list[[query_name]], output_base_dir, config, query_name)
+    } else {
+      warning("Insufficient samples for cross-species analysis")
+    }
+  } else {
+    warning("No objects returned from orthologous gene analysis")
+  }
+```

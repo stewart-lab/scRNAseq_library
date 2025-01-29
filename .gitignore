@@ -6,4 +6,5 @@ output/output_*
 sc_pipeline/src/pst_env/
 shared_volume*
 config_copy.json
+shared_mount/
 

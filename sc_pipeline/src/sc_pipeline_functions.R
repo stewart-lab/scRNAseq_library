@@ -408,35 +408,38 @@ perform_clustering <- function(seurat_obj, path) {
   reduction <- config$perform_clustering$reduction
   dims_snn <- 1:config$perform_clustering$dims_snn
 
-  # Check if Harmony embeddings exist in the Seurat object
-  batch_corrected <- "harmony" %in% names(Embeddings(seurat_obj))
-
-  # If batch correction was not performed and reduction is set to "harmony", update it to "pca"
+  # Check if Harmony embeddings exist
+  batch_corrected <- "harmony" %in% names(Reductions(seurat_obj))
   if (!batch_corrected && reduction == "harmony") {
     message("Batch correction was skipped. Updating reduction to 'pca'.")
     reduction <- "pca"
   }
 
-  # Perform K-nearest neighbor (KNN) graph
+  # Perform KNN
   seurat_obj <- FindNeighbors(seurat_obj, dims = dims_snn, reduction = reduction)
-
-  # Save UMAP lanes plot
-  pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
-  umap_lanes <- DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5)
-  print(umap_lanes)
-  dev.off()
-
-  # Cluster cells
+  # Import Python's leidenalg
+  leidenalg <- reticulate::import("leidenalg")
+  igraph <- reticulate::import("igraph")
+  # Cluster using appropriate method
+  # if (algorithm == "leiden") {
+  #   message("Using Python leidenalg for clustering")
+  #   seurat_obj <- run_leiden_clustering(seurat_obj, resolution = resolution)
+  #   # Set the active clusters to leiden_clusters
+  #   Idents(seurat_obj) <- "leiden_clusters"
+  # } else {
+  message("Using Seurat clustering algorithm: ", algorithm)
   seurat_obj <- FindClusters(seurat_obj, resolution = resolution, algorithm = algorithm)
+  #}
 
-  # Save UMAP clusters plot
-  pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
-  umap_clusters <- DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters", 
-  label = TRUE, pt.size = .5)
-  print(umap_clusters)
+  # Generate plots
+  pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
+  print(DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5))
   dev.off()
 
-  # Return the updated Seurat object
+  pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)
+  print(DimPlot(seurat_obj, reduction = "umap", group.by = "seurat_clusters",label = TRUE, pt.size = .5))
+  dev.off()
+
   return(seurat_obj)
 }
 
@@ -759,7 +762,7 @@ process_known_markers <- function(top100, known_markers_flag, known_markers_df, 
       }
       # Write out marker dataframe with known DE markers
       write.table(marker_df,
-        file = paste0(subdirectory_path, "KnownDE.markers_clust_", clusters[i], ".txt"),
+        file = paste0(subdirectory_path, "/KnownDE.markers_clust_", clusters[i], ".txt"),
         quote = FALSE, sep = "\t", row.names = FALSE
       )
 
@@ -998,9 +1001,13 @@ annotate_with_clustifyR <- function(clustered_seurat_obj, output) {
   markers_df <- data.frame(markers$gene, markers$Cell.type)
   colnames(markers_df) <- c("gene", "cluster")
 
-  # Clustify lists
+  # Convert Seurat object to expression matrix
+  expr_matrix <- GetAssayData(clustered_seurat_obj, slot = "data")
+
+  # Clustify lists with explicit matrix input
   list_res <- clustify_lists(
-    input = clustered_seurat_obj,
+    input = expr_matrix,  # Use expression matrix directly
+    metadata = clustered_seurat_obj@meta.data,  # Pass metadata separately
     cluster_col = "seurat_clusters",
     marker = markers_df,
     metric = "pct",
@@ -1150,8 +1157,8 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       
       # Get scaled data
       message("Getting scaled data...")
-      scaled_matrix_Q <- GetAssayData(query_obj, slot = "scale.data")
-      scaled_matrix_R <- GetAssayData(ref_obj, slot = "scale.data")
+      scaled_matrix_Q <- GetAssayData(query_obj, layer = "scale.data")
+      scaled_matrix_R <- GetAssayData(ref_obj, layer = "scale.data")
       
       # Get harmony embeddings
       message("Getting harmony embeddings...")
@@ -1188,19 +1195,85 @@ perform_orthologous_gene_analysis <- function(processed_seurat_objs, config, out
       VariableFeatures(query.seurat) <- feature_list_Q
       VariableFeatures(ref.seurat) <- feature_list_R
       
+      # Get the cells and features that are in the subsetted object
+      query_cells <- colnames(query.seurat)
+      ref_cells <- colnames(ref.seurat)
+      query_features <- rownames(query.seurat)
+      ref_features <- rownames(ref.seurat)
+
+      # Debug: Print dimensions and check features/cells before subsetting
+      message("Debug: Checking dimensions before subsetting")
+      message("Original scaled matrix R dimensions: ", nrow(scaled_matrix_R), " x ", ncol(scaled_matrix_R))
+      message("Requested features: ", length(ref_features))
+      message("Requested cells: ", length(ref_cells))
+
+      # Check which features/cells are missing
+      missing_features <- ref_features[!ref_features %in% rownames(scaled_matrix_R)]
+      missing_cells <- ref_cells[!ref_cells %in% colnames(scaled_matrix_R)]
+
+      if(length(missing_features) > 0) {
+        message("Missing features in scaled matrix: ", paste(head(missing_features, 5), collapse=", "), "...")
+      }
+      if(length(missing_cells) > 0) {
+        message("Missing cells in scaled matrix: ", paste(head(missing_cells, 5), collapse=", "), "...")
+      }
+
+      # Only subset with features and cells that exist
+      valid_features <- ref_features[ref_features %in% rownames(scaled_matrix_R)]
+      valid_cells <- ref_cells[ref_cells %in% colnames(scaled_matrix_R)]
+
+      # Subset using only valid features and cells
+      scaled_matrix_R <- scaled_matrix_R[valid_features, valid_cells, drop = FALSE]
+
+      # Do the same for query matrix
+      message("Debug: Checking query matrix dimensions")
+      message("Original scaled matrix Q dimensions: ", nrow(scaled_matrix_Q), " x ", ncol(scaled_matrix_Q))
+
+      missing_features_Q <- query_features[!query_features %in% rownames(scaled_matrix_Q)]
+      missing_cells_Q <- query_cells[!query_cells %in% colnames(scaled_matrix_Q)]
+
+      if(length(missing_features_Q) > 0) {
+        message("Missing features in query matrix: ", paste(head(missing_features_Q, 5), collapse=", "), "...")
+      }
+      if(length(missing_cells_Q) > 0) {
+        message("Missing cells in query matrix: ", paste(head(missing_cells_Q, 5), collapse=", "), "...")
+      }
+
+      valid_features_Q <- query_features[query_features %in% rownames(scaled_matrix_Q)]
+      valid_cells_Q <- query_cells[query_cells %in% colnames(scaled_matrix_Q)]
+
+      scaled_matrix_Q <- scaled_matrix_Q[valid_features_Q, valid_cells_Q, drop = FALSE]
+
+      # Update the Seurat objects to match the available scaled data
+      ref.seurat <- subset(ref.seurat, features = valid_features, cells = valid_cells)
+      query.seurat <- subset(query.seurat, features = valid_features_Q, cells = valid_cells_Q)
+
       # Add scaled data back
-      message("Adding scaled data...")
-      query.seurat[["RNA"]]@scale.data <- scaled_matrix_Q
-      ref.seurat[["RNA"]]@scale.data <- scaled_matrix_R
-      
-      # Add harmony embeddings back
-      message("Adding harmony embeddings...")
-      query.seurat[["harmony"]] <- CreateDimReducObject(embeddings = harmony_embeddings_Q, 
-                                                       key = "harmony_", 
-                                                       assay = "RNA")
-      ref.seurat[["harmony"]] <- CreateDimReducObject(embeddings = harmony_embeddings_R, 
-                                                     key = "harmony_", 
-                                                     assay = "RNA")
+      LayerData(query.seurat, assay = "RNA", layer = "scale.data") <- scaled_matrix_Q
+      LayerData(ref.seurat, assay = "RNA", layer = "scale.data") <- scaled_matrix_R
+      # Subset the harmony embeddings to match the cells in the Seurat objects
+      harmony_embeddings_Q <- harmony_embeddings_Q[query_cells, , drop = FALSE]
+      harmony_embeddings_R <- harmony_embeddings_R[ref_cells, , drop = FALSE]
+      # Create dimension reduction objects with matched embeddings
+      query.seurat[["harmony"]] <- CreateDimReducObject(
+        embeddings = harmony_embeddings_Q,
+        key = "harmony_",
+        assay = DefaultAssay(query.seurat)
+      )
+      ref.seurat[["harmony"]] <- CreateDimReducObject(
+        embeddings = harmony_embeddings_R,
+        key = "harmony_",
+        assay = DefaultAssay(ref.seurat)
+      )
+
+      # Add debug messages to verify dimensions
+      message("Query cells: ", ncol(query.seurat), " Query embeddings: ", nrow(harmony_embeddings_Q))
+      message("Ref cells: ", ncol(ref.seurat), " Ref embeddings: ", nrow(harmony_embeddings_R))
+      # Add debug messages
+      message("Query scaled data dimensions: ", nrow(scaled_matrix_Q), " x ", ncol(scaled_matrix_Q))
+      message("Query Seurat object dimensions: ", nrow(query.seurat), " x ", ncol(query.seurat))
+      message("Ref scaled data dimensions: ", nrow(scaled_matrix_R), " x ", ncol(scaled_matrix_R))
+      message("Ref Seurat object dimensions: ", nrow(ref.seurat), " x ", ncol(ref.seurat))
       
       # Return the list of objects
       obj.list2 <- list()
@@ -1255,8 +1328,9 @@ get_metadata <- function(seurat_obj, type) {
 process_orthologous_objects <- function(seurat_obj, output_dir, config, sample_name){
   sample_output_dir <- file.path(output_dir, sample_name)
   sample_output_dir <- paste0(sample_output_dir, "/")
+  seurat_obj <- run_and_visualize_pca(seurat_obj, sample_output_dir)
   umap_seurat_obj <- run_umap(seurat_obj, sample_output_dir)
-  clustered_seurat_obj <- perform_clustering2(umap_seurat_obj, sample_output_dir)
+  clustered_seurat_obj <- perform_clustering(umap_seurat_obj, sample_output_dir)
   if (config$DE_method == "Seurat") {
     de_results <- find_differentially_expressed_features(clustered_seurat_obj, sample_output_dir)
     analyze_known_markers(clustered_seurat_obj, de_results, sample_output_dir)
@@ -1366,4 +1440,36 @@ get_species_by_sample_name <- function(sample_name, config) {
     }
   }
   return(NA) # Return NA if no species is found for the sample name
+}
+
+run_leiden_clustering <- function(seurat_obj, resolution) {
+  # Import Python's leidenalg
+  leidenalg <- reticulate::import("leidenalg")
+  igraph <- reticulate::import("igraph")
+  
+  # Get the SNN graph from Seurat object
+  snn_graph <- seurat_obj@graphs$RNA_snn
+  
+  # Convert to igraph format
+  edges <- which(snn_graph != 0, arr.ind = TRUE)
+  weights <- snn_graph[edges]
+  
+  # Create Python igraph object
+  g <- igraph$Graph(edges = edges - 1,  # Python uses 0-based indexing
+                   directed = FALSE,
+                   weights = weights)
+  
+  # Run Leiden clustering
+  partition <- leidenalg$find_partition(g,
+                                      leidenalg$RBConfigurationVertexPartition,
+                                      resolution_parameter = resolution)
+  
+  # Convert results back to R
+  clusters <- as.factor(partition$membership + 1)  # Convert back to 1-based indexing
+  names(clusters) <- colnames(seurat_obj)
+  
+  # Add clusters to Seurat object
+  seurat_obj$leiden_clusters <- clusters
+  
+  return(seurat_obj)
 }
