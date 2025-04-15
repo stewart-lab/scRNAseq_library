@@ -1,27 +1,42 @@
 {
-    "title": "human_retinal_organoid",
+    "title": "human_thymus_GSE147520",
     "annotation_reference": false,
     "DE_method": "Scran",
-    "Number_of_samples": 1,
+    "Number_of_samples": 2,
     "lanes": [ ],
-    "DATA_DIR": "/w5home/bmoore/scRNAseq/GAMM/DATA/fastqs/",
+    "DATA_DIR": "/w5home/bmoore/Brown_thymus/Yayon_2024/GSE147520/GSM4466781-2/",
     "fastq_alignment": {
         "SAMPLE_1": {
-            "NAME": "Day205-human",
+            "NAME": "human_thymus_GSM4466781",
             "species": "human",
-            "NUM_LANES": 4,
-            "cDNA_LANE1": "/data/bamtofastq_S1_L001_R2_001.fastq.gz",
-            "BARCODE_LANE1": "/data/bamtofastq_S1_L001_R1_001.fastq.gz",
-            "cDNA_LANE2": "/data/bamtofastq_S1_L002_R2_001.fastq.gz",
-            "BARCODE_LANE2": "/data/bamtofastq_S1_L002_R1_001.fastq.gz",
-            "CHEMISTRY_VERSION": "V3",
+            "NUM_LANES": 2,
+            "cDNA_LANE1": "/data/SRR11517888_3.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR11517888_2.fastq.gz",
+            "cDNA_LANE2": "/data/SRR11517889_3.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR11517889_2.fastq.gz",
+            "CHEMISTRY_VERSION": "V2",
             "SOLO_TYPE": "CB_UMI_Simple",
             "SOLO_MULTI_MAPPERS": "EM",
-            "READ_FILES_COMMAND": "zcat",
+            "READ_FILES_COMMAND": "zcat|gunzip -c",
             "SOLO_UMI_DEDUP": "1MM_CR",
             "RUN_THREAD_N": 16,
-            "isBarcodeFollowedbyReads": false,
-            "clip5pNbases": "0 91"
+            "isBarcodeFollowedbyReads": false
+        },
+        "SAMPLE_2": {
+            "NAME": "human_thymus_GSM4466782",
+            "species": "human",
+            "NUM_LANES": 2,
+            "cDNA_LANE1": "/data/SRR11517890_3.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR11517890_2.fastq.gz",
+            "cDNA_LANE2": "/data/SRR11517891_3.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR11517891_2.fastq.gz",
+            "CHEMISTRY_VERSION": "V2",
+            "SOLO_TYPE": "CB_UMI_Simple",
+            "SOLO_MULTI_MAPPERS": "EM",
+            "READ_FILES_COMMAND": "zcat|gunzip -c",
+            "SOLO_UMI_DEDUP": "1MM_CR",
+            "RUN_THREAD_N": 16,
+            "isBarcodeFollowedbyReads": false
         }
     },
     "prep_seurat_and_soupX": {
@@ -36,7 +51,7 @@
         "max.percent.mt": 20
     },
     "ortholog_subset": {
-        "ortholog_file": "../metadata/Human_Pig_Biomart_Filtered_mod.txt",
+        "ortholog_file": "NA",
         "ref_species": "human"
     },
     "normalize_data": {
@@ -81,22 +96,22 @@
         "top_n": 11
     },
     "get_metadata": {
-        "metadata_file_ref": "../metadata/Reh_cca_org_205_metadata.txt",
-        "metadata_file_query": "../metadata/gammS2_manual_annot_metadata_c0.5.txt",
+        "metadata_file_ref": "NA",
+        "metadata_file_query": "NA",
         "metadata_subset1": "NA",
         "metadata_subset2": "NA"
     },
     "score_and_plot_markers": {
         "top_n_markers": 100,
         "known_markers": "TRUE",
-        "known_markers_path": "../known_marker_lists/Kims_retinal_markers.txt",
+        "known_markers_path": "../known_marker_lists/thymus_markers_3.txt",
         "cluster_type": "seurat_clusters",
         "pairwise": "FALSE",
         "logFC_thresh": 0.25,
         "auc_thresh": 0.5
     },
     "process_known_markers": {
-        "annot_type": "d120",
+        "annot_type": "manual",
         "n_rank": 10
     }
 }
