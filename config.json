@@ -1,44 +1,47 @@
 {
-    "title": "human_thymus_GSE147520",
+    "title": "human_thymus_GSE159745",
     "annotation_reference": false,
     "DE_method": "Scran",
     "Number_of_samples": 2,
     "lanes": [ ],
-    "DATA_DIR": "/w5home/bmoore/Brown_thymus/Yayon_2024/GSE147520/GSM4466781-2/",
+    "DATA_DIR": "/w5home/bmoore/Brown_thymus/Yayon_2024/Campinoti_2020_GSE159745/",
     "fastq_alignment": {
         "SAMPLE_1": {
-            "NAME": "human_thymus_GSM4466781",
+            "NAME": "cTec_GSM4838951-2",
             "species": "human",
-            "NUM_LANES": 2,
-            "cDNA_LANE1": "/data/SRR11517888_3.fastq.gz",
-            "BARCODE_LANE1": "/data/SRR11517888_2.fastq.gz",
-            "cDNA_LANE2": "/data/SRR11517889_3.fastq.gz",
-            "BARCODE_LANE2": "/data/SRR11517889_2.fastq.gz",
+            "NUM_LANES": 10,
+            "cDNA_LANE1": "/data/SRR12857055_2.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR12857055_1.fastq.gz",
+            "cDNA_LANE2": "/data/SRR12857056_2.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR12857056_1.fastq.gz",
             "CHEMISTRY_VERSION": "V2",
             "SOLO_TYPE": "CB_UMI_Simple",
             "SOLO_MULTI_MAPPERS": "EM",
             "READ_FILES_COMMAND": "zcat|gunzip -c",
             "SOLO_UMI_DEDUP": "1MM_CR",
             "RUN_THREAD_N": 16,
-            "isBarcodeFollowedbyReads": false
+            "isBarcodeFollowedbyReads": false,
+            "soloStrand": "Reverse"
         },
         "SAMPLE_2": {
-            "NAME": "human_thymus_GSM4466782",
+            "NAME": "mTec_GSM4838953-4",
             "species": "human",
-            "NUM_LANES": 2,
-            "cDNA_LANE1": "/data/SRR11517890_3.fastq.gz",
-            "BARCODE_LANE1": "/data/SRR11517890_2.fastq.gz",
-            "cDNA_LANE2": "/data/SRR11517891_3.fastq.gz",
-            "BARCODE_LANE2": "/data/SRR11517891_2.fastq.gz",
+            "NUM_LANES": 10,
+            "cDNA_LANE1": "/data/SRR12857065_2.fastq.gz",
+            "BARCODE_LANE1": "/data/SRR12857065_1.fastq.gz",
+            "cDNA_LANE2": "/data/SRR12857066_2.fastq.gz",
+            "BARCODE_LANE2": "/data/SRR12857066_1.fastq.gz",
             "CHEMISTRY_VERSION": "V2",
             "SOLO_TYPE": "CB_UMI_Simple",
             "SOLO_MULTI_MAPPERS": "EM",
             "READ_FILES_COMMAND": "zcat|gunzip -c",
             "SOLO_UMI_DEDUP": "1MM_CR",
             "RUN_THREAD_N": 16,
-            "isBarcodeFollowedbyReads": false
+            "isBarcodeFollowedbyReads": false,
+            "soloStrand": "Reverse"
         }
     },
+    "process_matrix": true,
     "prep_seurat_and_soupX": {
         "dims": 30,
         "umap.method": "umap-learn",
@@ -48,14 +51,14 @@
     "filter_cells": {
         "lower.nFeature": 200,
         "upper.nFeature": 15000,
-        "max.percent.mt": 20
+        "max.percent.mt": 10
     },
     "ortholog_subset": {
         "ortholog_file": "NA",
         "ref_species": "human"
     },
     "normalize_data": {
-        "min_size": 100,
+        "min_size": 20,
         "min_mean": 0.1,
         "feature": "ECHS1"
     },

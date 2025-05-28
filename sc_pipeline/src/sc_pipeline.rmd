@@ -37,8 +37,8 @@ library(ComplexHeatmap)
 
 # Set up parallel processing
 # Reduce number of workers and increase per-worker memory
-options(future.globals.maxSize = 50000 * 1024^2)  # 50GB
-plan(multisession, workers = 4)  # Reduce from 64 to 4 workers
+options(future.globals.maxSize = 75000 * 1024^2)  # 75GB
+plan(multisession, workers = 8)  # Reduce from 64 to 4 workers
 
 # Python setup
 py_config()
@@ -57,9 +57,14 @@ source("process_lane.R")
 
 ```
 ```{r process_lane}
-
 # Process lanes in parallel
-processed_data_list <- future_lapply(config$lanes, process_lane)
+if (config$process_matrix==TRUE) {
+  print("processing process_lane2")
+  processed_data_list <- future_lapply(config$lanes, process_lane2)
+} else {
+  print("processing process_lane")
+  processed_data_list <- future_lapply(config$lanes, process_lane)
+}
 ```
 ```{r prcoess_sample}
 # Parallel mapping for seurat and sce lists

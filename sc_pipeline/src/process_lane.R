@@ -43,6 +43,32 @@ read_aligned_data <- function(base_directory, project_name, output_base_dir) {
   )
 }
 
+read_aligned_data2 <- function(base_directory, project_name, output_base_dir) {
+  print("reading in data")
+  raw <- list(
+    source = base_directory,
+    target = paste0(output_base_dir, "/alignment_", project_name, "/raw/")
+  )
+  # create
+  dir.create(raw$target, recursive = TRUE, showWarnings = FALSE)
+
+  gz_files <- list.files(raw$source, pattern = "\\.gz$", full.names = TRUE)
+  future_map(gz_files, function(file) {
+    file.copy(file, file.path(raw$target, basename(file)), overwrite = TRUE)
+  })
+  # Read data (no need for future_map here)
+  print(file.path(raw$source))
+  data_raw <- Read10X(file.path(raw$source))
+  print(data_raw)
+  # Return in the same structure as read_aligned_data for compatibility
+  list(
+    filtered = NULL,  # or data_raw if you want to use raw as filtered
+    raw = data_raw,
+    project = project_name
+  )
+}
+
+
 prep_seurat_and_soupX <- function(data.raw, data, project) {
   dims_umap <- 1:config$prep_seurat_and_soupX$dims
   umap.method <- config$prep_seurat_and_soupX$umap.method
@@ -133,8 +159,8 @@ create_seurat_and_sce <- function(out, project, feature_set, sample_name = NULL)
   seu$sample_id <- sample_name
   
   # Calculate basic metrics
-  seu[["nCount_RNA"]] <- Seurat::GetAssayData(seu, slot = "counts") %>% colSums()
-  seu[["nFeature_RNA"]] <- Seurat::GetAssayData(seu, slot = "counts") %>% 
+  seu[["nCount_RNA"]] <- seu[["RNA"]]$counts %>% colSums()
+  seu[["nFeature_RNA"]] <- seu[["RNA"]]$counts %>% 
     apply(2, function(x) sum(x > 0))
   
   # Process features in parallel if needed
@@ -164,4 +190,57 @@ create_seurat_and_sce <- function(out, project, feature_set, sample_name = NULL)
   gc(full = TRUE)
   
   return(list(seu = seu, sce = sce))
+}
+
+filter_empty_droplets <- function(data.raw) {
+  # filter out empty droplets
+  sce <- SingleCellExperiment(list(counts=data.raw))
+  tryCatch({
+    e.out <- emptyDrops(counts(sce))
+    data.filtered <- sce[,which(e.out$FDR <= 0.001)]
+    return(data.filtered)
+  }, error = function(e) {
+    print(e)
+    data.filtered <- NULL
+    return(data.filtered)
+  })
+}
+
+process_lane2 <- function(lane) {
+  options(future.globals.maxSize = 131072 * 1024^2)
+  
+  # Process in parallel
+  aligned_data <- read_aligned_data2(lane$base_directory, lane$name, output_base_dir)
+  data.filtered <- filter_empty_droplets(aligned_data$raw)
+  
+  if(is.null(data.filtered)==TRUE){
+    # Create Seurat and SCE objects
+    feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+    sce_obj <- create_seurat_and_sce(
+      out = aligned_data$raw,
+      project = lane$name,
+      feature_set = feature_set1,
+    sample_name = lane$name
+    )
+  } else {
+    soupX_obj <- prep_seurat_and_soupX(
+      data.raw = aligned_data$raw,
+      data = data.filtered,
+      project = aligned_data$project
+    )
+    # Create Seurat and SCE objects
+    feature_set1 <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+    sce_obj <- create_seurat_and_sce(
+      out = soupX_obj$out,
+      project = lane$name,
+      feature_set = feature_set1,
+      sample_name = lane$name  # Now the function accepts this parameter
+    )
+  }
+  
+  rm(aligned_data)
+  rm(soupX_obj)
+  gc(full = TRUE)
+  
+  return(sce_obj) #
 }

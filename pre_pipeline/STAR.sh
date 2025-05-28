@@ -48,6 +48,7 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   READ_FILES_COMMAND=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.READ_FILES_COMMAND" $CONFIG_FILE)
   clip5pNbases=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.clip5pNbases" $CONFIG_FILE)
   isBarcodeFollowedbyReads=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads" $CONFIG_FILE)
+  soloStrand=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.soloStrand" $CONFIG_FILE)
 
   # Determine SOLO_CB_WHITELIST and SOLO_UMI_LEN based on CHEMISTRY_VERSION
   if [ "$CHEMISTRY_VERSION" == "V2" ]; then
@@ -75,7 +76,15 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
       soloUMIstart=17
       STAR_OPTIONS="--soloBarcodeMate $soloBarcodeMate --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart"
     fi
-
+    if [ -n "$clip5pNbases" ]; then
+      soloCBstart=1
+      soloCBlen=16
+      soloUMIstart=17
+      STAR_OPTIONS="--clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart --soloBarcodeReadLength 0"
+    fi
+    if [ -n "$soloStrand" ]; then
+      STAR_OPTIONS="--soloStrand $soloStrand"
+    fi
     # Create output directory in shared volume
     mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
 

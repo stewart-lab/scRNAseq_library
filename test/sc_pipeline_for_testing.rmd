@@ -37,14 +37,30 @@ library(scry)
 library(ggplot2)
 library(ComplexHeatmap)
 #library(leidenAlg)
-setwd("/w5home/bmoore/scRNAseq_library/sc_pipeline/src/")
-output <- "/w5home/bmoore/scRNAseq_library/output/output_20250122_204811/"
+setwd("/w5home/bmoore/scRNAseq_library/") #sc_pipeline/src/
+output <- "/mnt/cephfs/mir/rstewart/stewart-lab/isi5home/bmoore/scRNAseq_library/output/"
+config_path <- "/w5home/bmoore/scRNAseq_library/sc_pipeline/src/"
 # Load configuration and set output directory
-config <- jsonlite::fromJSON(paste0(output, "config.json"), simplifyDataFrame = FALSE)
-output_base_dir <- output
+config <- jsonlite::fromJSON(paste0(config_path, "config.json"), 
+          simplifyDataFrame = FALSE)
+#output_base_dir <- paste0(output, "human_thymus_GSM4466782/")
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+output <- paste0("/mnt/cephfs/mir/rstewart/stewart-lab/isi5home/bmoore/scRNAseq_library/output/output_", timestamp)
+dir.create(output, showWarnings = FALSE)
+output_base_dir <- paste0(output, "/")
 source("sc_pipeline_functions.R")
-source("process_lane.R")
+source("sc_pipeline/src/process_lane.R")
 ```
+# process lanes
+```{r process_lane}
+if(config$process_matrix==TRUE){
+  processed_data_list <- future_lapply(config$lanes, process_lane2)
+} else {
+# Process lanes in parallel
+processed_data_list <- future_lapply(config$lanes, process_lane)
+}
+```
+
 ```{r}
 # Assuming process_lane, combine_feature_plots, and split_sce_list_by_sample are defined in 'sc_pipeline_functions.R'
 processed_data_list <- lapply(config$lanes, process_lane)
@@ -69,9 +85,14 @@ saveRDS(processed_samples_list, file = paste0(output_base_dir, "processed_seurat
 ```
 # if process didn't complete- read in object here
 ```{r}
-seurat.obj <- readRDS(file = paste0(output, "seurat_obj_labeled.rds"))
+seurat.obj <- readRDS(file = paste0(output_base_dir, "human_thymus_GSM4466782_batchcorr_seurat_obj.rds"))
 print(seurat.obj)
 ```
+# retry process consistent species
+```{r}
+final_obj <- process_consistent_species(seurat.obj, output_base_dir, config, "human_thymus_GSM4466782")
+```
+
 # retry clustifyr
 ```{r}
 clustifyR_obj <- annotate_with_clustifyR(seurat.obj, output)

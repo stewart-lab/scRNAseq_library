@@ -12,8 +12,8 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
   echo "Step 2.1: Removing and recreating the SHARED_MOUNT"
   
   SHARED_MOUNT="./shared_mount"
-  #rm -rf "$SHARED_MOUNT"
-  #mkdir -p "$SHARED_MOUNT"
+  rm -rf "$SHARED_MOUNT"
+  mkdir -p "$SHARED_MOUNT"
   chmod 777 "$SHARED_MOUNT"
 
   echo "Step 2.2: Building Docker image for alignment"

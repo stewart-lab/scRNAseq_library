@@ -226,9 +226,15 @@ run_and_visualize_pca <- function(seurat_obj, path) {
   num_cells <- config$run_and_visualize_pca$num_cells
   dims <- 1:config$run_and_visualize_pca$dims
   num_replicate <- config$run_and_visualize_pca$num.replicate
-  
-  seurat_obj <- RunPCA(seurat_obj, features = VariableFeatures(object = seurat_obj))
-  
+  print("running pca")
+  n_cells <- ncol(seurat_obj)
+  n_features <- length(VariableFeatures(seurat_obj))
+  max_pcs <- min(n_cells, n_features)
+  dims_to_use <- min(config$run_and_visualize_pca$dims, max_pcs)
+  var.features <- VariableFeatures(seurat_obj)
+  print(length(var.features))
+  seurat_obj <- RunPCA(seurat_obj, features = var.features, npcs=dims_to_use)
+  print("pca run, visualize loadings")
   pdf(file.path(path,"top_n_dims_with_genes.pdf"),width=8,height=6)
   print(VizDimLoadings(seurat_obj,dims=1:top_n_dims,reduction="pca"))
   dev.off()
@@ -942,7 +948,7 @@ annotate_clusters_and_save <- function(seurat_obj, new_cluster_ids, output_path 
   print(DimPlot(seurat_obj, reduction = "umap", group.by = 'CellType', label = TRUE, pt.size = 0.5))
   dev.off()
   # Save the Seurat object
-  saveRDS(seurat_obj, file = paste0(output_path, "seurat_obj_labeled.rds"))
+  #saveRDS(seurat_obj, file = paste0(output_path, "seurat_obj_labeled.rds"))
 
   return(seurat_obj)
 }
@@ -1087,7 +1093,7 @@ process_consistent_species <- function(batch_corrected_obj, sample_output_dir, c
   clustered_seurat_obj <- perform_clustering(umap_seurat_obj, sample_output_dir)
   
   # Save intermediate object
-  saveRDS(clustered_seurat_obj, file = file.path(sample_output_dir, "clustered_seurat_obj.rds"))
+  #saveRDS(clustered_seurat_obj, file = file.path(sample_output_dir, "clustered_seurat_obj.rds"))
   
   # Process based on DE method
   if (config$DE_method == "Seurat") {
