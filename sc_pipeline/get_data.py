@@ -48,8 +48,8 @@ else:
         for dir in dirs:
             if dir == "GeneFull":
                 gene_full_path = os.path.join("/scRNA-seq", root, dir)
-                match = re.match(r"(.+?_lane\d+)", root.split("/")[-1])
-                name = match.group(1) if match else root.split("/")[-1]
+                match = re.match(r"(.+?_lane\d+)", root.split("/")[-2])
+                name = match.group(1) if match else root.split("/")[-2]
                 gene_full_dirs.append({"name": name, "base_directory": gene_full_path})
             
                 # Process files in GeneFull directory

@@ -37,7 +37,7 @@ library(ComplexHeatmap)
 
 # Set up parallel processing
 # Reduce number of workers and increase per-worker memory
-options(future.globals.maxSize = 75000 * 1024^2)  # 75GB
+options(future.globals.maxSize = 100000 * 1024^2)  # 100GB
 plan(multisession, workers = 8)  # Reduce from 64 to 4 workers
 
 # Python setup

@@ -21,9 +21,9 @@ chmod 777 "$output_dir"
 chmod 777 ./sc_pipeline/src/config.json
 
 # Run pipeline with simplified commands #--memory-swap="64g" \
-docker run -d \
-  --memory="75g" \
-  --memory-swap="100g" \
+docker run -it \
+  --memory="100g" \
+  --memory-swap="150g" \
   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
   --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
   --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \
