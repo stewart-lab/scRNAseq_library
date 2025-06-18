@@ -43,7 +43,7 @@ fonttools==4.43.1
 frozenlist==1.4.0
 fsspec==2023.9.2
 gdown==4.7.1
-h11==0.14.0
+h11==0.16.0
 h5py==3.10.0
 idna==3.4
 igraph==0.10.8
