@@ -9,7 +9,7 @@ params:
 # ENVIRONMENT SETUP
 
 ```{r env, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache=FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache=FALSE, cache.lazy = FALSE)
 library(reticulate)
 library(future)
 library(future.apply)
@@ -37,8 +37,8 @@ library(ComplexHeatmap)
 
 # Set up parallel processing
 # Reduce number of workers and increase per-worker memory
-options(future.globals.maxSize = 100000 * 1024^2)  # 100GB
-plan(multisession, workers = 8)  # Reduce from 64 to 4 workers
+options(future.globals.maxSize = 200000 * 1024^2)  # 200GB
+plan(multisession, workers = 4)  # Reduce from 64 to 4 workers
 
 # Python setup
 py_config()
@@ -66,7 +66,7 @@ if (config$process_matrix==TRUE) {
   processed_data_list <- future_lapply(config$lanes, process_lane)
 }
 ```
-```{r prcoess_sample}
+```{r process_sample}
 # Parallel mapping for seurat and sce lists
 seurat_list <- future_map(processed_data_list, "seu")
 sce_list <- future_map(processed_data_list, "sce")
