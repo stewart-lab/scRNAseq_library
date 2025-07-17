@@ -69,21 +69,22 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
 
     # Define STAR options based on the configuration
     STAR_OPTIONS=""
+
     if [ "$isBarcodeFollowedbyReads" = true ]; then
       soloBarcodeMate=2
       soloCBstart=1
       soloCBlen=16
       soloUMIstart=17
-      STAR_OPTIONS="--soloBarcodeMate $soloBarcodeMate --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart"
-    fi
-    if [ -n "$clip5pNbases" ]; then
+      STAR_OPTIONS+=" --soloBarcodeMate $soloBarcodeMate --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart"
+    elif [ -n "$clip5pNbases" ]; then
       soloCBstart=1
       soloCBlen=16
       soloUMIstart=17
-      STAR_OPTIONS="--clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart --soloBarcodeReadLength 0"
+      STAR_OPTIONS+=" --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart --soloBarcodeReadLength 0"
     fi
+
     if [ -n "$soloStrand" ]; then
-      STAR_OPTIONS="--soloStrand $soloStrand"
+      STAR_OPTIONS+=" --soloStrand $soloStrand"
     fi
     # Create output directory in shared volume
     mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
