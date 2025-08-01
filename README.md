@@ -9,7 +9,7 @@ This README provides instructions on how to do a general single-cell RNA sequenc
    
 2. [Python](https://docs.python.org/3/using/index.html) installed on your system.
    - Verify your installation by typing `python --version` in your terminal.If Python is not installed, you can download it [here](https://docs.python.org/3/using/index.html)
-
+2. Apptainer
 
 ## Instructions
 
@@ -35,8 +35,17 @@ Before running the pipeline, make sure to configure your settings in the config.
 This command will intialize the pipeline. You will be asked questions based upon your data and analysis requirements.:
 
 ```bash
-source run_pipeline.sh 
+source run_pipeline.sh # or to run separately
+
+source run_aligner.sh # when aligner finishes then run
+source run_seuratv5.sh
 ```
+## Running Apptainer
+1. first after apptainer is installed, pull the docker container using apptainer. This will convert the docker image to an apptainer containter
+```bash
+apptainer pull docker://stewartlab/sc_aligner_v2_no_genomes
+```This creates a .sif file that is your apptainer
+
 5. **Analysis questions**
    - Have you loaded new data or would you like to realign? [y/N]:
      - If yes, the previous alignment will be deleted and pipeline will look to the specified files in the DATA_DIR to realign with STARsolo
