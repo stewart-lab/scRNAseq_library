@@ -20,7 +20,7 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
   docker build -t scaligner_v2_with_genomes_and_jq ./pre_pipeline
 
   echo "Step 2.3: Running Docker container for alignment"
-  docker run -d \
+  docker run -it \
     -v "$(realpath "$DATA_DIR"):/data:ro" \
     -v "$(realpath "$SHARED_MOUNT"):/shared_mount" \
     -v "$(realpath "$CONFIG_FILE"):/config.json:ro" \

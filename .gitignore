@@ -7,4 +7,4 @@ sc_pipeline/src/pst_env/
 shared_volume*
 config_copy.json
 shared_mount/
-
+sc_aligner_v2_no_genomes_latest.sif

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # Path to the configuration file
 CONFIG_FILE="/config.json"
 
@@ -12,51 +11,62 @@ if [ ! -w /shared_mount ]; then
     exit 1
 fi
 
-declare -A GENOME_DIRS
-GENOME_DIRS["human"]="/usr/local/bin/human_genome/star_solo_index"
-GENOME_DIRS["pig"]="/usr/local/bin/pig_genome/Sus_scrofa_genome_forstar_MT"
-
 # Define SOLO_FEATURES and SOLO_CELL_FILTER
 SOLO_FEATURES="Gene GeneFull SJ Velocyto"
 SOLO_CELL_FILTER="EmptyDrops_CR"
 
+# define genome dir
+GENOME_DIR="/genome_dir/"
+
+# Python function to extract JSON values
+get_json_value() {
+    local key="$1"
+    python3 -c "import json, sys; data = json.load(open('$CONFIG_FILE')); print(data.get('$key', ''))"
+}
+
+get_json_nested_value() {
+    local path="$1"
+    python3 -c "import json, sys; data = json.load(open('$CONFIG_FILE')); keys = '$path'.split('.'); value = data; [value := value.get(k, '') for k in keys]; print(value)"
+}
+
 # Fetch all sample names from the config file
-NUMBER_OF_SAMPLES=$(jq -r '.Number_of_samples' $CONFIG_FILE)
+NUMBER_OF_SAMPLES=$(get_json_value "Number_of_samples")
 
 for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   # Loop over each sample based on NUMBER_OF_SAMPLES
   SAMPLE_KEY="SAMPLE_$SAMPLE_IDX"  # Construct the key to access sample configurations
 
-  # Fetch the species and determine the genome directory
-  SPECIES=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.species" $CONFIG_FILE)
-  GENOME_DIR=${GENOME_DIRS[$SPECIES]}
-
-  # Check if genome directory is set, else skip the sample with a warning
-  if [ -z "$GENOME_DIR" ]; then
-    echo "Warning: Genome directory not set for species '$SPECIES' in sample $SAMPLE_KEY. Skipping."
-    continue
-  fi
-
-  # Fetch configuration for each sample using the constructed key
-  SAMPLE_NAME=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.NAME" $CONFIG_FILE)  # Unique name for the sample
-  NUM_LANES=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.NUM_LANES" $CONFIG_FILE)
-  CHEMISTRY_VERSION=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.CHEMISTRY_VERSION" $CONFIG_FILE)
-  SOLO_TYPE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.SOLO_TYPE" $CONFIG_FILE)
-  SOLO_MULTI_MAPPERS=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.SOLO_MULTI_MAPPERS" $CONFIG_FILE)
-  SOLO_UMI_DEDUP=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.SOLO_UMI_DEDUP" $CONFIG_FILE)
-  RUN_THREAD_N=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.RUN_THREAD_N" $CONFIG_FILE)
-  READ_FILES_COMMAND=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.READ_FILES_COMMAND" $CONFIG_FILE)
-  clip5pNbases=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.clip5pNbases" $CONFIG_FILE)
-  isBarcodeFollowedbyReads=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads" $CONFIG_FILE)
-  soloStrand=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.soloStrand" $CONFIG_FILE)
+  # Fetch the species
+  SPECIES=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.species")
+  
+    # Fetch configuration for each sample using the constructed key
+  SAMPLE_NAME=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.NAME")  # Unique name for the sample
+  NUM_LANES=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.NUM_LANES")
+  CHEMISTRY_VERSION=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.CHEMISTRY_VERSION")
+  SOLO_TYPE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.SOLO_TYPE")
+  SOLO_MULTI_MAPPERS=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.SOLO_MULTI_MAPPERS")
+  SOLO_UMI_DEDUP=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.SOLO_UMI_DEDUP")
+  RUN_THREAD_N=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.RUN_THREAD_N")
+  READ_FILES_COMMAND=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.READ_FILES_COMMAND")
+  clip5pNbases=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.clip5pNbases")
+  isBarcodeFollowedbyReads=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads")
+  soloStrand=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.soloStrand")
 
   # Determine SOLO_CB_WHITELIST and SOLO_UMI_LEN based on CHEMISTRY_VERSION
   if [ "$CHEMISTRY_VERSION" == "V2" ]; then
-    SOLO_CB_WHITELIST="/usr/local/bin/737K-august-2016.txt"
+    SOLO_CB_WHITELIST="data/737K-august-2016.txt"
     SOLO_UMI_LEN=10
   elif [ "$CHEMISTRY_VERSION" == "V3" ]; then
-    SOLO_CB_WHITELIST="/usr/local/bin/3M-february-2018.txt"
+    SOLO_CB_WHITELIST="data/3M-february-2018.txt"
     SOLO_UMI_LEN=12
+  elif [ "$CHEMISTRY_VERSION" == "V4" ]; then
+    if [ "$FIVE_PRIME" = true ]; then
+      SOLO_CB_WHITELIST="data/3M-5pgex-jan-2023.txt"
+      SOLO_UMI_LEN=12
+    else
+      SOLO_CB_WHITELIST="data/3M-3pgex-may-2023_TRU.txt"
+      SOLO_UMI_LEN=12
+    fi
   else
     echo "Invalid chemistry version for $SAMPLE_NAME ($SAMPLE_KEY). Exiting."
     continue
@@ -64,8 +74,8 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
 
   # Process each lane for the current sample
   for i in $(seq 1 $NUM_LANES); do
-    cDNA_LANE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.cDNA_LANE${i}" $CONFIG_FILE)
-    BARCODE_LANE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.BARCODE_LANE${i}" $CONFIG_FILE)
+    cDNA_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.cDNA_LANE${i}")
+    BARCODE_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.BARCODE_LANE${i}")
 
     # Define STAR options based on the configuration
     STAR_OPTIONS=""
@@ -81,15 +91,6 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
       soloCBlen=16
       soloUMIstart=17
       STAR_OPTIONS+=" --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart --soloBarcodeReadLength 0"
-    elif [ "$CHEMISTRY_VERSION" == "V4" ]; then
-      if [ "$FIVE_PRIME" = true ]; then
-        SOLO_CB_WHITELIST="data/3M-5pgex-jan-2023.txt"
-      else
-        SOLO_CB_WHITELIST="data/3M-3pgex-may-2023_TRU.txt"
-      fi
-    else
-      echo "Invalid chemistry version for $SAMPLE_NAME ($SAMPLE_KEY). Exiting."
-      continue
     fi
 
     if [ -n "$soloStrand" ]; then
