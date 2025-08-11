@@ -8,3 +8,8 @@ shared_volume*
 config_copy.json
 shared_mount/
 sc_aligner_v2_no_genomes_latest.sif
+data/3M-3pgex-may-2023_TRU.txt
+data/3M-5pgex-jan-2023.txt
+data/3M-february-2018.txt
+data/3M-february-2018_TRU.txt
+data/737K-august-2016.txt
