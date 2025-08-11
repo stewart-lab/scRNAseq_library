@@ -9,7 +9,13 @@ This README provides instructions on how to do a general single-cell RNA sequenc
    
 2. [Python](https://docs.python.org/3/using/index.html) installed on your system.
    - Verify your installation by typing `python --version` in your terminal.If Python is not installed, you can download it [here](https://docs.python.org/3/using/index.html)
-2. Apptainer
+
+**Instead of Docker, you can use Apptainer**
+
+3. [Apptainer](https://apptainer.org/docs/user/main/quick_start.html) installed on your system.
+   - verify by typing `apptainer --version` in your terminal.
+     
+4. If using apptainer, you may want [tmux](https://github.com/tmux/tmux/wiki) in order to run in the background. If you have tmux, when 
 
 ## Instructions
 
@@ -31,29 +37,52 @@ cd scRNAseq_library/
 Before running the pipeline, make sure to configure your settings in the config.json file. For more details on how to set up the configuration, see the [scRNA-seq Analysis Configuration Guide](#scrna-seq-analysis-configuration-guide) below.
 
 
-4. **Run the Pipeline**
+4. **Run the Pipeline on Docker**
 This command will intialize the pipeline. You will be asked questions based upon your data and analysis requirements.:
 
 ```bash
-source run_pipeline.sh # or to run separately
+# if you want to run the pipeline together with both alignment and single cell analysis. Note this way runs the aligner part interactively, so for large jobs it may be better to run in detached mode- see below
+source run_pipeline.sh
 
-source run_aligner.sh # when aligner finishes then run
+# or to run separately run aligner first (this is in detached mode)
+source run_aligner.sh
+
+# when aligner finishes then run seurat in detached mode
 source run_seuratv5.sh
 ```
-## Running Apptainer
-1. first after apptainer is installed, pull the docker container using apptainer. This will convert the docker image to an apptainer containter
-```bash
-apptainer pull docker://stewartlab/sc_aligner_v2_no_genomes
-```This creates a .sif file that is your apptainer
 
 5. **Analysis questions**
-   - Have you loaded new data or would you like to realign? [y/N]:
-     - If yes, the previous alignment will be deleted and pipeline will look to the specified files in the DATA_DIR to realign with STARsolo
-     - If no, edits to the config file that are pipeline specfic (clustering, MT filtering, scaling) will be updated and a new time-stamped output will be generated
-     - If no the following follow-up question will be asked: If you'd like to load a stored experiment select data. If you have aligned FASTQs loaded and changed pipeline parameters, select fastq [data/fastq]:
-          - If data, that means you would like to load one of our pre-aligned datasets and you must select between the three: [REH,GAMM_S1,GAMM_S2]
-          - If fastq, the alignment step will be skipped but your presumabley new config parameters will be applied to the latest time-stamped run 
+   - Would you like to run alignment? [y/N]:
+     - If yes, the previous alignment will be deleted and pipeline will look to the specified fastq files in the DATA_DIR to realign with STARsolo
+     - If no, the seurat program will look for the star solo output in the shared_mount directory. Edits to the config file will be applied and a new time-stamped output will be generated.
+
+## Running Apptainer
+1. **Pull docker image with apptainer** First after apptainer is installed, pull the docker image using apptainer. This will convert the docker image to an apptainer containter
+```bash
+apptainer pull docker://stewartlab/sc_aligner_v2_no_genomes
+```
+
+This creates a .sif file that is your apptainer
+
+2. **Configuring your pipeline run**
+Before running the pipeline, make sure to configure your settings in the config.json file. For more details on how to set up the configuration, see the [scRNA-seq Analysis Configuration Guide](#scrna-seq-analysis-configuration-guide) below.
+
+3. **Run Apptainer**
+```bash
+# run aligner
+source run_apptainer_aligner.sh 
+```
+4. **analysis questions**
+   - Would you like to run alignment? [y/N]:
+     - If yes, the previous alignment will be deleted and pipeline will look to the specified fastq files in the DATA_DIR to realign with STARsolo
+     - If no, the seurat program will look for the star solo output in the shared_mount directory. Edits to the config file will be applied and a new time-stamped output will be generated.
        
+   - Do you need to build a genome index? [y/N]:
+      - If yes, you must provide the genome fasta file and genome gtf file as well as the genome directory where they are located in the config file.
+      - If no, this assumes you have already built the genome index, and the program will look for the genome index in the "GENOME_INDEX_DIR". This should be a subdirectory from the genome directory ("GENOME_DIR") in the config file.
+
+   - Run in detached tmux session? [y/N]:
+      - If you have tmux installed, you can run in detached mode which means you do not have to keep the terminal open while alignment is running.
 
 # scRNA-seq Analysis Configuration Guide
 
@@ -67,26 +96,36 @@ This README provides a brief description of the configuration file used in the s
 - `annotation_reference`: Indicates whether annotation reference is used in cluster labeling. (e.g., "FALSE")
 - `DE_method`: The method used for differential expression analysis. "Seurat" or "Scran" (we recommend "Scran")
 - `species`: The species for the analysis. (e.g., "human", "pig")
+- `Number_of_samples`: How many different samples you are running (not different lanes)
 - `lanes`: THIS WILL BE AUTOPOPULATED VIA THE PIPELINE
 - `DATA_DIR`: The directory where the FASTQs are stored. (e.g., "/isiseqruns/jfreeman_tmp_home/scRNA_FASTQS/")
+- `GENOME_DIR`: The directory where your genome files are stored. (e.g., "/w5home/bmoore/genomes/human_genome_38/")
+- `GENOME_FASTA`: The name of the primary genome fasta file (this should be in the GENOME_DIR, e.g., "Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa")
+- `GENOME_GTF`: The name of the gtf file (this should be in the GENOME_DIR, e.g.,"Homo_sapiens.GRCh38.108.filtered.gtf")
+- `GENOME_INDEX_DIR`: The name of the subdirectory of the GENOME_DIR where the genome index is. If building the index, leave as the default: "genome_build/"
+- `RUN_THREAD_N`: Number of cpus to use (e.g. 16)
 
 ### Fastq Alignment Settings
 
-- `fastq_alignment`: A dictionary for specifying fastq alignment parameters.
+- `fastq_alignment`: A dictionary for specifying fastq alignment parameters. Each item is a separate dictionary for each sample
+   - "SAMPLE_1": dictionary for the first sample settings. For more than one sample, copy the sample_1 dictionary, change to SAMPLE_2, and edit settings. You can have as many samples as your docker/apptainer memory and cpus permit.
+  
+  Within each sample, edit parameters:
+  - `NAME`: Name of sample
   - `NUM_LANES`: Number of lanes. (e.g., 1)
-  - `OUTPUT_PREFIX`: Output prefix. (e.g., "TEST")
-  - `READ_FILE1_PREFIX`: Prefix for read file 1. (e.g., "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz")
-  - `READ_FILE2_PREFIX`: Prefix for read file 2. (e.g., "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz")
-  - `CHEMISTRY_VERSION`: Chemistry version. (e.g., "V3")
+  - `cDNA_LANE1:`: Name of fastq read file with cDNA. (e.g., "/data/AtlasOfTheHumanRetina/SRR10130821_R2.fastq.gz") # to add more lanes, simply add another cDNA and barcode lane, i.e. cDNA_LANE2 and BARCODE_LANE2 with the corresponding fastq files
+  - `BARCODE_LANE1`: Name of fastq read file with barcode. (e.g., "/data/AtlasOfTheHumanRetina/SRR10130821_R1.fastq.gz")
+  - `CHEMISTRY_VERSION`: Chemistry version. (Versions 2,3, and 4 are supported: e.g., "V3")
   - `SOLO_TYPE`: Solo type. (e.g., "CB_UMI_Simple")
   - `SOLO_FEATURES`: Solo features. (e.g., "Gene GeneFull SJ Velocyto")
   - `SOLO_CELL_FILTER`: Solo cell filter. (e.g., "EmptyDrops_CR")
   - `SOLO_MULTI_MAPPERS`: Solo multi-mappers. (e.g., "EM")
-  - `READ_FILES_COMMAND`: Read files command. (e.g., "zcat")
+  - `READ_FILES_COMMAND`: Read files command. (if reads are gzipped: "zcat")
   - `SOLO_UMI_DEDUP`: Solo UMI deduplication. (e.g., "1MM_CR")
   - `RUN_THREAD_N`: Number of threads to run. (e.g., 8)
   - `isBarcodeFollowedbyReads`: true or false, Parameter to indicate cDNA reads on barcode file
   - `clip5pNbases`: If bases should be clipped, what is the range to be kept. Reads outside of this range are clipped. (e.g.,"0 91")
+  - `soloStrand`: Which direction, Forward or Reverse, default is: "Forward"
 
 ### Data Preparation and Analysis
 
@@ -99,7 +138,7 @@ This README provides a brief description of the configuration file used in the s
 - `filter_cells`: A dictionary for specifying cell filtering parameters.
   - `lower.nFeature`: The lower limit of features (genes). (e.g., 200)
   - `upper.nFeature`: The upper limit of features (genes). (e.g., 25000)
-  - `max.percent.mt`: The maximum percentage of mitochondrial content. (e.g., 20)
+  - `max.percent.mt`: The maximum percentage of mitochondrial content allowed. (over this percentage, cells are filtered out- e.g., 20)
 
 - `ortholog_subset`:
   - `ortholog_file`: File containg list of orthologs for cross-species analysis. From Ensemble, should contain tab-delimited: ref.gene.stable.ID	ref.gene.name	query.gene.stable.ID	query.gene.name
@@ -108,7 +147,7 @@ This README provides a brief description of the configuration file used in the s
 - `normalize_data`: A dictionary for specifying normalization parameters. We use Scran normalization.
   - `min_size`: The minimum size. (e.g., 100)
   - `min_mean`: The minimum mean. (e.g., 0.1)
-  - `feature`: The feature to normalize. (e.g., "ECHS1")
+  - `feature`: The name of the feature (gene name) to show normalization in a figure. (e.g., "ECHS1")
 
 - `feature_selection`: A dictionary for specifying feature selection parameters.
   - `n_features`: The number of features to select. (e.g., 2000)
