@@ -4,18 +4,19 @@ gc(full = TRUE)
 
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 output <- paste0("output/output_", timestamp)
-dir.create(output, showWarnings = FALSE)
-output_base_dir <- paste0("../", output, "/")
+outputdir <- paste0(getwd(),"/",output)
+output_base_dir <- paste0("../../", output, "/")
+dir.create(outputdir, showWarnings = FALSE)
 print(getwd())
 print(output)
 # copy the config file into the output directory
-config_path <- file.path(getwd(), output, "config.json")
-file.copy(file.path(getwd(),"scRNA-seq/src/config.json"), config_path)
+config_path <- file.path(outputdir, "config.json")
+file.copy(file.path(getwd(),"sc_pipeline/src/config.json"), config_path)
 
 cat(paste0("Starting pipeline at ", timestamp, " with output directory ", output, "\n"))
 
 rmarkdown::render(
-    input = file.path(getwd(), "scRNA-seq", "src", "sc_pipeline.rmd"),
+    input = file.path(getwd(), "sc_pipeline", "src", "sc_pipeline.rmd"),
     output_format = "pdf_document",
     output_dir = output,
     intermediates_dir = output,

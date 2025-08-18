@@ -3,7 +3,16 @@
     "annotation_reference": false,
     "DE_method": "Scran",
     "Number_of_samples": 1,
-    "lanes": [ ],
+    "lanes": [
+        {
+            "name": "F64_TH_TOT_11wk_all_lane1",
+            "base_directory": "/scRNA-seq/shared_mount/F64_TH_TOT_11wk_all_lane1/Solo.out/GeneFull"
+        },
+        {
+            "name": "F64_TH_TOT_11wk_all_lane2",
+            "base_directory": "/scRNA-seq/shared_mount/F64_TH_TOT_11wk_all_lane2/Solo.out/GeneFull"
+        }
+    ],
     "DATA_DIR": "/w5home/bmoore/tmp/fastqs/",
     "GENOME_DIR": "/w5home/bmoore/genomes/human_genome_38/",
     "GENOME_FASTA": "Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa",

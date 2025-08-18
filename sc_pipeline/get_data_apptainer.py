@@ -15,12 +15,12 @@ with open(config_path, "r") as f:
 
 config["lanes"] = []
 gene_full_dirs = []
-
+cwd = os.getcwd()
 # Process directories
-search_dir = "./shared_mount"
+search_dir = cwd + "/shared_mount"
 if config["process_matrix"] == True:
     for dir in os.listdir(search_dir):
-        gene_full_path = os.path.join("/scRNA-seq", search_dir, dir) #"/scRNA-seq",
+        gene_full_path = os.path.join(search_dir, dir) #"/scRNA-seq",
         #print(gene_full_path)
         clean_path = os.path.normpath(gene_full_path)
         match = re.match(r"(.+?_lane\d+)", clean_path.split("/")[-1])
@@ -48,7 +48,7 @@ else:
     for root, dirs, files in os.walk(search_dir):
         for dir in dirs:
             if dir == "GeneFull":
-                gene_full_path = os.path.join("/scRNA-seq", root, dir)
+                gene_full_path = os.path.join(root, dir)
                 clean_path = os.path.normpath(gene_full_path)
                 # Extract lane name from the path - go up two levels from GeneFull
                 lane_dir = root.split("/")[-2] if len(root.split("/")) > 1 else root.split("/")[-1]

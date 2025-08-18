@@ -4,6 +4,7 @@ output: pdf_document
 params:
   output: "default_output" 
   config_path: "default_config_path" 
+  output_base_dir: "default_output_base_dir"
 ---
 
 # ENVIRONMENT SETUP
@@ -34,24 +35,32 @@ library(clustifyr)
 library(scry)
 library(ggplot2)
 library(ComplexHeatmap)
-
+#cat("Create reticulate environment")
+#reticulate::virtualenv_create('r-reticulate')
 # Set up parallel processing
 # Reduce number of workers and increase per-worker memory
 options(future.globals.maxSize = 200000 * 1024^2)  # 200GB
 plan(multisession, workers = 4)  # Reduce from 64 to 4 workers
+# force utf-8 handling
+#Sys.setlocale("LC_ALL", "en_US.UTF-8")
+Sys.setlocale( 'LC_ALL','C' ) 
+# use conda environment
+#use_condaenv("scrnaseq", conda = "/opt/conda/bin/conda", required = TRUE)
 
 # Python setup
-py_config()
-cat("Available conda environments:\n")
-conda_list()
-python_path <- system("which python3", intern=TRUE)
-cat("Python path:", python_path, "\n")
-use_python(python_path, required = TRUE)
 
+# cat("Available conda environments:\n")
+# #conda_list()
+# python_path <- system("which python3", intern=TRUE)
+# cat("Python path:", python_path, "\n")
+# use_python(python_path, required = TRUE)
+use_python("/opt/conda/bin/python3", required = TRUE)
+py_config()
 # Load configuration
 output <- params$output
+output_base_dir <- params$output_base_dir
+print(params$config_path)
 config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
-output_base_dir <- paste0("../", output, "/")
 source("sc_pipeline_functions.R")
 source("process_lane.R")
 
@@ -65,6 +74,7 @@ if (config$process_matrix==TRUE) {
   print("processing process_lane")
   processed_data_list <- future_lapply(config$lanes, process_lane)
 }
+file.rename(from = "Rplots.pdf",  to = paste0(output_base_dir,"soupX_contamination.pdf"))
 ```
 ```{r process_sample}
 # Parallel mapping for seurat and sce lists

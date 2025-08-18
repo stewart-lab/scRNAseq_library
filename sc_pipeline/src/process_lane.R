@@ -32,7 +32,7 @@ read_aligned_data <- function(base_directory, project_name, output_base_dir) {
       overwrite = TRUE
     )
   }, error = function(e) message("Summary.csv copy failed: ", e$message))
-  
+
   # Read data in parallel
   data <- future_map(dirs, function(d) Read10X(d$source))
   
@@ -114,7 +114,8 @@ prep_seurat_and_soupX <- function(data.raw, data, project) {
 
 process_lane <- function(lane) {
   options(future.globals.maxSize = 131072 * 1024^2)
-  
+  # make sure directory is formatted right
+  lane$base_directory <- normalizePath(lane$base_directory, mustWork = FALSE)
   # Process in parallel
   aligned_data <- read_aligned_data(lane$base_directory, lane$name, output_base_dir)
   
@@ -208,7 +209,8 @@ filter_empty_droplets <- function(data.raw) {
 
 process_lane2 <- function(lane) {
   options(future.globals.maxSize = 131072 * 1024^2)
-  
+  # make sure directory is formatted right
+  lane$base_directory <- normalizePath(lane$base_directory, mustWork = FALSE)
   # Process in parallel
   aligned_data <- read_aligned_data2(lane$base_directory, lane$name, output_base_dir)
   data.filtered <- filter_empty_droplets(aligned_data$raw)
