@@ -57,9 +57,10 @@ source run_seuratv5.sh
      - If no, the seurat program will look for the star solo output in the shared_mount directory. Edits to the config file will be applied and a new time-stamped output will be generated.
 
 ## Running Apptainer
-1. **Pull docker image with apptainer** First after apptainer is installed, pull the docker image using apptainer. This will convert the docker image to an apptainer containter
+1. **Build from docker images with apptainer** First after apptainer is installed, build the docker image using apptainer. This will convert the docker image to an apptainer containter
 ```bash
-apptainer pull docker://stewartlab/sc_aligner_v2_no_genomes
+apptainer build sc_aligner_v2_no_genomes_latest.sif docker://stewartlab/sc_aligner_v2_no_genomes:latest
+apptainer build scrnaseq-env_latest.sif docker://stewartlab/scrnaseq-env:latest
 ```
 
 This creates a .sif file that is your apptainer
@@ -67,7 +68,7 @@ This creates a .sif file that is your apptainer
 2. **Configuring your pipeline run**
 Before running the pipeline, make sure to configure your settings in the config.json file. For more details on how to set up the configuration, see the [scRNA-seq Analysis Configuration Guide](#scrna-seq-analysis-configuration-guide) below.
 
-3. **Run Apptainer**
+3. **Run Apptainer for alignment**
 ```bash
 # run aligner
 source run_apptainer_aligner.sh 
@@ -82,7 +83,15 @@ source run_apptainer_aligner.sh
       - If no, this assumes you have already built the genome index, and the program will look for the genome index in the "GENOME_INDEX_DIR". This should be a subdirectory from the genome directory ("GENOME_DIR") in the config file.
 
    - Run in detached tmux session? [y/N]:
-      - If you have tmux installed, you can run in detached mode which means you do not have to keep the terminal open while alignment is running.
+      - If you have tmux installed, you can run in detached mode by typing y which means you do not have to keep the terminal open while alignment is running.
+
+5. **Run Apptainer for Seurat processing**
+```
+source run_seuratv5_apptainer.sh
+```
+6. **analysis questions**
+- Run in detached tmux session? [y/N]:
+      - If you have tmux installed, you can run in detached mode by typing y which means you do not have to keep the terminal open while alignment is running.
 
 # scRNA-seq Analysis Configuration Guide
 
@@ -194,7 +203,7 @@ This README provides a brief description of the configuration file used in the s
 - `score_and_plot_markers`: A dictionary for specifying parameters for scoring and plotting markers. DE genes scored and found by Scran.
   - `top_n_markers`: The top n markers to use (cut off for how many markers to find). (e.g., `100`)
   - `known_markers`: Whether to use known markers. If FALSE, manual annotation cannot be done and only returns DE gene list. (`TRUE` or `FALSE`)
-  - `known_markers_path`: The path to the known markers. (e.g., `../known_marker_lists/Gamm_lab_Consolidated_markerList.txt`)
+  - `known_markers_path`: The path to the known markers. (e.g., `../known_marker_lists/Gamm_lab_Consolidated_markerList.txt`) **Known_markers_path must be within the sc_pipeline folder in the Github repo**
   - `cluster_type`: Cluster type to determine DE genes/ markers. (e.g. `seurat_clusters`,`orig.ident`)
   - `pairwise`: Do you want to calculate all pairwise comparisons between clusters? (`TRUE` or `FALSE`)
   - `logFC_thresh`: Cohen's D log fold change threshold, only DE genes above this threshold are kept. (e.g. `0.25`)
