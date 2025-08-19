@@ -14,11 +14,14 @@ shared_mount_dir="$(pwd)/shared_mount"
 chmod 777 "$output_dir"
 chmod 777 ./sc_pipeline/src/config.json
 
+echo "Step 5: Choose execution mode"
+read -p "Run in detached tmux session? [y/N]: " tmux_mode
+
 if [[ "$tmux_mode" =~ ^[Yy]$ ]]; then
-    echo "Running Apptainer container for alignment in detached tmux session"
+    echo "Running Apptainer container for seurat processing in detached tmux session"
     
     # Create a tmux session with a descriptive name
-    SESSION_NAME="alignment_$(date +%Y%m%d_%H%M%S)"
+    SESSION_NAME="seurat_$(date +%Y%m%d_%H%M%S)"
     
     # Create new detached tmux session and run the apptainer command
     tmux new-session -d -s "$SESSION_NAME" "
