@@ -142,7 +142,11 @@ feature_selection <- function(seurat_obj) {
     m <- GetAssayData(seurat_obj, slot = "counts", assay = "RNA")
     devi <- scry::devianceFeatureSelection(m)
     dev_ranked_genes <- rownames(seurat_obj)[order(devi, decreasing = TRUE)]
-    topdev <- head(dev_ranked_genes, n_features)
+    if (length(dev_ranked_genes) < n_features) {
+      topdev <- dev_ranked_genes
+    } else {
+      topdev <- head(dev_ranked_genes, n_features)
+    }
     VariableFeatures(seurat_obj) <- topdev
     seurat_obj <- UpdateSeuratObject(seurat_obj)
   } else {
