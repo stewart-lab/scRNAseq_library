@@ -2,7 +2,7 @@
     "title": "human_somite_Chu_parsedata",
     "annotation_reference": false,
     "DE_method": "Scran",
-    "Number_of_samples": 3,
+    "Number_of_samples": 7,
     "lanes": [],
     "parse": true,
     "DATA_DIR": "/w5home/bmoore/sequencing/LFJ_somite/",
@@ -29,32 +29,12 @@
             "RUN_THREAD_N": 16,
             "isBarcodeFollowedbyReads": false,
             "soloStrand": "Forward"
-        },
-        "SAMPLE_2": {
-            "NAME": "Matrigel_CHIR99021_various",
-            "species": "human",
-            "NUM_LANES": 4,
-            "cDNA_LANE1": "/data/ERR7927057_2.fastq.gz",
-            "BARCODE_LANE1": "/data/ERR7927057_1.fastq.gz",
-            "cDNA_LANE2": "/data/ERR7927058_2.fastq.gz",
-            "BARCODE_LANE2": "/data/ERR7927058_1.fastq.gz",
-            "cDNA_LANE3": "/data/ERR7927059_2.fastq.gz",
-            "BARCODE_LANE3": "/data/ERR7927059_1.fastq.gz",
-            "cDNA_LANE4": "/data/ERR7927060_2.fastq.gz",
-            "BARCODE_LANE4": "/data/ERR7927060_1.fastq.gz",
-            "CHEMISTRY_VERSION": "V3",
-            "SOLO_TYPE": "CB_UMI_Simple",
-            "SOLO_MULTI_MAPPERS": "EM",
-            "READ_FILES_COMMAND": "zcat|gunzip -c",
-            "SOLO_UMI_DEDUP": "1MM_CR",
-            "RUN_THREAD_N": 16,
-            "isBarcodeFollowedbyReads": false,
-            "soloStrand": "Forward"
         }
     },
     "fastq_alignment_parse": {
-        "Number_of_runs": 2,
-        "OUT_DIR": "analysis/",
+        "Number_of_runs": 8,
+        "OUT_DIR": "Chu_parse_analysis_20260724/",
+        "species": "human",
         "RUN_1": {
             "NAME": "S39",
             "MODE": "all",
@@ -78,13 +58,85 @@
             "SAMPLE_LIST": "samples_well_table_test.prn",
             "KIT_SCORE_SKIP": true,
             "START_TIMEOUT": 120
+        },
+        "RUN_3": {
+            "NAME": "S41",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S41/S41_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S41/S41_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        },
+        "RUN_4": {
+            "NAME": "S42",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S42/S42_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S42/S42_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        },
+        "RUN_5": {
+            "NAME": "S43",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S43/S43_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S43/S43_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        },
+        "RUN_6": {
+            "NAME": "S44",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S44/S44_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S44/S44_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        },
+        "RUN_7": {
+            "NAME": "S45",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S45/S45_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S45/S45_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        },
+        "RUN_8": {
+            "NAME": "S46",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S46/S46_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S46/S46_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
         }
     },
     "process_matrix": false,
     "prep_seurat_and_soupX": {
         "dims": 30,
         "umap.method": "umap-learn",
-        "tfidfMin": 0.7,
+        "tfidfMin": 0.3,
         "min.cells": 3
     },
     "filter_cells": {

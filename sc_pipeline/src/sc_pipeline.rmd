@@ -10,7 +10,7 @@ params:
 # ENVIRONMENT SETUP
 
 ```{r env, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache=FALSE, cache.lazy = FALSE)
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, cache.lazy = FALSE)
 library(reticulate)
 library(future)
 library(future.apply)
@@ -35,17 +35,17 @@ library(clustifyr)
 library(scry)
 library(ggplot2)
 library(ComplexHeatmap)
-#cat("Create reticulate environment")
-#reticulate::virtualenv_create('r-reticulate')
+# cat("Create reticulate environment")
+# reticulate::virtualenv_create('r-reticulate')
 # Set up parallel processing
 # Reduce number of workers and increase per-worker memory
-options(future.globals.maxSize = 200000 * 1024^2)  # 200GB
-plan(multisession, workers = 4)  # Reduce from 64 to 4 workers
+options(future.globals.maxSize = 200000 * 1024^2) # 200GB
+plan(multisession, workers = 4) # Reduce from 64 to 4 workers
 # force utf-8 handling
-#Sys.setlocale("LC_ALL", "en_US.UTF-8")
-Sys.setlocale( 'LC_ALL','C' ) 
+# Sys.setlocale("LC_ALL", "en_US.UTF-8")
+Sys.setlocale("LC_ALL", "C")
 # use conda environment
-#use_condaenv("scrnaseq", conda = "/opt/conda/bin/conda", required = TRUE)
+# use_condaenv("scrnaseq", conda = "/opt/conda/bin/conda", required = TRUE)
 
 # Python setup
 
@@ -63,18 +63,20 @@ print(params$config_path)
 config <- jsonlite::fromJSON(params$config_path, simplifyDataFrame = FALSE)
 source("sc_pipeline_functions.R")
 source("process_lane.R")
-
 ```
 ```{r process_lane}
 # Process lanes in parallel
-if (config$process_matrix==TRUE) {
+if (config$process_matrix == TRUE) { # this is only one matrix (raw counts)
   print("processing process_lane2")
   processed_data_list <- future_lapply(config$lanes, process_lane2)
-} else {
+} else if (config$parse == TRUE) { # if this is parse data
   print("processing process_lane")
-  processed_data_list <- future_lapply(config$lanes, process_lane)
+  processed_data_list <- future_lapply(config$lanes, process_lane, TRUE)
+} else { # if this is regular 10x data
+  print("processing process_lane")
+  processed_data_list <- future_lapply(config$lanes, process_lane, FALSE)
 }
-file.rename(from = "Rplots.pdf",  to = paste0(output_base_dir,"soupX_contamination.pdf"))
+file.rename(from = "Rplots.pdf", to = paste0(output_base_dir, "soupX_contamination.pdf"))
 ```
 ```{r process_sample}
 # Parallel mapping for seurat and sce lists
@@ -85,20 +87,20 @@ feature_set <- list(feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 combine_feature_plots(seurat_list, output_base_dir, feature_set, file_name_base = "post_soupx_qc")
 
 sample_specific_sce_list <- split_sce_list_by_sample(sce_list)
-#clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
+# clean_environment(list_to_remove = c("processed_data_list", "seurat_list", "feature_set"))
 
 # Process samples and store results
 processed_samples_list <- lapply(names(sample_specific_sce_list), function(sample_name) {
   message(paste("Processing sample:", sample_name))
   sample_data <- sample_specific_sce_list[[sample_name]]
   result <- process_sample(sample_name, sample_data, output_base_dir, config)
-  
+
   # Add some error checking
   if (is.null(result)) {
     warning(paste("No results returned for sample:", sample_name))
     return(NULL)
   }
-  
+
   return(result)
 })
 
@@ -121,16 +123,16 @@ if (length(processed_samples_list) > 0) {
 if (!species_are_all_same(config)) {
   message("Starting cross-species analysis...")
   objs_list <- perform_orthologous_gene_analysis(processed_samples_list, config, output_base_dir)
-  
+
   if (!is.null(objs_list)) {
     sample_names <- names(objs_list)
     if (length(sample_names) >= 2) {
       ref_name <- sample_names[1]
       query_name <- sample_names[2]
-      
+
       message(paste("Processing reference:", ref_name))
       ref_list <- process_orthologous_objects(objs_list[[ref_name]], output_base_dir, config, ref_name)
-      
+
       message(paste("Processing query:", query_name))
       query_list <- process_orthologous_objects(objs_list[[query_name]], output_base_dir, config, query_name)
     } else {
