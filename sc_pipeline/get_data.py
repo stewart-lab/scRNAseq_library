@@ -89,7 +89,18 @@ elif config["process_matrix"] == True:
                         print(f"Successfully gzipped {file_path}")
                     except Exception as e:
                         print(f"Failed to gzip {file_path}: {e}")
-else:        
+else:
+    # Only accept lanes whose sample name matches a NAME declared in
+    # fastq_alignment, so unrelated/stray directories left over from other
+    # runs in shared_mount are never picked up.
+    fastq_alignment = config.get("fastq_alignment", {})
+    expected_sample_names = {
+        sample["NAME"] for sample in fastq_alignment.values()
+        if isinstance(sample, dict) and "NAME" in sample
+    }
+    if not expected_sample_names:
+        warnings.warn("No NAME entries found in fastq_alignment; check your config file.")
+
     for root, dirs, files in os.walk(search_dir):
         for dir in dirs:
             if dir == "GeneFull":
@@ -97,8 +108,14 @@ else:
                 clean_path = os.path.normpath(gene_full_path)
                 # Extract lane name from the path - go up two levels from GeneFull
                 lane_dir = root.split("/")[-2] if len(root.split("/")) > 1 else root.split("/")[-1]
-                match = re.match(r"(.+?_lane\d+)", lane_dir)
-                name = match.group(1) if match else lane_dir
+                match = re.match(r"(.+?)_lane\d+", lane_dir)
+                sample_name = match.group(1) if match else lane_dir
+                name = match.group(0) if match else lane_dir
+
+                if sample_name not in expected_sample_names:
+                    print(f"Skipping {clean_path}: sample '{sample_name}' not declared in fastq_alignment")
+                    continue
+
                 gene_full_dirs.append({"name": name, "base_directory": clean_path})
             
                 # Process files in GeneFull directory
