@@ -49,6 +49,7 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   clip5pNbases=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.clip5pNbases" $CONFIG_FILE)
   isBarcodeFollowedbyReads=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads" $CONFIG_FILE)
   soloStrand=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.soloStrand" $CONFIG_FILE)
+  FIVE_PRIME=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.FIVE_PRIME // false" $CONFIG_FILE)
 
   # Determine SOLO_CB_WHITELIST and SOLO_UMI_LEN based on CHEMISTRY_VERSION
   if [ "$CHEMISTRY_VERSION" == "V2" ]; then
@@ -57,6 +58,13 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   elif [ "$CHEMISTRY_VERSION" == "V3" ]; then
     SOLO_CB_WHITELIST="/usr/local/bin/3M-february-2018.txt"
     SOLO_UMI_LEN=12
+  elif [ "$CHEMISTRY_VERSION" == "V4" ]; then
+    SOLO_UMI_LEN=12
+    if [ "$FIVE_PRIME" = true ]; then
+      SOLO_CB_WHITELIST="/usr/local/bin/3M-5pgex-jan-2023.txt"
+    else
+      SOLO_CB_WHITELIST="/usr/local/bin/3M-3pgex-may-2023_TRU.txt"
+    fi
   else
     echo "Invalid chemistry version for $SAMPLE_NAME ($SAMPLE_KEY). Exiting."
     continue
@@ -76,23 +84,14 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
       soloCBlen=16
       soloUMIstart=17
       STAR_OPTIONS+=" --soloBarcodeMate $soloBarcodeMate --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart"
-    elif [ -n "$clip5pNbases" ]; then
+    elif [ -n "$clip5pNbases" ] && [ "$clip5pNbases" != "null" ]; then
       soloCBstart=1
       soloCBlen=16
       soloUMIstart=17
       STAR_OPTIONS+=" --clip5pNbases $clip5pNbases --soloCBstart $soloCBstart --soloCBlen $soloCBlen --soloUMIstart $soloUMIstart --soloBarcodeReadLength 0"
-    elif [ "$CHEMISTRY_VERSION" == "V4" ]; then
-      if [ "$FIVE_PRIME" = true ]; then
-        SOLO_CB_WHITELIST="data/3M-5pgex-jan-2023.txt"
-      else
-        SOLO_CB_WHITELIST="data/3M-3pgex-may-2023_TRU.txt"
-      fi
-    else
-      echo "Invalid chemistry version for $SAMPLE_NAME ($SAMPLE_KEY). Exiting."
-      continue
     fi
 
-    if [ -n "$soloStrand" ]; then
+    if [ -n "$soloStrand" ] && [ "$soloStrand" != "null" ]; then
       STAR_OPTIONS+=" --soloStrand $soloStrand"
     fi
     # Create output directory in shared volume

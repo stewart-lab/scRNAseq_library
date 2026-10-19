@@ -196,6 +196,9 @@ scale_data <- function(seurat_obj, path, sample_name = NULL) {
   vars.2.regress <- config$scale_data$vars.2.regress
   marker.path.s <- config$scale_data$marker.path.s
   marker.path.g2m <- config$scale_data$marker.path.g2m
+  # TRUE runs the regression in this session instead of across future workers,
+  # trading speed for ~1 copy of the data in memory instead of one per worker
+  sequential_regression <- isTRUE(config$scale_data$sequential_regression)
 
   if (is.null(sample_name)) sample_name <- unique(seurat_obj$orig.ident)[1]
 
@@ -239,6 +242,10 @@ scale_data <- function(seurat_obj, path, sample_name = NULL) {
     print(DimPlot(seurat_obj, group.by = "Phase"))
     dev.off()
 
+    if (sequential_regression) {
+      old_plan <- plan(sequential)
+      on.exit(plan(old_plan), add = TRUE)
+    }
     seurat_obj <- ScaleData(seurat_obj, vars.to.regress = c("S.Score", "G2M.Score"), features = all.genes)
     seurat_obj <- RunPCA(seurat_obj, features = c(s.genes, g2m.genes))
     pdf(file.path(path, "pca_after_cc_regression.pdf"), width = 8, height = 6)

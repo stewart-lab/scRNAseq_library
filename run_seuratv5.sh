@@ -1,5 +1,5 @@
 #!/bin/bash
-CONFIG_FILE="./config.json"
+CONFIG_FILE="${1:-./config.json}"
 echo "Step 3: Updating config.json"
 if [ -f "./sc_pipeline/src/config.json" ]; then
   rm ./sc_pipeline/src/config.json
@@ -21,9 +21,9 @@ chmod 777 "$output_dir"
 chmod 777 ./sc_pipeline/src/config.json
 
 # Run pipeline with simplified commands #--memory-swap="64g" \
-docker run -it \
-  --memory="150g" \
-  --memory-swap="200g" \
+docker run -d \
+  --memory="400g" \
+  --memory-swap="400g" \
   --mount type=bind,source="$output_dir",target=/scRNA-seq/output \
   --mount type=bind,source="$shared_mount_dir",target=/scRNA-seq/shared_mount \
   --mount type=bind,source="$(realpath ./sc_pipeline/src/config.json)",target=/scRNA-seq/src/config.json \

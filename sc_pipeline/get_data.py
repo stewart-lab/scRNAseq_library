@@ -82,7 +82,7 @@ elif config["process_matrix"] == True:
                     
             if (file.endswith(".tsv") or file.startswith("matrix")) and not file.endswith(".gz"):
                 gz_file_path = f"{file_path}.gz"
-                if not os.path.exists(gz_file_path):
+                if not os.path.exists(gz_file_path) or os.path.getmtime(file_path) > os.path.getmtime(gz_file_path):
                     try:
                         with open(file_path, "rb") as f_in, gzip.open(gz_file_path, "wb") as f_out:
                             shutil.copyfileobj(f_in, f_out)
@@ -128,7 +128,7 @@ else:
                     
                         if (file.endswith(".tsv") or file.startswith("matrix")) and not file.endswith(".gz"):
                             gz_file_path = f"{file_path}.gz"
-                            if not os.path.exists(gz_file_path):
+                            if not os.path.exists(gz_file_path) or os.path.getmtime(file_path) > os.path.getmtime(gz_file_path):
                                 try:
                                     with open(file_path, "rb") as f_in, gzip.open(gz_file_path, "wb") as f_out:
                                         shutil.copyfileobj(f_in, f_out)
