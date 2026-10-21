@@ -16,6 +16,9 @@ declare -A GENOME_DIRS
 GENOME_DIRS["human"]="/usr/local/bin/human_genome/star_solo_index"
 GENOME_DIRS["pig"]="/usr/local/bin/pig_genome/Sus_scrofa_genome_forstar_MT"
 
+# A custom STAR index mounted at /genome_dir (e.g. rebuilt by run_aligner.sh) overrides the built-in genomes
+CUSTOM_GENOME_DIR="/genome_dir"
+
 # Define SOLO_FEATURES and SOLO_CELL_FILTER
 SOLO_FEATURES="Gene GeneFull SJ Velocyto"
 SOLO_CELL_FILTER="EmptyDrops_CR"
@@ -29,7 +32,12 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
 
   # Fetch the species and determine the genome directory
   SPECIES=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.species" $CONFIG_FILE)
-  GENOME_DIR=${GENOME_DIRS[$SPECIES]}
+  if [ -f "$CUSTOM_GENOME_DIR/SA" ]; then
+    GENOME_DIR=$CUSTOM_GENOME_DIR
+  else
+    GENOME_DIR=${GENOME_DIRS[$SPECIES]}
+  fi
+  echo "Aligning $SAMPLE_KEY to $GENOME_DIR"
 
   # Check if genome directory is set, else skip the sample with a warning
   if [ -z "$GENOME_DIR" ]; then

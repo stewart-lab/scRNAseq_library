@@ -46,12 +46,60 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
     echo "Step 2.2: Building Docker image for alignment"
     docker build -t scaligner_v2_with_genomes_and_jq ./pre_pipeline
 
-    echo "Step 2.3: Running Docker container for alignment"
-    docker run -d \
-      -v "$(realpath "$DATA_DIR"):/data:ro" \
-      -v "$(realpath "$SHARED_MOUNT"):/shared_mount" \
-      -v "$(realpath "$CONFIG_FILE"):/config.json:ro" \
-      scaligner_v2_with_genomes_and_jq /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
+    # Optionally rebuild a STAR index from GENOME_FASTA + GENOME_GTF into GENOME_DIR/genome_build/
+    USE_CUSTOM_INDEX=""
+    BUILD_FAILED=""
+    read -p "Do you need to build a genome index from GENOME_FASTA and GENOME_GTF? [y/N]: " build_confirm
+    if [[ "$build_confirm" =~ ^[Yy]$ ]]; then
+      GENOME_BUILD_DIR="${GENOME_DIR%/}/genome_build"
+      if [ -d "$GENOME_BUILD_DIR" ] && [ -n "$(ls -A "$GENOME_BUILD_DIR")" ]; then
+        echo "An existing genome build was found at $GENOME_BUILD_DIR"
+        read -p "Rename it to keep it? (otherwise it will be overwritten) [Y/n]: " rename_confirm
+        if [[ ! "$rename_confirm" =~ ^[Nn]$ ]]; then
+          default_name="genome_build_$(date +%Y%m%d_%H%M%S)"
+          read -p "New name [$default_name]: " new_name
+          new_name=${new_name:-$default_name}
+          while [ -e "${GENOME_DIR%/}/$new_name" ]; do
+            read -p "${GENOME_DIR%/}/$new_name already exists, choose another name: " new_name
+          done
+          mv "$GENOME_BUILD_DIR" "${GENOME_DIR%/}/$new_name"
+          echo "Old genome build moved to ${GENOME_DIR%/}/$new_name"
+        fi
+      fi
+
+      echo "Building genome index in $GENOME_BUILD_DIR (runs in the foreground, can take an hour or more)"
+      if docker run --rm \
+        -v "$(realpath "$CONFIG_FILE"):/config.json:ro" \
+        -v "$(realpath "$GENOME_DIR"):/genome_dir" \
+        -v "$(realpath ./pre_pipeline/STAR_genomebuild.sh):/src/STAR_genomebuild.sh:ro" \
+        scaligner_v2_with_genomes_and_jq /bin/bash -c "conda run --no-capture-output -n star_env /bin/bash /src/STAR_genomebuild.sh" \
+        && [ -f "$GENOME_BUILD_DIR/SA" ]; then
+        GENOME_INDEX_DIR="$GENOME_BUILD_DIR/"
+        USE_CUSTOM_INDEX="y"
+        echo "Genome build finished. For future runs, set \"GENOME_INDEX_DIR\": \"genome_build/\" in config.json to reuse it."
+      else
+        echo "Genome build failed, skipping alignment. Check the STAR output above."
+        BUILD_FAILED="y"
+      fi
+    else
+      read -p "Align to GENOME_INDEX_DIR ($GENOME_INDEX_DIR) instead of the built-in genomes? [y/N]: " USE_CUSTOM_INDEX
+    fi
+
+    if [ -z "$BUILD_FAILED" ]; then
+      CUSTOM_INDEX_MOUNT=()
+      if [[ "$USE_CUSTOM_INDEX" =~ ^[Yy]$ ]]; then
+        echo "Using custom genome index: $GENOME_INDEX_DIR"
+        CUSTOM_INDEX_MOUNT=(-v "$(realpath "$GENOME_INDEX_DIR"):/genome_dir:ro")
+      fi
+
+      echo "Step 2.3: Running Docker container for alignment"
+      docker run -d \
+        -v "$(realpath "$DATA_DIR"):/data:ro" \
+        -v "$(realpath "$SHARED_MOUNT"):/shared_mount" \
+        -v "$(realpath "$CONFIG_FILE"):/config.json:ro" \
+        "${CUSTOM_INDEX_MOUNT[@]}" \
+        scaligner_v2_with_genomes_and_jq /bin/bash -c "conda run -n star_env /bin/bash -c 'cd /src && ./STAR.sh'"
+    fi
   fi
 fi
 
