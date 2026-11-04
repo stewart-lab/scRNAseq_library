@@ -16,6 +16,16 @@ with open(config_path, "r") as f:
 config["lanes"] = []
 gene_full_dirs = []
 
+# Which STARsolo count matrix to load from Solo.out/: "Gene" (exonic only, default)
+# or "GeneFull" (exonic + intronic). GeneFull discards reads overlapping two
+# same-strand genes, so genes nested in another gene's intron (e.g. human SOX2
+# inside SOX2-OT) can drop to zero counts.
+VALID_SOLO_FEATURES = {"Gene", "GeneFull", "GeneFull_Ex50pAS", "GeneFull_ExonOverIntron"}
+solo_feature = config.get("solo_feature", "Gene")
+if solo_feature not in VALID_SOLO_FEATURES:
+    raise ValueError(f"solo_feature '{solo_feature}' in config.json must be one of {sorted(VALID_SOLO_FEATURES)}")
+print(f"Using STARsolo {solo_feature} matrices")
+
 # Process directories
 search_dir = "./shared_mount"
 if config.get("parse", False) == True:
@@ -103,7 +113,7 @@ else:
 
     for root, dirs, files in os.walk(search_dir):
         for dir in dirs:
-            if dir == "GeneFull":
+            if dir == solo_feature:
                 gene_full_path = os.path.join("/scRNA-seq", root, dir)
                 clean_path = os.path.normpath(gene_full_path)
                 # Extract lane name from the path - go up two levels from GeneFull
@@ -137,7 +147,7 @@ else:
                                     print(f"Failed to gzip {file_path}: {e}")
 
 if not gene_full_dirs:
-    warnings.warn("No GeneFull directories found. The config.json will be empty for lanes.")
+    warnings.warn(f"No {solo_feature} directories found. The config.json will be empty for lanes.")
 
 # Update config.json
 config["lanes"] = gene_full_dirs

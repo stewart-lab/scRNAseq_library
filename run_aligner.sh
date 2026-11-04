@@ -1,7 +1,12 @@
 #!/bin/bash
+# usage: source run_aligner.sh [config.json]   (defaults to ./config.json)
+CONFIG_FILE="${1:-./config.json}"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "Config file $CONFIG_FILE not found"
+  return 1 2>/dev/null || exit 1
+fi
 
-echo "Step 1: Importing DATA_DIR from config.json"
-CONFIG_FILE="./config.json"
+echo "Step 1: Importing DATA_DIR from $CONFIG_FILE"
 DATA_DIR=$(python -c "import json; print(json.load(open('$CONFIG_FILE'))['DATA_DIR'])")
 echo "DATA_DIR imported as $DATA_DIR"
 
@@ -76,7 +81,7 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
         && [ -f "$GENOME_BUILD_DIR/SA" ]; then
         GENOME_INDEX_DIR="$GENOME_BUILD_DIR/"
         USE_CUSTOM_INDEX="y"
-        echo "Genome build finished. For future runs, set \"GENOME_INDEX_DIR\": \"genome_build/\" in config.json to reuse it."
+        echo "Genome build finished. For future runs, set \"GENOME_INDEX_DIR\": \"genome_build/\" in $CONFIG_FILE to reuse it."
       else
         echo "Genome build failed, skipping alignment. Check the STAR output above."
         BUILD_FAILED="y"
@@ -103,7 +108,7 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
   fi
 fi
 
-echo "Step 3: Updating config.json"
+echo "Step 3: Copying $CONFIG_FILE to sc_pipeline/src/config.json"
 if [ -f "./sc_pipeline/src/config.json" ]; then
   rm ./sc_pipeline/src/config.json
 fi

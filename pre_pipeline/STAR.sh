@@ -20,7 +20,7 @@ GENOME_DIRS["pig"]="/usr/local/bin/pig_genome/Sus_scrofa_genome_forstar_MT"
 CUSTOM_GENOME_DIR="/genome_dir"
 
 # Define SOLO_FEATURES and SOLO_CELL_FILTER
-SOLO_FEATURES="Gene GeneFull SJ Velocyto"
+SOLO_FEATURES="Gene GeneFull GeneFull_Ex50pAS SJ Velocyto"
 SOLO_CELL_FILTER="EmptyDrops_CR"
 
 # Fetch all sample names from the config file
@@ -58,6 +58,14 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   isBarcodeFollowedbyReads=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads" $CONFIG_FILE)
   soloStrand=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.soloStrand" $CONFIG_FILE)
   FIVE_PRIME=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.FIVE_PRIME // false" $CONFIG_FILE)
+  # Optional CellRanger-matching and BAM output settings; left at STAR defaults when absent from the config
+  SOLO_UMI_FILTERING=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.SOLO_UMI_FILTERING // empty" $CONFIG_FILE)
+  SOLO_CB_MATCH_WL_TYPE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.SOLO_CB_MATCH_WL_TYPE // empty" $CONFIG_FILE)
+  CLIP_ADAPTER_TYPE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.CLIP_ADAPTER_TYPE // empty" $CONFIG_FILE)
+  OUT_FILTER_SCORE_MIN=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.OUT_FILTER_SCORE_MIN // empty" $CONFIG_FILE)
+  OUT_SAM_TYPE=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.OUT_SAM_TYPE // empty" $CONFIG_FILE)
+  OUT_SAM_ATTRIBUTES=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.OUT_SAM_ATTRIBUTES // empty" $CONFIG_FILE)
+  LIMIT_BAM_SORT_RAM=$(jq -r ".fastq_alignment.${SAMPLE_KEY}.LIMIT_BAM_SORT_RAM // empty" $CONFIG_FILE)
 
   # Determine SOLO_CB_WHITELIST and SOLO_UMI_LEN based on CHEMISTRY_VERSION
   if [ "$CHEMISTRY_VERSION" == "V2" ]; then
@@ -102,6 +110,16 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     if [ -n "$soloStrand" ] && [ "$soloStrand" != "null" ]; then
       STAR_OPTIONS+=" --soloStrand $soloStrand"
     fi
+
+    [ -n "$SOLO_UMI_FILTERING" ] && STAR_OPTIONS+=" --soloUMIfiltering $SOLO_UMI_FILTERING"
+    [ -n "$SOLO_CB_MATCH_WL_TYPE" ] && STAR_OPTIONS+=" --soloCBmatchWLtype $SOLO_CB_MATCH_WL_TYPE"
+    [ -n "$CLIP_ADAPTER_TYPE" ] && STAR_OPTIONS+=" --clipAdapterType $CLIP_ADAPTER_TYPE"
+    [ -n "$OUT_FILTER_SCORE_MIN" ] && STAR_OPTIONS+=" --outFilterScoreMin $OUT_FILTER_SCORE_MIN"
+    # OUT_SAM_TYPE and OUT_SAM_ATTRIBUTES are space-separated lists, word-split into separate args below
+    [ -n "$OUT_SAM_TYPE" ] && STAR_OPTIONS+=" --outSAMtype $OUT_SAM_TYPE"
+    [ -n "$OUT_SAM_ATTRIBUTES" ] && STAR_OPTIONS+=" --outSAMattributes $OUT_SAM_ATTRIBUTES"
+    [ -n "$LIMIT_BAM_SORT_RAM" ] && STAR_OPTIONS+=" --limitBAMsortRAM $LIMIT_BAM_SORT_RAM"
+    echo "Extra STAR options for ${SAMPLE_NAME}_lane${i}:$STAR_OPTIONS"
     # Create output directory in shared volume
     mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
 

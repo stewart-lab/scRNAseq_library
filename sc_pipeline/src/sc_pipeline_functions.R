@@ -307,13 +307,29 @@ run_and_visualize_pca <- function(seurat_obj, path) {
 }
 
 
+# Short "Lane N" plotting labels so long orig.ident names don't squash plots.
+# Uses the trailing "_laneN" number when present, otherwise the identity order.
+# orig.ident itself is left untouched (Harmony etc. still group on it).
+add_lane_labels <- function(seurat_obj) {
+  ids <- as.character(seurat_obj$orig.ident)
+  uniq <- sort(unique(ids))
+  lane_num <- suppressWarnings(as.integer(sub(".*_lane([0-9]+)$", "\\1", uniq, ignore.case = TRUE)))
+  if (anyNA(lane_num) || anyDuplicated(lane_num)) lane_num <- seq_along(uniq)
+  labels <- paste("Lane", lane_num)
+  map <- setNames(labels, uniq)
+  message("Lane label mapping:\n", paste(sprintf("  %s -> %s", uniq, labels), collapse = "\n"))
+  seurat_obj$lane <- factor(unname(map[ids]), levels = labels[order(lane_num)])
+  seurat_obj
+}
+
 perform_batch_correction <- function(seurat_obj, path) {
   dims.use <- 1:config$perform_batch_correction$dims.use
   max_iter <- config$perform_batch_correction$max_iter
+  seurat_obj <- add_lane_labels(seurat_obj)
 
   pdf(file.path(path, "batch_uncorrected_pca.pdf"), width = 8, height = 6)
-  p1_pre <- DimPlot(seurat_obj, reduction = "pca", pt.size = .1, group.by = "orig.ident")
-  p2_pre <- VlnPlot(seurat_obj, features = "PC_1", group.by = "orig.ident", pt.size = .1)
+  p1_pre <- DimPlot(seurat_obj, reduction = "pca", pt.size = .1, group.by = "lane")
+  p2_pre <- VlnPlot(seurat_obj, features = "PC_1", group.by = "lane", pt.size = .1)
   print(p1_pre + p2_pre)
   dev.off()
 
@@ -321,8 +337,8 @@ perform_batch_correction <- function(seurat_obj, path) {
   harmony_embeddings <- Embeddings(seurat_obj, "harmony")
 
   pdf(file.path(path, "batch_corrected_pca.pdf"), width = 8, height = 6)
-  p1_post <- DimPlot(seurat_obj, reduction = "harmony", pt.size = .1, group.by = "orig.ident")
-  p2_post <- VlnPlot(seurat_obj, features = "harmony_1", group.by = "orig.ident", pt.size = .1)
+  p1_post <- DimPlot(seurat_obj, reduction = "harmony", pt.size = .1, group.by = "lane")
+  p2_post <- VlnPlot(seurat_obj, features = "harmony_1", group.by = "lane", pt.size = .1)
   print(p1_post + p2_post)
   dev.off()
 
@@ -494,8 +510,9 @@ perform_clustering <- function(seurat_obj, path) {
   # }
 
   # Generate plots
+  if (!"lane" %in% colnames(seurat_obj@meta.data)) seurat_obj <- add_lane_labels(seurat_obj)
   pdf(paste0(path, "umap_lanes.pdf"), width = 8, height = 6)
-  print(DimPlot(seurat_obj, reduction = "umap", group.by = "orig.ident", pt.size = .5))
+  print(DimPlot(seurat_obj, reduction = "umap", group.by = "lane", pt.size = .5))
   dev.off()
 
   pdf(paste0(path, "umap_clusters.pdf"), width = 8, height = 6)

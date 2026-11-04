@@ -12,7 +12,7 @@ if [ ! -w /shared_mount ]; then
 fi
 
 # Define SOLO_FEATURES and SOLO_CELL_FILTER
-SOLO_FEATURES="Gene GeneFull SJ Velocyto"
+SOLO_FEATURES="Gene GeneFull GeneFull_Ex50pAS SJ Velocyto"
 SOLO_CELL_FILTER="EmptyDrops_CR"
 
 # define genome dir
@@ -51,6 +51,14 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
   clip5pNbases=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.clip5pNbases")
   isBarcodeFollowedbyReads=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.isBarcodeFollowedbyReads")
   soloStrand=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.soloStrand")
+  # Optional CellRanger-matching and BAM output settings; left at STAR defaults when absent from the config
+  SOLO_UMI_FILTERING=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.SOLO_UMI_FILTERING")
+  SOLO_CB_MATCH_WL_TYPE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.SOLO_CB_MATCH_WL_TYPE")
+  CLIP_ADAPTER_TYPE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.CLIP_ADAPTER_TYPE")
+  OUT_FILTER_SCORE_MIN=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.OUT_FILTER_SCORE_MIN")
+  OUT_SAM_TYPE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.OUT_SAM_TYPE")
+  OUT_SAM_ATTRIBUTES=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.OUT_SAM_ATTRIBUTES")
+  LIMIT_BAM_SORT_RAM=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.LIMIT_BAM_SORT_RAM")
 
   # Determine SOLO_CB_WHITELIST and SOLO_UMI_LEN based on CHEMISTRY_VERSION
   if [ "$CHEMISTRY_VERSION" == "V2" ]; then
@@ -96,6 +104,16 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     if [ -n "$soloStrand" ]; then
       STAR_OPTIONS+=" --soloStrand $soloStrand"
     fi
+
+    [ -n "$SOLO_UMI_FILTERING" ] && STAR_OPTIONS+=" --soloUMIfiltering $SOLO_UMI_FILTERING"
+    [ -n "$SOLO_CB_MATCH_WL_TYPE" ] && STAR_OPTIONS+=" --soloCBmatchWLtype $SOLO_CB_MATCH_WL_TYPE"
+    [ -n "$CLIP_ADAPTER_TYPE" ] && STAR_OPTIONS+=" --clipAdapterType $CLIP_ADAPTER_TYPE"
+    [ -n "$OUT_FILTER_SCORE_MIN" ] && STAR_OPTIONS+=" --outFilterScoreMin $OUT_FILTER_SCORE_MIN"
+    # OUT_SAM_TYPE and OUT_SAM_ATTRIBUTES are space-separated lists, word-split into separate args below
+    [ -n "$OUT_SAM_TYPE" ] && STAR_OPTIONS+=" --outSAMtype $OUT_SAM_TYPE"
+    [ -n "$OUT_SAM_ATTRIBUTES" ] && STAR_OPTIONS+=" --outSAMattributes $OUT_SAM_ATTRIBUTES"
+    [ -n "$LIMIT_BAM_SORT_RAM" ] && STAR_OPTIONS+=" --limitBAMsortRAM $LIMIT_BAM_SORT_RAM"
+    echo "Extra STAR options for ${SAMPLE_NAME}_lane${i}:$STAR_OPTIONS"
     # Create output directory in shared volume
     mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
 
