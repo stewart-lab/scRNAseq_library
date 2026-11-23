@@ -80,10 +80,35 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     continue
   fi
 
-  # Process each lane for the current sample
-  for i in $(seq 1 $NUM_LANES); do
-    cDNA_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.cDNA_LANE${i}")
-    BARCODE_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.BARCODE_LANE${i}")
+  # COMBINE_LANES=true: one STARsolo run over all lanes of the sample (lanes of
+  # one library hold the same cells; STARsolo collapses UMIs across lanes), with
+  # comma-separated FASTQs and output in /shared_mount/<NAME>/.  Otherwise one
+  # run per lane into /shared_mount/<NAME>_lane<i>/ as before.
+  COMBINE_LANES=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.COMBINE_LANES")
+  if [[ "${COMBINE_LANES,,}" == "true" ]]; then
+    cDNA_ALL=""
+    BARCODE_ALL=""
+    for i in $(seq 1 $NUM_LANES); do
+      cDNA_ALL+="${cDNA_ALL:+,}$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.cDNA_LANE${i}")"
+      BARCODE_ALL+="${BARCODE_ALL:+,}$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.BARCODE_LANE${i}")"
+    done
+    RUN_IDS=(combined)
+    echo "COMBINE_LANES: aligning $NUM_LANES lanes of $SAMPLE_NAME in one STARsolo run"
+  else
+    RUN_IDS=($(seq 1 $NUM_LANES))
+  fi
+
+  # Process each lane (or the combined lanes) for the current sample
+  for i in "${RUN_IDS[@]}"; do
+    if [ "$i" = combined ]; then
+      cDNA_LANE=$cDNA_ALL
+      BARCODE_LANE=$BARCODE_ALL
+      OUT_NAME=$SAMPLE_NAME
+    else
+      cDNA_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.cDNA_LANE${i}")
+      BARCODE_LANE=$(get_json_nested_value "fastq_alignment.${SAMPLE_KEY}.BARCODE_LANE${i}")
+      OUT_NAME=${SAMPLE_NAME}_lane${i}
+    fi
 
     # Define STAR options based on the configuration
     STAR_OPTIONS=""
@@ -113,9 +138,9 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     [ -n "$OUT_SAM_TYPE" ] && STAR_OPTIONS+=" --outSAMtype $OUT_SAM_TYPE"
     [ -n "$OUT_SAM_ATTRIBUTES" ] && STAR_OPTIONS+=" --outSAMattributes $OUT_SAM_ATTRIBUTES"
     [ -n "$LIMIT_BAM_SORT_RAM" ] && STAR_OPTIONS+=" --limitBAMsortRAM $LIMIT_BAM_SORT_RAM"
-    echo "Extra STAR options for ${SAMPLE_NAME}_lane${i}:$STAR_OPTIONS"
+    echo "Extra STAR options for ${OUT_NAME}:$STAR_OPTIONS"
     # Create output directory in shared volume
-    mkdir -p /shared_mount/${SAMPLE_NAME}_lane${i}
+    mkdir -p /shared_mount/${OUT_NAME}
 
     # Run STAR command with options for the current sample and lane
     STAR --genomeDir $GENOME_DIR \
@@ -127,12 +152,12 @@ for ((SAMPLE_IDX=1; SAMPLE_IDX<=NUMBER_OF_SAMPLES; SAMPLE_IDX++)); do
     --soloCellFilter $SOLO_CELL_FILTER --soloMultiMappers $SOLO_MULTI_MAPPERS \
     --soloUMIdedup $SOLO_UMI_DEDUP \
     $STAR_OPTIONS \
-    --outFileNamePrefix "/shared_mount/${SAMPLE_NAME}_lane${i}/" \
+    --outFileNamePrefix "/shared_mount/${OUT_NAME}/" \
     --runThreadN $RUN_THREAD_N \
     --runDirPerm All_RWX # Add this line to set file permissions
 
     # Log the completion of each lane
-    echo "Completed processing ${SAMPLE_NAME}_lane${i}" >> /shared_mount/alignment_log.txt
+    echo "Completed processing ${OUT_NAME}" >> /shared_mount/alignment_log.txt
   done
 done
 

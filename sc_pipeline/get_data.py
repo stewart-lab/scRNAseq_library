@@ -108,6 +108,14 @@ else:
         sample["NAME"] for sample in fastq_alignment.values()
         if isinstance(sample, dict) and "NAME" in sample
     }
+    # COMBINE_LANES samples were aligned (or merged with 02_merge_lanes.py) into
+    # one folder <NAME>/; the others have one folder per lane, <NAME>_lane<i>/.
+    # Take only the matching layout so leftovers of the other never double-count.
+    combine_lanes = {
+        sample["NAME"]: str(sample.get("COMBINE_LANES", False)).lower() == "true"
+        for sample in fastq_alignment.values()
+        if isinstance(sample, dict) and "NAME" in sample
+    }
     if not expected_sample_names:
         warnings.warn("No NAME entries found in fastq_alignment; check your config file.")
 
@@ -124,6 +132,15 @@ else:
 
                 if sample_name not in expected_sample_names:
                     print(f"Skipping {clean_path}: sample '{sample_name}' not declared in fastq_alignment")
+                    continue
+                is_lane_dir = match is not None
+                if combine_lanes.get(sample_name) and is_lane_dir:
+                    print(f"Skipping {clean_path}: COMBINE_LANES is true for '{sample_name}', "
+                          f"using {sample_name}/ instead of per-lane folders")
+                    continue
+                if not combine_lanes.get(sample_name) and not is_lane_dir:
+                    print(f"Skipping {clean_path}: combined-lanes folder, but COMBINE_LANES "
+                          f"is not true for '{sample_name}'")
                     continue
 
                 gene_full_dirs.append({"name": name, "base_directory": clean_path})

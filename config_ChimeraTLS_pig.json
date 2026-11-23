@@ -1,0 +1,139 @@
+{
+    "title": "ChimeraTLS_20H80P_mapped2pigonly2",
+    "annotation_reference": false,
+    "DE_method": "Scran",
+    "Number_of_samples": 1,
+    "lanes": [],
+    "parse": false,
+    "solo_feature": "Gene",
+    "DATA_DIR": "/w5home/bmoore/sequencing/LFJ_somite/",
+    "GENOME_DIR": "/w5home/bmoore/genomes/pig_genome/ensemble/",
+    "GENOME_FASTA": "Sus_scrofa.Sscrofa11.1.dna.primary_assembly.allchr.fa",
+    "GENOME_GTF": "Sus_scrofa.Sscrofa11.1.109.chr.filtered.3pext.gtf",
+    "GENOME_INDEX_DIR": "genome_build/",
+    "GENOME_NAME": "pig_genome",
+    "RUN_THREAD_N": 16,
+    "fastq_alignment": {
+        "SAMPLE_1": {
+            "NAME": "ChimeraTLS_20H80P_mapped2pigonly2",
+            "species": "pig",
+            "SPECIES_BARCODES": "/w5home/bmoore/scRNAseq/LiFangChu/10x_somite_data/chimera_data/ChimeraTLS_20H80P_3pext/classified_cells_h0.8_p0.9_nd/barcodes_pig.txt",
+            "SOUPX_RHO": 0.172,
+            "NUM_LANES": 2,
+            "COMBINE_LANES": true,
+            "cDNA_LANE1": "/data/ChimeraTLS_20H80P_D3_F20CH5_S3_L001_R2_001.fastq.gz",
+            "BARCODE_LANE1": "/data/ChimeraTLS_20H80P_D3_F20CH5_S3_L001_R1_001.fastq.gz",
+            "cDNA_LANE2": "/data/ChimeraTLS_20H80P_D3_F20CH5_S3_L002_R2_001.fastq.gz",
+            "BARCODE_LANE2": "/data/ChimeraTLS_20H80P_D3_F20CH5_S3_L002_R1_001.fastq.gz",
+            "CHEMISTRY_VERSION": "V4",
+            "SOLO_TYPE": "CB_UMI_Simple",
+            "SOLO_MULTI_MAPPERS": "EM",
+            "READ_FILES_COMMAND": "zcat|gunzip -c",
+            "SOLO_UMI_DEDUP": "1MM_CR",
+            "RUN_THREAD_N": 16,
+            "isBarcodeFollowedbyReads": false,
+            "soloStrand": "Forward",
+            "SOLO_UMI_FILTERING": "MultiGeneUMI_CR",
+            "SOLO_CB_MATCH_WL_TYPE": "1MM_multi_Nbase_pseudocounts",
+            "CLIP_ADAPTER_TYPE": "CellRanger4",
+            "OUT_FILTER_SCORE_MIN": 30,
+            "OUT_SAM_TYPE": "BAM SortedByCoordinate",
+            "OUT_SAM_ATTRIBUTES": "NH HI AS nM CB UB GX GN",
+            "LIMIT_BAM_SORT_RAM": 100000000000
+        }
+    },
+    "fastq_alignment_parse": {
+        "Number_of_runs": "NA",
+        "OUT_DIR": "Chu_parse_analysis_20260724/",
+        "species": "human",
+        "RUN_1": {
+            "NAME": "S39",
+            "MODE": "all",
+            "CHEM": "v3",
+            "KIT": "WT",
+            "cDNA_LANE": "/data/hsplit-fq_S39/S39_H1D1_R1.fastq.gz",
+            "BARCODE_LANE": "/data/hsplit-fq_S39/S39_H1D1_R2.fastq.gz",
+            "RUN_THREAD_N": 16,
+            "SAMPLE_LIST": "samples_well_table_test.prn",
+            "KIT_SCORE_SKIP": true,
+            "START_TIMEOUT": 120
+        }
+    },
+    "process_matrix": false,
+    "prep_seurat_and_soupX": {
+        "dims": 30,
+        "umap.method": "umap-learn",
+        "tfidfMin": 0.3,
+        "min.cells": 3
+    },
+    "filter_cells": {
+        "lower.nFeature": 100,
+        "upper.nFeature": 25000,
+        "max.percent.mt": 10
+    },
+    "ortholog_subset": {
+        "ortholog_file": "NA",
+        "ref_species": "human"
+    },
+    "normalize_data": {
+        "min_size": 20,
+        "min_mean": 0.1,
+        "feature": "ECHS1"
+    },
+    "feature_selection": {
+        "n_features": 2000,
+        "analysis_type": "Scry"
+    },
+    "scale_data": {
+        "vars.2.regress": "cell.cycle",
+        "marker.path.s": "../cell_cycle_vignette/cell_cycle_orthologs_s.genes.txt",
+        "marker.path.g2m": "../cell_cycle_vignette/cell_cycle_orthologs_g2m.genes.txt",
+        "sequential_regression": false
+    },
+    "run_and_visualize_pca": {
+        "top_n_dims": 2,
+        "heatmap_dims": 15,
+        "num_cells": 500,
+        "dims": 20,
+        "num.replicate": "NA"
+    },
+    "run_umap": {
+        "dims_umap": 20,
+        "umap.method": "umap-learn",
+        "umap.red": "harmony"
+    },
+    "perform_batch_correction": {
+        "dims.use": 20,
+        "max_iter": 50
+    },
+    "perform_clustering": {
+        "reduction": "harmony",
+        "resolution": 0.9,
+        "algorithm": "leiden",
+        "dims_snn": 10
+    },
+    "find_differentially_expressed_features": {
+        "min_pct": 0.25,
+        "logfc_threshold": 0.25,
+        "top_n": 11
+    },
+    "get_metadata": {
+        "metadata_file_ref": "NA",
+        "metadata_file_query": "NA",
+        "metadata_subset1": "NA",
+        "metadata_subset2": "NA"
+    },
+    "score_and_plot_markers": {
+        "top_n_markers": 100,
+        "known_markers": "TRUE",
+        "known_markers_path": "../known_marker_lists/Pranav-Chu_markerList.txt",
+        "cluster_type": "seurat_clusters",
+        "pairwise": "FALSE",
+        "logFC_thresh": 0.25,
+        "auc_thresh": 0.5
+    },
+    "process_known_markers": {
+        "annot_type": "manual",
+        "n_rank": 10
+    }
+}

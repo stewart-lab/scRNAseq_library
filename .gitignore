@@ -16,3 +16,6 @@ data/3M-february-2018_TRU.txt
 data/737K-august-2016.txt
 pre_pipeline/3M-3pgex-may-2023_TRU.txt
 pre_pipeline/3M-5pgex-jan-2023.txt
+config_hSomitoid.json
+pig_config.json
+config_ChimeraTLS_pig.json
